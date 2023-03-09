@@ -1,9 +1,6 @@
-import { ThemeProvider } from "@emotion/react";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Container,
   Grid,
   styled,
@@ -12,7 +9,6 @@ import {
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import type { NextPage } from "next";
 import Head from "next/head";
-import Image from "next/image";
 import Link from "next/link";
 
 import WalletList from "../components/WalletList";
@@ -80,12 +76,17 @@ const Home: NextPage = () => {
                     </Link>
                   </Box>
                 )}
+                <Box sx={{ mt: 3 }}>
+                  <Link href={`/bridge-nevm-rollux`}>
+                    <Button variant="text" color="secondary">
+                      <ArrowForwardIcon /> Go to Rollux Bridge
+                    </Button>
+                  </Link>
+                </Box>
               </Grid>
             </Grid>
           </Grid>
-
         </Grid>
-
 
         <Container>
           <HomeHowItWorks />
@@ -93,7 +94,6 @@ const Home: NextPage = () => {
         <Box component={FAQ} mb={3} />
         <Box component={ContactUs} mb={3} />
       </Box>
-
 
       <Footer />
     </Box>
