@@ -29,36 +29,41 @@ const dappConfig: Config = {
   networks: [RolluxChain, TanenbaumChain],
 };
 
-function MyApp({ Component, pageProps, router }: AppProps) {
-  console.log({ path: router.pathname });
-  if (router.pathname === '/bridge-nevm-rollux') {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <DAppProvider config={dappConfig}>
-          <MetamaskProvider>
-            <ConnectedWalletProvider>
-              <NetworkValidator>
-                <Header />
-                <Component {...pageProps} />
-              </NetworkValidator>
-            </ConnectedWalletProvider>
-          </MetamaskProvider>
-        </DAppProvider>
-      </QueryClientProvider>
-    );
-  }
+const BaseProviders: React.FC<{ children: React.ReactElement }> = ({
+  children,
+}) => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider theme={theme}>
         <PaliWalletContextProvider>
           <MetamaskProvider>
-            <ConnectedWalletProvider>
-              <Component {...pageProps} />
-            </ConnectedWalletProvider>
+            <ConnectedWalletProvider>{children}</ConnectedWalletProvider>
           </MetamaskProvider>
         </PaliWalletContextProvider>
       </ThemeProvider>
     </QueryClientProvider>
+  );
+};
+
+function MyApp({ Component, pageProps, router }: AppProps) {
+  console.log({ path: router.pathname });
+  if (router.pathname === "/bridge-nevm-rollux") {
+    return (
+      <BaseProviders>
+        <DAppProvider config={dappConfig}>
+          <NetworkValidator>
+            <Header />
+            <Component {...pageProps} />
+          </NetworkValidator>
+        </DAppProvider>
+      </BaseProviders>
+    );
+  }
+
+  return (
+    <BaseProviders>
+      <Component {...pageProps} />
+    </BaseProviders>
   );
 }
 
