@@ -50,6 +50,10 @@ interface Provider {
   disable: () => Promise<string[]>;
 }
 
+export interface IPaliWalletV2Context extends IPaliWalletContext {
+  chainType: string | undefined;
+}
+
 declare global {
   interface Window {
     pali: Provider;
@@ -125,7 +129,7 @@ export const PaliWalletV2Provider: React.FC<{
     };
   }, []);
 
-  const value: IPaliWalletContext = useMemo(
+  const value: IPaliWalletV2Context = useMemo(
     () => ({
       isInstalled,
       sendTransaction,
@@ -138,6 +142,7 @@ export const PaliWalletV2Provider: React.FC<{
       connectedAccount: sysAddress,
       xpubAddress,
       version: "v2",
+      chainType: providerState.data?.chainId === "0x39" ? "nevm" : "syscoin",
     }),
     [
       isInstalled,

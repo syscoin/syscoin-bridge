@@ -10,7 +10,36 @@ import { RocketLaunch } from "@mui/icons-material";
 
 import { FieldValues, useForm } from "react-hook-form";
 import { useTransfer } from "../../../contexts/Transfer/useTransfer";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
+import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
+import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+
+const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const {
+    transfer: { type },
+  } = useTransfer();
+  const paliwallet = usePaliWallet() as IPaliWalletV2Context;
+
+  if (paliwallet.version === "v2") {
+    const isSyscoinIncorrectNetwork =
+      paliwallet.chainType === "nevm" && type === "sys-to-nevm";
+
+    if (isSyscoinIncorrectNetwork) {
+      return <Button>Switch to Syscoin</Button>;
+    }
+
+    const isNevmIncorrectNetwork =
+      paliwallet.chainType === "syscoin" && type === "nevm-to-sys";
+
+    if (isNevmIncorrectNetwork) {
+      return <Button>Switch to NEVM</Button>;
+    }
+  }
+
+  return <>{children}</>;
+};
 
 const BridgeTransferForm: React.FC = () => {
   const { startTransfer, maxAmount } = useTransfer();
@@ -36,7 +65,7 @@ const BridgeTransferForm: React.FC = () => {
           label="Amount"
           placeholder="0.1"
           margin="dense"
-          inputProps={{ inputMode: "numeric", pattern: "[0-9]+(\.?[0-9]+)?" }}
+          inputProps={{ inputMode: "numeric", pattern: "[0-9]+(.?[0-9]+)?" }}
           InputProps={{
             endAdornment: <InputAdornment position="end">SYS</InputAdornment>,
           }}
@@ -61,13 +90,15 @@ const BridgeTransferForm: React.FC = () => {
           error={!!errors.amount}
           helperText={<>{errors.amount && errors.amount.message}</>}
         />
-        <Button
-          variant="contained"
-          type="submit"
-          disabled={!isDirty || !isValid}
-        >
-          Start Transfer <RocketLaunch />
-        </Button>
+        <InitializeChecks>
+          <Button
+            variant="contained"
+            type="submit"
+            disabled={!isDirty || !isValid}
+          >
+            Start Transfer <RocketLaunch />
+          </Button>
+        </InitializeChecks>
       </CardContent>
     </Card>
   );

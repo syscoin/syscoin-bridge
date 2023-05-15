@@ -23,7 +23,7 @@ export type EthToSysTransferStatus =
   | "completed"
   | "error";
 
-export type TransferStatus = SysToEthTransferStatus | EthToSysTransferStatus;
+export type TransferStatus = SysToEthTransferStatus | EthToSysTransferStatus | "switch";
 
 export interface ITransferLog<T = any> {
   status: TransferStatus;

@@ -1,6 +1,7 @@
 import { Alert, Step, StepLabel, Stepper } from "@mui/material";
 import { TransferStatus } from "contexts/Transfer/types";
 import { useTransfer } from "contexts/Transfer/useTransfer";
+import { useMemo } from "react";
 
 interface Step {
   id: TransferStatus;
@@ -65,7 +66,13 @@ const nevmToSysSteps: Step[] = [
   },
 ];
 
-const BridgeTransferStepper: React.FC = () => {
+type BridgeTransferStepperProps = {
+  version?: "v1" | "v2";
+};
+
+const BridgeTransferStepper: React.FC<BridgeTransferStepperProps> = (
+  { version } = { version: "v1" }
+) => {
   const {
     transfer: { type, status },
   } = useTransfer();
@@ -77,15 +84,47 @@ const BridgeTransferStepper: React.FC = () => {
     id: "completed",
     label: "Completed",
   };
-  let conditionalSteps: Step[] = [];
-  if (type === "sys-to-nevm") {
-    conditionalSteps = sysToNevmSteps;
-  } else if (type === "nevm-to-sys") {
-    conditionalSteps = nevmToSysSteps;
-  } else {
+  const mainSteps: Step[] = useMemo(() => {
+    let conditionalSteps = [];
+    if (type === "sys-to-nevm") {
+      conditionalSteps = [...sysToNevmSteps];
+    } else if (type === "nevm-to-sys") {
+      conditionalSteps = [...nevmToSysSteps];
+    } else {
+      return [] as Step[];
+    }
+
+    if (version === "v2") {
+      if (type === "sys-to-nevm") {
+        const submitProofsIndex = conditionalSteps.findIndex(
+          (step) => step.id === "submit-proofs"
+        );
+        const switchStep: Step = {
+          id: "switch",
+          label: "Switch to NEVM",
+        };
+
+        conditionalSteps.splice(submitProofsIndex, 0, switchStep);
+      } else if (type === "nevm-to-sys") {
+        const mintSysxIndex = conditionalSteps.findIndex(
+          (step) => step.id === "mint-sysx"
+        );
+        const switchStep: Step = {
+          id: "switch",
+          label: "Switch to SYSCOIN",
+        };
+
+        conditionalSteps.splice(mintSysxIndex, 0, switchStep);
+      }
+    }
+    return conditionalSteps;
+  }, [type, version]);
+
+  if (mainSteps.length === 0) {
     return <Alert severity="error">Invalid Transfer type</Alert>;
   }
-  const steps = [initializeStep, ...conditionalSteps, completeStep];
+
+  const steps = [initializeStep, ...mainSteps, completeStep];
   const activeStep = steps.findIndex((step) => step.id === status);
 
   return (
