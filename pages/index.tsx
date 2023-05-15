@@ -1,9 +1,6 @@
-import { ThemeProvider } from "@emotion/react";
 import {
   Box,
   Button,
-  Card,
-  CardContent,
   Container,
   Grid,
   styled,
@@ -12,7 +9,6 @@ import {
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import type { NextPage } from "next";
 import Head from "next/head";
-import Image from "next/image";
 import Link from "next/link";
 
 import WalletList from "../components/WalletList";
@@ -21,15 +17,58 @@ import HomeHowItWorks from "components/Home/HowItWorks";
 import ContactUs from "components/Home/ContactUs";
 import FAQ from "components/Home/FAQ";
 import Footer from "components/Footer";
+import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 
-const SectionContainer = styled(Box)({
-  padding: "4rem",
-});
-
-const Home: NextPage = () => {
+const PaliAndMetamaskBridge = () => {
   const { nevm, utxo } = useConnectedWallet();
 
   const isReady = nevm.account && utxo.xpub;
+  return (
+    <>
+      <WalletList />
+      {isReady && (
+        <Box display="flex" justifyContent="space-between">
+          <Link href={`/bridge/${Date.now()}`}>
+            <Button variant="contained">
+              Continue
+              <ArrowForwardIcon />
+            </Button>
+          </Link>
+          <Link href={`/transfers`}>
+            <Button variant="text" color="secondary">
+              View My Transfers
+            </Button>
+          </Link>
+        </Box>
+      )}
+    </>
+  );
+};
+
+const PaliV2Bridge = () => {
+  return (
+    <>
+      <Box display="flex" justifyContent="space-between">
+        <Link href={`/bridge/v2/${Date.now()}`}>
+          <Button variant="contained">
+            Go to PaliV2 Bridge
+            <ArrowForwardIcon />
+          </Button>
+        </Link>
+        <Link href={`/transfers`}>
+          <Button variant="text" color="secondary">
+            View My Transfers
+          </Button>
+        </Link>
+      </Box>
+    </>
+  );
+};
+
+const Home: NextPage = () => {
+  const { isInstalled, version } = usePaliWallet();
+
+  const isPaliVersion2 = isInstalled && version && version === "v2";
 
   return (
     <Box>
@@ -64,28 +103,11 @@ const Home: NextPage = () => {
                   Transfer SYS back and forth between the Syscoin and NEVM
                   Blockchain
                 </Typography>
-                <WalletList />
-                {isReady && (
-                  <Box display="flex" justifyContent="space-between">
-                    <Link href={`/bridge/${Date.now()}`}>
-                      <Button variant="contained">
-                        Continue
-                        <ArrowForwardIcon />
-                      </Button>
-                    </Link>
-                    <Link href={`/transfers`}>
-                      <Button variant="text" color="secondary">
-                        View My Transfers
-                      </Button>
-                    </Link>
-                  </Box>
-                )}
+                {isPaliVersion2 ? <PaliV2Bridge /> : <PaliAndMetamaskBridge />}
               </Grid>
             </Grid>
           </Grid>
-
         </Grid>
-
 
         <Container>
           <HomeHowItWorks />
@@ -93,7 +115,6 @@ const Home: NextPage = () => {
         <Box component={FAQ} mb={3} />
         <Box component={ContactUs} mb={3} />
       </Box>
-
 
       <Footer />
     </Box>

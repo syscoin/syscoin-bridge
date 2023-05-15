@@ -19,6 +19,7 @@ declare global {
       selectedAddress: string;
       on: (event: string, callback: (...args: any[]) => void) => void;
       networkVersion: string;
+      wallet: string
     } & provider;
   }
 }
@@ -102,7 +103,7 @@ const MetamaskProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   useEffect(() => {
-    if (typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask) {
+    if (typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask && window.ethereum.wallet !== 'pali-v2') {
       setIsEnabled(true);
       setWeb3(new Web3(window.ethereum));
       //LINK - switchToMainnet();

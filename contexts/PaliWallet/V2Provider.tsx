@@ -137,6 +137,7 @@ export const PaliWalletV2Provider: React.FC<{
       balance,
       connectedAccount: sysAddress,
       xpubAddress,
+      version: "v2",
     }),
     [
       isInstalled,

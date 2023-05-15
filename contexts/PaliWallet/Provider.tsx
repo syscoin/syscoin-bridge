@@ -41,6 +41,7 @@ export interface IPaliWalletContext {
     transaction: UTXOTransaction
   ) => Promise<{ tx: string; error?: any }>;
   isTestnet: boolean;
+  version: "v1" | "v2";
 }
 
 export const PaliWalletContext = createContext({} as IPaliWalletContext);
@@ -199,6 +200,7 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
         sendTransaction,
         balance,
         isTestnet: walletState?.activeNetwork !== "main",
+        version: "v1",
       }}
     >
       {children}
