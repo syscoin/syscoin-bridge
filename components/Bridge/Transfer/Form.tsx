@@ -23,18 +23,18 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   const paliwallet = usePaliWallet() as IPaliWalletV2Context;
 
   if (paliwallet.version === "v2") {
-    const isSyscoinIncorrectNetwork =
-      paliwallet.chainType === "nevm" && type === "sys-to-nevm";
-
-    if (isSyscoinIncorrectNetwork) {
-      return <Button>Switch to Syscoin</Button>;
-    }
-
-    const isNevmIncorrectNetwork =
-      paliwallet.chainType === "syscoin" && type === "nevm-to-sys";
-
-    if (isNevmIncorrectNetwork) {
-      return <Button>Switch to NEVM</Button>;
+    if (type === "sys-to-nevm" && !paliwallet.isBitcoinBased) {
+      return (
+        <Button onClick={() => paliwallet.switchTo("bitcoin")}>
+          Switch to Syscoin
+        </Button>
+      );
+    } else if (type === "nevm-to-sys" && paliwallet.isBitcoinBased) {
+      return (
+        <Button onClick={() => paliwallet.switchTo("ethereum")}>
+          Switch to NEVM
+        </Button>
+      );
     }
   }
 
@@ -76,7 +76,7 @@ const BridgeTransferForm: React.FC = () => {
               message: `You can transfer up to ${maxAmountFixed} SYS`,
             },
             min: {
-              value: 0.1,
+              value: 0.001,
               message: "Amount must be atleast 0.1",
             },
             required: {

@@ -18,6 +18,7 @@ import ConnectedWalletProvider from "../contexts/ConnectedWallet/Provider";
 import MetamaskProvider from "../contexts/Metamask/Provider";
 import PaliWalletContextProvider from "../contexts/PaliWallet/Provider";
 import "../styles/globals.css";
+import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
 
 const queryClient = new QueryClient();
 
@@ -41,15 +42,17 @@ function MyApp({ Component, pageProps }: AppProps) {
     <QueryClientProvider client={queryClient}>
       <PaliWalletV2Provider>
         <MetamaskProvider>
-          <ConnectedWalletProvider>
-            <DAppProvider config={dappConfig}>
-              {/* <NetworkValidator> */}
-              <ThemeProvider theme={theme}>
-                <Component {...pageProps} />
-              </ThemeProvider>
-              {/* </NetworkValidator> */}
-            </DAppProvider>
-          </ConnectedWalletProvider>
+          <NEVMProvider>
+            <ConnectedWalletProvider>
+              <DAppProvider config={dappConfig}>
+                {/* <NetworkValidator> */}
+                <ThemeProvider theme={theme}>
+                  <Component {...pageProps} />
+                </ThemeProvider>
+                {/* </NetworkValidator> */}
+              </DAppProvider>
+            </ConnectedWalletProvider>
+          </NEVMProvider>
         </MetamaskProvider>
       </PaliWalletV2Provider>
     </QueryClientProvider>

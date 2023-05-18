@@ -9,12 +9,13 @@ import {
 } from "react";
 import { syscoin, utils as syscoinUtils, UTXOTransaction } from "syscoinjs-lib";
 
-import { useMetamask } from "../Metamask/Provider";
 import { usePaliWallet } from "../PaliWallet/usePaliWallet";
 import { UTXOInfo, NEVMInfo, UTXOWallet, NEVMWallet } from "./types";
 import Web3 from "web3";
 import { TransactionReceipt } from "web3-core";
 import { useRouter } from "next/router";
+import { useNEVM } from "./NEVMProvider";
+import { useMetamask } from "@contexts/Metamask/Provider";
 
 export type SendUtxoTransaction = (
   transaction: UTXOTransaction
@@ -62,9 +63,10 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   const [nevmWalletType, setNevmWalletType] = useState<NEVMWallet>("metamask");
   const paliWallet = usePaliWallet();
   const metamask = useMetamask();
+  const nevm = useNEVM();
 
   const utxoAccount = paliWallet.connectedAccount;
-  const nevmAccount = metamask.account;
+  const nevmAccount = nevm.account;
 
   const connectUTXO = (type: UTXOWallet = "pali-wallet") => {
     if (type === "pali-wallet") {
@@ -75,7 +77,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
 
   const connectNEVM = (type: NEVMWallet) => {
     if (type === "metamask") {
-      metamask.requestAccounts();
+      nevm.requestAccounts();
     }
     setNevmWalletType(type);
   };
@@ -90,8 +92,8 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const refreshBalances = useCallback(() => {
-    metamask.fetchBalance();
-  }, [metamask]);
+    nevm.fetchBalance();
+  }, [nevm]);
 
   const confirmTransaction = useCallback(
     (
@@ -189,7 +191,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
         nevm: {
           type: nevmWalletType,
           account: nevmAccount,
-          balance: metamask.balance,
+          balance: nevm.balance,
         },
         utxo: {
           type: utxoWalletType,

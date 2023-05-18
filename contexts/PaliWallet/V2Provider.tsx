@@ -5,6 +5,7 @@ import { UTXOTransaction } from "syscoinjs-lib";
 import { IPaliWalletContext, PaliWalletContext } from "./Provider";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
+import MetamaskProvider from "@contexts/Metamask/Provider";
 
 export interface ProviderState {
   xpub: string;
@@ -48,10 +49,15 @@ interface Provider {
   request: (args: RequestArguments) => Promise<any>;
   enable: () => Promise<string[]>;
   disable: () => Promise<string[]>;
+  isBitcoinBased: () => boolean;
 }
+
+type PaliWalletNetworkType = "bitcoin" | "ethereum";
 
 export interface IPaliWalletV2Context extends IPaliWalletContext {
   chainType: string | undefined;
+  isBitcoinBased: boolean;
+  switchTo: (networkType: PaliWalletNetworkType) => void;
 }
 
 declare global {
@@ -64,7 +70,12 @@ export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
   const [isInstalled, setIsInstalled] = useState(false);
-
+  const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
+    queryFn: () => {
+      return window.pali.isBitcoinBased();
+    },
+    enabled: isInstalled,
+  });
   const providerState = useQuery<ProviderState>(["pali", "provider-state"], {
     queryFn: () => {
       return window.pali.request({
@@ -106,15 +117,19 @@ export const PaliWalletV2Provider: React.FC<{
     [connectedAccount.data, connectedAccount.isSuccess]
   );
 
-  const connectWallet = useCallback(() => {
-    window.pali.request({ method: "sys_requestAccounts" }).then(() => {
-      connectedAccount.refetch();
-    });
-  }, [connectedAccount]);
+  const connectWallet = useCallback(
+    (networkType: PaliWalletNetworkType = "bitcoin") => {
+      if (networkType === "bitcoin") {
+        window.pali.request({ method: "sys_requestAccounts" }).then(() => {
+          connectedAccount.refetch();
+        });
+      }
+    },
+    [connectedAccount]
+  );
 
   const sendTransaction = useCallback(async (utxo: UTXOTransaction) => {
-    // if()
-    const signedTransaction = window.pali.request({
+    const signedTransaction = await window.pali.request({
       method: "sys_signAndSend",
       params: [utxo],
     });
@@ -128,6 +143,35 @@ export const PaliWalletV2Provider: React.FC<{
       error: null,
     };
   }, []);
+
+  const switchTo = useCallback(
+    (networkType: PaliWalletNetworkType) => {
+      if (!isInstalled) {
+        return;
+      }
+
+      if (networkType === "bitcoin") {
+        window.pali.request({
+          method: "sys_changeUTXOEVM",
+          params: [
+            {
+              chainId: 57,
+            },
+          ],
+        });
+      } else if (networkType === "ethereum") {
+        window.ethereum.request({
+          method: "eth_changeUTXOEVM",
+          params: [
+            {
+              chainId: 57,
+            },
+          ],
+        });
+      }
+    },
+    [isInstalled]
+  );
 
   const value: IPaliWalletV2Context = useMemo(
     () => ({
@@ -143,6 +187,8 @@ export const PaliWalletV2Provider: React.FC<{
       xpubAddress,
       version: "v2",
       chainType: providerState.data?.chainId === "0x39" ? "nevm" : "syscoin",
+      isBitcoinBased: Boolean(isBitcoinBased.data),
+      switchTo,
     }),
     [
       isInstalled,
@@ -153,6 +199,8 @@ export const PaliWalletV2Provider: React.FC<{
       balance,
       sysAddress,
       xpubAddress,
+      isBitcoinBased.data,
+      switchTo,
     ]
   );
 
@@ -162,7 +210,7 @@ export const PaliWalletV2Provider: React.FC<{
 
   return (
     <PaliWalletContext.Provider value={value}>
-      {children}
+      <MetamaskProvider>{children}</MetamaskProvider>
     </PaliWalletContext.Provider>
   );
 };
