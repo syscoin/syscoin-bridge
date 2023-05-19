@@ -1,4 +1,4 @@
-import { NEVMNetwork } from "@contexts/Transfer/constants";
+import { BlockbookAPIURL, NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
@@ -129,17 +129,24 @@ export const PaliWalletV2Provider: React.FC<{
   );
 
   const sendTransaction = useCallback(async (utxo: UTXOTransaction) => {
-    const signedTransaction = await window.pali.request({
+    const signedPsbt = await window.pali.request({
       method: "sys_signAndSend",
       params: [utxo],
     });
 
+    if (signedPsbt.success === false) {
+      return Promise.reject("unable to sign transaction");
+    }
+
     const unserializedResp = syscoinUtils.importPsbtFromJson(
-      signedTransaction,
+      signedPsbt,
       syscoinUtils.syscoinNetworks.mainnet
     );
+
+    const transaction = unserializedResp.psbt.extractTransaction();
+
     return {
-      tx: unserializedResp.psbt.extractTransaction().getId(),
+      tx: transaction.getId(),
       error: null,
     };
   }, []);

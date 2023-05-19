@@ -12,7 +12,6 @@ import BridgeTransferStepSwitch from "components/Bridge/Transfer/StepSwitch";
 
 const Bridge: NextPage = () => {
   const router = useRouter();
-  const paliWallet = usePaliWallet();
   const { id } = router.query;
 
   if (!id) {
@@ -20,7 +19,7 @@ const Bridge: NextPage = () => {
   }
 
   return (
-    <TransferProvider id={id as string}>
+    <TransferProvider id={id as string} insertSwitchStep>
       <DrawerPage>
         <BlocktimeDisclaimer />
         <Container sx={{ mt: 10 }}>
@@ -33,7 +32,7 @@ const Bridge: NextPage = () => {
           </Typography>
           <TransferTitle />
           <BridgeWalletSwitch />
-          <BridgeTransferStepper version="v2" />
+          <BridgeTransferStepper />
           <Grid container>
             <Grid item xs="auto" sx={{ mx: "auto" }}>
               <BridgeTransferStepSwitch />

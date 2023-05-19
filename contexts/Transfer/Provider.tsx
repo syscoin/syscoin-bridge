@@ -21,6 +21,8 @@ import relayAbi from "./relay-abi";
 import Web3 from "web3";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
+import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
+import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -30,17 +32,20 @@ interface ITransferContext {
   retry: () => void;
   error?: any;
   revertToPreviousStatus: () => void;
+  steps: TransferStep[];
 }
 
 export const TransferContext = createContext({} as ITransferContext);
 
 type TransferProviderProps = {
   id: string;
+  insertSwitchStep?: boolean;
   children: React.ReactNode;
 };
 
 const TransferProvider: React.FC<TransferProviderProps> = ({
   id,
+  insertSwitchStep: insertSwitchSteps,
   children,
 }) => {
   const {
@@ -79,6 +84,37 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   const [initialized, setIsInitialized] = useState(false);
   const [previousStatus, setPreviousStatus] = useState<TransferStatus>();
   const [error, setError] = useState();
+
+  const steps = useMemo(() => {
+    let conditionalSteps: TransferStep[] = [];
+
+    if (transfer.type === "sys-to-nevm") {
+      conditionalSteps = [...sysToNevmSteps];
+    } else if (transfer.type === "nevm-to-sys") {
+      conditionalSteps = [...nevmToSysSteps];
+    }
+
+    if (insertSwitchSteps) {
+      const transferType = transfer.type;
+      const switchStep: TransferStep = {
+        id: "switch",
+        label:
+          transferType === "sys-to-nevm"
+            ? "Switch to NEVM"
+            : "Switch to SYSCOIN",
+      };
+
+      const targetStepId =
+        transferType === "sys-to-nevm" ? "submit-proofs" : "mint-sysx";
+      const targetStepIndex = conditionalSteps.findIndex(
+        (step) => step.id === targetStepId
+      );
+
+      conditionalSteps.splice(targetStepIndex, 0, switchStep);
+    }
+
+    return conditionalSteps;
+  }, [transfer.type, insertSwitchSteps]);
 
   const startTransfer = (amount: number) => {
     if (!utxo.xpub || !nevm.account) {
@@ -123,35 +159,43 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   };
 
   const runSideEffects = useCallback(() => {
-    if (transfer.type === "sys-to-nevm") {
-      runWithSysToNevmStateMachine({
-        transfer,
-        syscoinInstance,
-        web3,
-        utxo,
-        dispatch,
-        sendUtxoTransaction,
-        nevm,
-        relayContract,
-        confirmTransaction,
-      }).catch((err) => {
+    const sideEffectPromise =
+      transfer.type === "sys-to-nevm"
+        ? runWithSysToNevmStateMachine({
+            transfer,
+            syscoinInstance,
+            web3,
+            utxo,
+            dispatch,
+            sendUtxoTransaction,
+            nevm,
+            relayContract,
+            confirmTransaction,
+          })
+        : runWithNevmToSysStateMachine(
+            transfer,
+            web3,
+            syscoinInstance,
+            utxo,
+            sendUtxoTransaction,
+            dispatch,
+            confirmTransaction
+          );
+    sideEffectPromise
+      .catch((err) => {
         setError(err);
+      })
+      .then(() => {
+        const currentStepIndex = steps.findIndex(
+          (step) => step.id === transfer.status
+        );
+        const nextStep = steps[currentStepIndex + 1];
+        if (nextStep) {
+          dispatch(setStatus(nextStep.id));
+        } else if (transfer.status === "finalizing") {
+          dispatch(setStatus("completed"));
+        }
       });
-    } else if (transfer.type === "nevm-to-sys") {
-      runWithNevmToSysStateMachine(
-        transfer,
-        web3,
-        syscoinInstance,
-        utxo,
-        sendUtxoTransaction,
-        dispatch,
-        confirmTransaction
-      ).catch((err) => {
-        setError(err);
-      });
-    } else {
-      throw new Error("Unknown transfer type");
-    }
   }, [
     transfer,
     syscoinInstance,
@@ -162,6 +206,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     nevm,
     relayContract,
     confirmTransaction,
+    steps,
   ]);
 
   const revertToPreviousStatus = () => {
@@ -263,6 +308,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
         error,
         maxAmount,
         revertToPreviousStatus,
+        steps,
       }}
     >
       {children}

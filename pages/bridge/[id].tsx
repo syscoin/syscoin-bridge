@@ -22,6 +22,7 @@ import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { useMetamask } from "@contexts/Metamask/Provider";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
 import TransferTitle from "components/Bridge/Transfer/Title";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 
 interface Props {
   transfer: ITransfer;
@@ -30,7 +31,7 @@ interface Props {
 const Bridge: NextPage<Props> = ({ transfer }) => {
   const router = useRouter();
   const paliWallet = usePaliWallet();
-  const metamask = useMetamask();
+  const metamask = useNEVM();
   const { id } = router.query;
 
   if (!id) {

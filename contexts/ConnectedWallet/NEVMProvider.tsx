@@ -79,13 +79,19 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const fetchBalance = useCallback(() => {
-    if (!web3 || !account) {
+    if (!isEnabled || !web3 || !account) {
       return;
     }
+
+    // check if account is valid address
+    if (!web3.utils.isAddress(account)) {
+      return;
+    }
+
     web3.eth.getBalance(account).then((balance) => {
       setBalance(web3.utils.fromWei(balance || "0"));
     });
-  }, [web3, account]);
+  }, [web3, account, isEnabled]);
 
   const requestAccounts = () => {
     window.ethereum

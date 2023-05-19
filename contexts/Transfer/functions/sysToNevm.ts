@@ -45,9 +45,6 @@ const runWithSysToNevmStateMachine = async (
   } = params;
   switch (transfer.status) {
     case "burn-sys": {
-      if (transfer.logs.some((l) => l.status === "burn-sys")) {
-        return dispatch(setStatus("burn-sysx"));
-      }
       const burnSysTransaction = await burnSysToSysx(
         syscoinInstance,
         parseFloat(transfer.amount).toFixed(6),
@@ -60,7 +57,6 @@ const runWithSysToNevmStateMachine = async (
           dispatch(
             addLog("burn-sys", "Burning SYS to SYSX", burnSysTransactionReceipt)
           );
-          dispatch(setStatus("confirm-burn-sys"));
         })
         .catch((error) => {
           console.error("burn-sys error", error);
@@ -76,7 +72,6 @@ const runWithSysToNevmStateMachine = async (
       if (!transactionRaw) {
         return;
       }
-      dispatch(setStatus("burn-sysx"));
       break;
     }
 
@@ -98,7 +93,6 @@ const runWithSysToNevmStateMachine = async (
               burnSysxTransactionReceipt
             )
           );
-          dispatch(setStatus("confirm-burn-sysx"));
         })
         .catch((error) => {
           console.error("burn-sysx error", error);
@@ -114,7 +108,6 @@ const runWithSysToNevmStateMachine = async (
       if (!transactionRaw) {
         return;
       }
-      dispatch(setStatus("generate-proofs"));
       break;
     }
 
@@ -131,7 +124,6 @@ const runWithSysToNevmStateMachine = async (
       }
       const results = JSON.parse(proof.result) as SPVProof;
       dispatch(addLog("generate-proofs", "Submitting proofs", { results }));
-      dispatch(setStatus("submit-proofs"));
       break;
     }
 
@@ -147,6 +139,8 @@ const runWithSysToNevmStateMachine = async (
         (sibling) => `0x${sibling}`
       );
       const syscoinBlockheader = `0x${proof.header}`;
+
+      const maxGasPrice = await web3.eth.getGasPrice();
       return new Promise((resolve, reject) => {
         relayContract.methods
           .relayTx(
@@ -159,6 +153,8 @@ const runWithSysToNevmStateMachine = async (
           .send({
             from: nevm.account!,
             gas: 400000,
+            maxFeePerGas: maxGasPrice, // 10 gwei
+            maxGasPrice,
           })
           .once("transactionHash", (hash: string) => {
             dispatch(
@@ -166,7 +162,6 @@ const runWithSysToNevmStateMachine = async (
                 hash,
               })
             );
-            dispatch(setStatus("finalizing"));
             resolve(hash);
           })
           .on("error", (error: { message: string }) => {
@@ -200,7 +195,6 @@ const runWithSysToNevmStateMachine = async (
             receipt,
           })
         );
-        dispatch(setStatus("completed"));
       }
       break;
     default:
