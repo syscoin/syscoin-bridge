@@ -27,6 +27,7 @@ type SysToNevmStateMachineParams = {
     duration?: number,
     confirmations?: number
   ) => Promise<syscoinUtils.BlockbookTransactionBTC | TransactionReceipt>;
+  switchToNEVM?: () => Promise<string>;
 };
 
 const runWithSysToNevmStateMachine = async (
@@ -197,6 +198,18 @@ const runWithSysToNevmStateMachine = async (
         );
       }
       break;
+
+    case "switch": {
+      if (!params.switchToNEVM) {
+        return Promise.resolve();
+      }
+      const nevmAddress = await params.switchToNEVM();
+      dispatch(
+        addLog("switch", "Address", {
+          address: nevmAddress,
+        })
+      );
+    }
     default:
       return;
   }

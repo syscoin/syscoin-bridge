@@ -178,7 +178,8 @@ const runWithNevmToSysStateMachine = async (
     transactionHash: string,
     duration?: number,
     confirmations?: number
-  ) => Promise<utils.BlockbookTransactionBTC | TransactionReceipt>
+  ) => Promise<utils.BlockbookTransactionBTC | TransactionReceipt>,
+  switchToUtxo?: () => Promise<string>
 ) => {
   const erc20Manager = new web3.eth.Contract(
     SyscoinERC20ManagerABI,
@@ -235,6 +236,21 @@ const runWithNevmToSysStateMachine = async (
         })
       );
       dispatch(setStatus("completed"));
+    }
+
+    case "switch": {
+      if (!switchToUtxo) {
+        return Promise.reject("NEVM to SYS: Switch function not provided");
+      }
+
+      const utxoAddress = await switchToUtxo();
+
+      dispatch(
+        addLog("switch", "Address", {
+          address: utxoAddress,
+        })
+      );
+      break;
     }
 
     default:

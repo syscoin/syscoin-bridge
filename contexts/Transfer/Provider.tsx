@@ -18,11 +18,9 @@ import {
   setUtxoAddress,
 } from "./store/actions";
 import relayAbi from "./relay-abi";
-import Web3 from "web3";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
-import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -39,13 +37,13 @@ export const TransferContext = createContext({} as ITransferContext);
 
 type TransferProviderProps = {
   id: string;
-  insertSwitchStep?: boolean;
+  switchStep?: (networkType: "bitcoin" | "ethereum") => Promise<string>;
   children: React.ReactNode;
 };
 
 const TransferProvider: React.FC<TransferProviderProps> = ({
   id,
-  insertSwitchStep: insertSwitchSteps,
+  switchStep,
   children,
 }) => {
   const {
@@ -94,7 +92,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       conditionalSteps = [...nevmToSysSteps];
     }
 
-    if (insertSwitchSteps) {
+    if (switchStep) {
       const transferType = transfer.type;
       const switchStep: TransferStep = {
         id: "switch",
@@ -114,7 +112,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     }
 
     return conditionalSteps;
-  }, [transfer.type, insertSwitchSteps]);
+  }, [transfer.type, switchStep]);
 
   const startTransfer = (amount: number) => {
     if (!utxo.xpub || !nevm.account) {
@@ -159,7 +157,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   };
 
   const runSideEffects = useCallback(() => {
-    const sideEffectPromise =
+    let sideEffectPromise =
       transfer.type === "sys-to-nevm"
         ? runWithSysToNevmStateMachine({
             transfer,
@@ -171,6 +169,10 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
             nevm,
             relayContract,
             confirmTransaction,
+            switchToNEVM: () =>
+              switchStep
+                ? switchStep("ethereum")
+                : Promise.reject("Switch step not provided"),
           })
         : runWithNevmToSysStateMachine(
             transfer,
