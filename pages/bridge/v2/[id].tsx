@@ -15,59 +15,15 @@ import { useCallback } from "react";
 
 const Bridge: NextPage = () => {
   const router = useRouter();
-  const { switchTo, isBitcoinBased, connectedAccount } =
-    usePaliWallet() as IPaliWalletV2Context;
-  const { account } = useNEVM();
+
   const { id } = router.query;
-
-  const switchStep = useCallback(
-    async (networkType: "bitcoin" | "ethereum") => {
-      if (networkType === "bitcoin") {
-        if (!isBitcoinBased) {
-          switchTo("bitcoin");
-        }
-      } else if (networkType === "ethereum") {
-        if (isBitcoinBased) {
-          switchTo("ethereum");
-        }
-      } else {
-        return Promise.reject("Invalid network type");
-      }
-
-      return new Promise<string>((resolve, reject) => {
-        let isTimedOut = false;
-        const timeout = setTimeout(() => {
-          reject("Failed to switch");
-        }, 30000);
-
-        const interval = setInterval(() => {
-          if (isTimedOut) {
-            clearInterval(interval);
-            reject("Failed to switch");
-          }
-          let resolvedAddress = undefined;
-          if (networkType === "bitcoin" && isBitcoinBased && connectedAccount) {
-            resolvedAddress = connectedAccount;
-          } else if (networkType === "ethereum" && !isBitcoinBased && account) {
-            resolvedAddress = account;
-          }
-          if (resolvedAddress) {
-            resolve(resolvedAddress);
-            clearTimeout(timeout);
-            clearInterval(interval);
-          }
-        }, 1000);
-      });
-    },
-    [account, connectedAccount, isBitcoinBased, switchTo]
-  );
 
   if (!id) {
     return <CircularProgress />;
   }
 
   return (
-    <TransferProvider id={id as string} switchStep={switchStep}>
+    <TransferProvider id={id as string} includeSwitchStep>
       <DrawerPage>
         <BlocktimeDisclaimer />
         <Container sx={{ mt: 10 }}>

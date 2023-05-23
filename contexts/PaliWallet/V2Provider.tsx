@@ -57,7 +57,7 @@ type PaliWalletNetworkType = "bitcoin" | "ethereum";
 export interface IPaliWalletV2Context extends IPaliWalletContext {
   chainType: string | undefined;
   isBitcoinBased: boolean;
-  switchTo: (networkType: PaliWalletNetworkType) => void;
+  switchTo: (networkType: PaliWalletNetworkType) => Promise<void>;
 }
 
 declare global {
@@ -70,6 +70,7 @@ export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
   const [isInstalled, setIsInstalled] = useState(false);
+
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
     queryFn: () => {
       return window.pali.isBitcoinBased();
@@ -154,20 +155,25 @@ export const PaliWalletV2Provider: React.FC<{
   const switchTo = useCallback(
     (networkType: PaliWalletNetworkType) => {
       if (!isInstalled) {
-        return;
+        return Promise.reject("Pali Wallet is not installed");
       }
 
       if (networkType === "bitcoin") {
-        window.pali.request({
-          method: "sys_changeUTXOEVM",
-          params: [
-            {
-              chainId: 57,
-            },
-          ],
-        });
+        return window.pali
+          .request({
+            method: "sys_changeUTXOEVM",
+            params: [
+              {
+                chainId: 57,
+              },
+            ],
+          })
+          .then(() => {
+            isBitcoinBased.refetch();
+            connectedAccount.refetch();
+          });
       } else if (networkType === "ethereum") {
-        window.ethereum.request({
+        return window.ethereum.request({
           method: "eth_changeUTXOEVM",
           params: [
             {
@@ -176,8 +182,9 @@ export const PaliWalletV2Provider: React.FC<{
           ],
         });
       }
+      return Promise.reject("Invalid network type");
     },
-    [isInstalled]
+    [connectedAccount, isBitcoinBased, isInstalled]
   );
 
   const value: IPaliWalletV2Context = useMemo(

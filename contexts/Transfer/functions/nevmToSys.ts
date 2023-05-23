@@ -15,18 +15,13 @@ import { toWei } from "web3-utils";
 const freezeAndBurn = (
   contract: Contract,
   transfer: ITransfer,
-  utxo: Partial<UTXOInfo>,
   dispatch: Dispatch<TransferActions>
 ) => {
   const amount = toWei(transfer.amount.toString(), "ether");
-  if (utxo?.xpub !== transfer.utxoAddress) {
-    return Promise.reject(
-      "Invalid freeze and burn, uxto address does not match"
-    );
-  }
+
   return new Promise((resolve, reject) => {
     contract.methods
-      .freezeBurnERC20(amount, SYSX_ASSET_GUID, utxo.account)
+      .freezeBurnERC20(amount, SYSX_ASSET_GUID, transfer.utxoAddress)
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
@@ -88,7 +83,6 @@ const confirmFreezeAndBurnSys = async (
 const mintSysx = async (
   transfer: ITransfer,
   syscoinInstance: syscoin,
-  utxo: Partial<UTXOInfo>,
   dispatch: Dispatch<TransferActions>,
   sendUtxoTransaction: SendUtxoTransaction
 ) => {
@@ -113,17 +107,17 @@ const mintSysx = async (
     assetOpts,
     txOpts,
     assetMap,
-    utxoAddress: utxo.account,
+    utxoAddress: transfer.utxoAddress,
     feeRate,
-    xpub: utxo.xpub,
+    xpub: transfer.utxoXpub,
   });
   const res = await syscoinInstance.assetAllocationMint(
     assetOpts,
     txOpts,
     assetMap,
-    utxo.account,
+    transfer.utxoAddress,
     feeRate,
-    utxo.xpub
+    transfer.utxoXpub
   );
   if (!res) {
     dispatch(addLog("mint-sysx", "Mint SYS error: Not enough funds", res));
@@ -140,7 +134,6 @@ const mintSysx = async (
 
 const burnSysxToSys = async (
   transfer: ITransfer,
-  utxo: Partial<UTXOInfo>,
   syscoinInstance: syscoin,
   dispatch: Dispatch<TransferActions>,
   sendUtxoTransaction: SendUtxoTransaction
@@ -152,8 +145,8 @@ const burnSysxToSys = async (
       syscoinInstance,
       transfer.amount,
       SYSX_ASSET_GUID,
-      utxo.account!,
-      utxo.xpub!,
+      transfer.utxoAddress!,
+      transfer.utxoXpub!,
       ""
     );
   } catch (e) {
@@ -170,7 +163,6 @@ const runWithNevmToSysStateMachine = async (
   transfer: ITransfer,
   web3: Web3,
   syscoinInstance: syscoin,
-  utxo: Partial<UTXOInfo>,
   sendUtxoTransaction: SendUtxoTransaction,
   dispatch: Dispatch<TransferActions>,
   confirmTransaction: (
@@ -187,19 +179,13 @@ const runWithNevmToSysStateMachine = async (
   );
   switch (transfer.status) {
     case "freeze-burn-sys": {
-      return freezeAndBurn(erc20Manager, transfer, utxo, dispatch);
+      return freezeAndBurn(erc20Manager, transfer, dispatch);
     }
     case "confirm-freeze-burn-sys": {
       return confirmFreezeAndBurnSys(transfer, confirmTransaction, dispatch);
     }
     case "mint-sysx": {
-      return mintSysx(
-        transfer,
-        syscoinInstance,
-        utxo,
-        dispatch,
-        sendUtxoTransaction
-      );
+      return mintSysx(transfer, syscoinInstance, dispatch, sendUtxoTransaction);
     }
 
     case "confirm-mint-sysx": {
@@ -217,7 +203,6 @@ const runWithNevmToSysStateMachine = async (
     case "burn-sysx": {
       return burnSysxToSys(
         transfer,
-        utxo,
         syscoinInstance,
         dispatch,
         sendUtxoTransaction

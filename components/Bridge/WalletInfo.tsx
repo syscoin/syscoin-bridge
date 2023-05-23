@@ -114,7 +114,7 @@ const BridgeWalletInfo: React.FC<IProps> = ({ label, network, walletType }) => {
               <Typography variant="body2">{transfer.nevmAddress}</Typography>
             )}
           </Box>
-          {(nevm.balance ?? 0) < 0.001 && (
+          {(parseFloat(nevm.balance!) ?? 0) < 0.001 && (
             <Alert severity="error" sx={{ width: "100%", flex: 1 }}>
               <Typography variant="body2">
                 It seems your wallet does not have any balance. In order to

@@ -16,6 +16,7 @@ import {
   setNevmAddress,
   setStatus,
   setUtxoAddress,
+  setUtxoXpub,
 } from "./store/actions";
 import relayAbi from "./relay-abi";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
@@ -24,37 +25,32 @@ import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
 
 interface ITransferContext {
   transfer: ITransfer;
-  maxAmount: number | string | undefined;
+  error?: any;
+  steps: TransferStep[];
   startTransfer: (amount: number) => void;
   setTransferType: (type: TransferType) => void;
   retry: () => void;
-  error?: any;
   revertToPreviousStatus: () => void;
-  steps: TransferStep[];
+  proceedNextStep: () => void;
+  setUtxo: (payload: { xpub: string; address: string }) => void;
+  setNevm: (payload: { address: string }) => void;
 }
 
 export const TransferContext = createContext({} as ITransferContext);
 
 type TransferProviderProps = {
   id: string;
-  switchStep?: (networkType: "bitcoin" | "ethereum") => Promise<string>;
+  includeSwitchStep?: boolean;
   children: React.ReactNode;
 };
 
 const TransferProvider: React.FC<TransferProviderProps> = ({
   id,
-  switchStep,
+  includeSwitchStep,
   children,
 }) => {
-  const {
-    utxo,
-    nevm,
-    sendUtxoTransaction,
-    refreshBalances,
-    confirmTransaction,
-    syscoinInstance,
-    web3,
-  } = useConnectedWallet();
+  const { sendUtxoTransaction, confirmTransaction, syscoinInstance, web3 } =
+    useConnectedWallet();
 
   const relayContract = useMemo(() => {
     return new web3.eth.Contract(
@@ -92,7 +88,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       conditionalSteps = [...nevmToSysSteps];
     }
 
-    if (switchStep) {
+    if (includeSwitchStep) {
       const transferType = transfer.type;
       const switchStep: TransferStep = {
         id: "switch",
@@ -112,28 +108,22 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     }
 
     return conditionalSteps;
-  }, [transfer.type, switchStep]);
+  }, [transfer.type, includeSwitchStep]);
 
   const startTransfer = (amount: number) => {
-    if (!utxo.xpub || !nevm.account) {
+    if (
+      (!transfer.utxoAddress || !transfer.nevmAddress) &&
+      !includeSwitchStep
+    ) {
       console.log("Some accounts are not connected", {
-        nevm: nevm.account,
-        utxo: utxo.xpub,
+        nevm: transfer.nevmAddress,
+        utxo: transfer.utxoAddress,
       });
       return;
     }
     updateAmount(`${amount}`);
-    dispatch(setUtxoAddress(utxo.xpub));
-    dispatch(setNevmAddress(nevm.account));
     dispatch(setStatus("initialize"));
-    dispatch(
-      addLog("initialize", "Starting Sys to NEVM transfer", {
-        amount: transfer.amount,
-        type: transfer.type,
-        utxoAddress: utxo.xpub,
-        nevmAddress: nevm.account,
-      })
-    );
+    dispatch(addLog("initialize", "Starting Sys to NEVM transfer", transfer));
 
     if (transfer.type === "sys-to-nevm") {
       dispatch(setStatus("burn-sys"));
@@ -156,6 +146,32 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     });
   };
 
+  const setUtxo = (payload: { xpub: string; address: string }) => {
+    const { address, xpub } = payload;
+    dispatch(setUtxoXpub(xpub));
+    dispatch(setUtxoAddress(address));
+  };
+
+  const setNevm = (payload: { address: string }) => {
+    const { address } = payload;
+    dispatch(setNevmAddress(address));
+  };
+
+  const proceedNextStep = useCallback(() => {
+    if (transfer.status === "completed") {
+      return;
+    }
+    const currentStepIndex = steps.findIndex(
+      (step) => step.id === transfer.status
+    );
+    const nextStep = steps[currentStepIndex + 1];
+    if (nextStep) {
+      dispatch(setStatus(nextStep.id));
+    } else if (transfer.status === "finalizing") {
+      dispatch(setStatus("completed"));
+    }
+  }, [steps, transfer.status, dispatch]);
+
   const runSideEffects = useCallback(() => {
     let sideEffectPromise =
       transfer.type === "sys-to-nevm"
@@ -163,52 +179,37 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
             transfer,
             syscoinInstance,
             web3,
-            utxo,
             dispatch,
             sendUtxoTransaction,
-            nevm,
             relayContract,
             confirmTransaction,
-            switchToNEVM: () =>
-              switchStep
-                ? switchStep("ethereum")
-                : Promise.reject("Switch step not provided"),
           })
         : runWithNevmToSysStateMachine(
             transfer,
             web3,
             syscoinInstance,
-            utxo,
             sendUtxoTransaction,
             dispatch,
             confirmTransaction
           );
     sideEffectPromise
+      .then(() => {
+        if (transfer.status === "switch") {
+          return;
+        }
+        proceedNextStep();
+      })
       .catch((err) => {
         setError(err);
-      })
-      .then(() => {
-        const currentStepIndex = steps.findIndex(
-          (step) => step.id === transfer.status
-        );
-        const nextStep = steps[currentStepIndex + 1];
-        if (nextStep) {
-          dispatch(setStatus(nextStep.id));
-        } else if (transfer.status === "finalizing") {
-          dispatch(setStatus("completed"));
-        }
       });
   }, [
     transfer,
     syscoinInstance,
     web3,
-    utxo,
-    dispatch,
     sendUtxoTransaction,
-    nevm,
     relayContract,
     confirmTransaction,
-    steps,
+    proceedNextStep,
   ]);
 
   const revertToPreviousStatus = () => {
@@ -221,18 +222,9 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     }
   };
 
-  let maxAmount: number | string | undefined = undefined;
-
-  if (transfer.type === "sys-to-nevm") {
-    maxAmount = utxo.balance;
-  } else if (transfer.type === "nevm-to-sys") {
-    maxAmount = nevm.balance;
-  }
-
   useEffect(() => {
     if (
-      !initialized ||
-      transfer.status === "initialize" ||
+      ["initialize", "completed"].includes(transfer.status) ||
       previousStatus === transfer.status
     ) {
       return;
@@ -243,22 +235,20 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   }, [initialized, previousStatus, runSideEffects, transfer.status]);
 
   useEffect(() => {
-    if (!initialized || !transfer.id) {
+    if (!transfer.id || transfer.status === "initialize") {
       return;
     }
-    if (transfer.status !== "initialize") {
-      localStorage.setItem(`transfer-${transfer.id}`, JSON.stringify(transfer));
-      fetch(`/api/transfer/${transfer.id}`, {
-        body: JSON.stringify(transfer),
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-      }).catch((e) => {
-        console.error("Saved in DB Error", e);
-      });
-    }
-  }, [transfer, initialized]);
+    localStorage.setItem(`transfer-${transfer.id}`, JSON.stringify(transfer));
+    fetch(`/api/transfer/${transfer.id}`, {
+      body: JSON.stringify(transfer),
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+    }).catch((e) => {
+      console.error("Saved in DB Error", e);
+    });
+  }, [transfer, transfer.status, initialized]);
 
   useEffect(() => {
     if (initialized) {
@@ -269,8 +259,6 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       const item = localStorage.getItem(`transfer-${id}`);
       const defaultState = {
         ...baseTransfer,
-        nevmAddress: nevm.account!,
-        utxoAddress: utxo.xpub!,
         id,
       } as ITransfer;
       dispatch(initialize(item ? JSON.parse(item) : defaultState));
@@ -287,15 +275,11 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
         }
       })
       .catch(() => loadDefault());
-  }, [id, baseTransfer, nevm, utxo, initialized]);
+  }, [id, baseTransfer, initialized]);
 
   useEffect(() => {
     setIsInitialized(false);
   }, [id]);
-
-  useEffect(() => {
-    refreshBalances();
-  }, [transfer.type, refreshBalances]);
 
   return (
     <TransferContext.Provider
@@ -308,9 +292,11 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
           setError(undefined);
         },
         error,
-        maxAmount,
         revertToPreviousStatus,
         steps,
+        proceedNextStep,
+        setNevm,
+        setUtxo,
       }}
     >
       {children}

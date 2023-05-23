@@ -13,6 +13,7 @@ import { useTransfer } from "../../../contexts/Transfer/useTransfer";
 import React, { useEffect } from "react";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 
 const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -42,7 +43,21 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
 };
 
 const BridgeTransferForm: React.FC = () => {
-  const { startTransfer, maxAmount } = useTransfer();
+  const { startTransfer, transfer } = useTransfer();
+  const { utxo, nevm } = useConnectedWallet();
+  let maxAmount: number | string | undefined = undefined;
+
+  if (transfer.type === "sys-to-nevm") {
+    maxAmount = utxo.balance;
+  } else if (transfer.type === "nevm-to-sys") {
+    maxAmount = nevm.balance;
+  }
+
+  const accountsAreSet =
+    transfer.utxoAddress && transfer.utxoXpub && transfer.nevmAddress;
+
+  const maxAmountFixed = parseFloat(`${maxAmount ?? "0"}`).toFixed(4);
+
   const {
     register,
     formState: { errors, isValid, isDirty },
@@ -52,8 +67,6 @@ const BridgeTransferForm: React.FC = () => {
   const onSubmit = (data: FieldValues) => {
     startTransfer(data.amount);
   };
-
-  const maxAmountFixed = parseFloat(`${maxAmount ?? "0"}`).toFixed(4);
 
   return (
     <Card component="form" onSubmit={handleSubmit(onSubmit)}>
@@ -94,7 +107,7 @@ const BridgeTransferForm: React.FC = () => {
           <Button
             variant="contained"
             type="submit"
-            disabled={!isDirty || !isValid}
+            disabled={!isDirty || !isValid || !accountsAreSet}
           >
             Start Transfer <RocketLaunch />
           </Button>

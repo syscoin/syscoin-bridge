@@ -31,7 +31,6 @@ interface IConnectedWalletContext {
     paliWallet?: boolean;
     metamask: boolean;
   };
-  refreshBalances: () => void;
   confirmTransaction: (
     chain: "nevm" | "utxo",
     transactionId: string,
@@ -77,7 +76,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
 
   const connectNEVM = (type: NEVMWallet) => {
     if (type === "metamask") {
-      nevm.requestAccounts();
+      nevm.connect();
     }
     setNevmWalletType(type);
   };
@@ -90,10 +89,6 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     }
     return Promise.reject(new Error("Wallet not connected"));
   };
-
-  const refreshBalances = useCallback(() => {
-    nevm.fetchBalance();
-  }, [nevm]);
 
   const confirmTransaction = useCallback(
     (
@@ -206,7 +201,6 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
           paliWallet: paliWallet.isInstalled,
           metamask: metamask.isEnabled,
         },
-        refreshBalances,
         confirmTransaction,
         syscoinInstance,
         web3,

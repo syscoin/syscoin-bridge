@@ -37,6 +37,9 @@ export const reducer: Reducer<ITransfer, TransferActions> = (state, action) => {
     case "setUtxoAddress": {
       return { ...state, utxoAddress: action.payload, updatedAt: Date.now() };
     }
+    case "setUtxoXpub": {
+      return { ...state, utxoXpub: action.payload, updatedAt: Date.now() };
+    }
     case "setNevmAddress": {
       return { ...state, nevmAddress: action.payload, updatedAt: Date.now() };
     }

@@ -57,6 +57,13 @@ export const setUtxoAddress = (
   payload: address,
 });
 
+export const setUtxoXpub = (
+  xpub: string
+): { type: "setUtxoXpub"; payload: string } => ({
+  type: "setUtxoXpub",
+  payload: xpub,
+});
+
 export const setNevmAddress = (
   address: string
 ): { type: "setNevmAddress"; payload: string } => ({
@@ -71,4 +78,5 @@ export type TransferActions =
   | ReturnType<typeof setStatus>
   | ReturnType<typeof initialize>
   | ReturnType<typeof setUtxoAddress>
+  | ReturnType<typeof setUtxoXpub>
   | ReturnType<typeof setNevmAddress>;

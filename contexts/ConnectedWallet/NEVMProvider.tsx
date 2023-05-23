@@ -1,12 +1,5 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import { TransactionConfig, provider } from "web3-core";
+import { createContext, useContext, useMemo, useState } from "react";
+import { TransactionConfig } from "web3-core";
 import Web3 from "web3";
 import { NEVMNetwork } from "../Transfer/constants";
 import { useQuery } from "react-query";
@@ -17,11 +10,10 @@ import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 interface INEVMContext {
   account?: string;
   balance?: string;
-  requestAccounts: () => void;
-  sendTransaction: (transactionConfig: TransactionConfig) => Promise<string>;
-  fetchBalance: () => void;
   isTestnet: boolean;
   switchToMainnet: () => void;
+  sendTransaction: (transactionConfig: TransactionConfig) => Promise<string>;
+  connect: () => void;
 }
 
 const NEVMContext = createContext({} as INEVMContext);
@@ -61,8 +53,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     }
     return new Web3(window.ethereum);
   }, [isEnabled]);
-  const [account, setAccount] = useState<string | undefined>();
-  const [balance, setBalance] = useState<string>();
+
   const { data: isTestnet } = useQuery(
     ["nevm", "isTestnet"],
     () => window?.ethereum?.networkVersion !== parseInt("0x39", 16).toString(),
@@ -72,35 +63,27 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     }
   );
 
-  const handleAccounstChange = (accounts: string[]) => {
-    if (accounts.length > 0) {
-      setAccount(accounts[0]);
-    }
-  };
-
-  const fetchBalance = useCallback(() => {
-    if (!isEnabled || !web3 || !account) {
-      return;
-    }
-
-    // check if account is valid address
-    if (!web3.utils.isAddress(account)) {
-      return;
-    }
-
-    web3.eth.getBalance(account).then((balance) => {
-      setBalance(web3.utils.fromWei(balance || "0"));
-    });
-  }, [web3, account, isEnabled]);
-
-  const requestAccounts = () => {
-    window.ethereum
-      .request({
+  const account = useQuery(["nevm", "account"], {
+    queryFn: () => {
+      return window.ethereum.request({
         method: "eth_requestAccounts",
-      })
-      .then((accounts) => handleAccounstChange(accounts as string[]));
-    window.ethereum.on("accountsChanged", handleAccounstChange);
-  };
+      });
+    },
+    enabled: isEnabled,
+    refetchInterval: 1000,
+  });
+
+  const balance = useQuery(["nevm", "balance"], {
+    queryFn: () => {
+      if (!isEnabled || !web3 || !account.data) {
+        return;
+      }
+      return web3.eth
+        .getBalance(account.data[0])
+        .then((balance) => web3.utils.fromWei(balance || "0"));
+    },
+    enabled: Boolean(isEnabled && account.isFetched && account.data),
+  });
 
   const sendTransaction = (config: TransactionConfig) => {
     return window.ethereum.request({
@@ -125,32 +108,20 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
       });
   };
 
-  useEffect(() => {
-    if (!isEnabled) {
-      return;
-    }
-    if (window.ethereum.selectedAddress) {
-      setAccount(window.ethereum.selectedAddress);
-    }
-  }, [isEnabled]);
-
-  useEffect(() => {
-    if (!isEnabled) {
-      return;
-    }
-    fetchBalance();
-  }, [isEnabled, account, fetchBalance]);
+  const connect = () => {
+    account.refetch();
+  };
 
   return (
     <NEVMContext.Provider
       value={{
-        account,
-        requestAccounts,
+        account:
+          account.isSuccess && account.data ? account.data[0] : undefined,
         sendTransaction,
-        balance,
-        fetchBalance,
+        balance: balance.data,
         isTestnet: !!isTestnet,
         switchToMainnet,
+        connect,
       }}
     >
       {children}

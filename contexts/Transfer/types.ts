@@ -23,7 +23,10 @@ export type EthToSysTransferStatus =
   | "completed"
   | "error";
 
-export type TransferStatus = SysToEthTransferStatus | EthToSysTransferStatus | "switch";
+export type TransferStatus =
+  | SysToEthTransferStatus
+  | EthToSysTransferStatus
+  | "switch";
 
 export interface ITransferLog<T = any> {
   status: TransferStatus;
@@ -43,5 +46,6 @@ export interface ITransfer {
   createdAt: number;
   updatedAt?: number;
   utxoAddress?: string;
+  utxoXpub?: string;
   nevmAddress?: string;
 }

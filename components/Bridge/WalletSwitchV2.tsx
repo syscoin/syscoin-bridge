@@ -1,6 +1,4 @@
-import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
-import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
-import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { CompareArrows } from "@mui/icons-material";
 import {
@@ -12,6 +10,8 @@ import {
   CardContent,
 } from "@mui/material";
 import SyscoinLogo from "components/Icons/syscoin";
+import UTXOConnect from "./WalletSwitchV2/UTXOConnect";
+import NEVMConnect from "./WalletSwitchV2/NEVMConnect";
 
 type WalletInfoCardProps = {
   label: string;
@@ -26,7 +26,6 @@ type WalletInfoCardProps = {
 const WalletInfoCard: React.FC<WalletInfoCardProps> = ({
   network,
   walletType,
-  label,
 }) => {
   return (
     <Card variant="outlined" sx={{ mb: 1 }}>
@@ -43,6 +42,8 @@ const WalletInfoCard: React.FC<WalletInfoCardProps> = ({
           <Typography variant="h6" display="block">
             {network.name}
           </Typography>
+          {walletType === "utxo" && <UTXOConnect />}
+          {walletType === "nevm" && <NEVMConnect />}
         </Box>
       </CardContent>
     </Card>
@@ -55,7 +56,7 @@ const BridgeWalletSwitch: React.FC = () => {
     setTransferType,
   } = useTransfer();
 
-  const paliwallet = usePaliWallet() as IPaliWalletV2Context;
+  const {} = usePaliWalletV2();
 
   const utxoWalletInfo = {
     walletType: "utxo",
