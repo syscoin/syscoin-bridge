@@ -26,13 +26,19 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   if (paliwallet.version === "v2") {
     if (type === "sys-to-nevm" && !paliwallet.isBitcoinBased) {
       return (
-        <Button onClick={() => paliwallet.switchTo("bitcoin")}>
+        <Button
+          variant="contained"
+          onClick={() => paliwallet.switchTo("bitcoin")}
+        >
           Switch to Syscoin
         </Button>
       );
     } else if (type === "nevm-to-sys" && paliwallet.isBitcoinBased) {
       return (
-        <Button onClick={() => paliwallet.switchTo("ethereum")}>
+        <Button
+          variant="contained"
+          onClick={() => paliwallet.switchTo("ethereum")}
+        >
           Switch to NEVM
         </Button>
       );

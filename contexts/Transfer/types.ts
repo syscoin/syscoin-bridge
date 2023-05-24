@@ -35,6 +35,7 @@ export interface ITransferLog<T = any> {
     data: T;
     previousStatus?: TransferStatus;
   };
+  date: number
 }
 
 export interface ITransfer {

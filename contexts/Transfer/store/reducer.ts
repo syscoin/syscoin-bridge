@@ -12,6 +12,7 @@ export const reducer: Reducer<ITransfer, TransferActions> = (state, action) => {
 
     case "add-log":
       const { data, message, nextStatus } = action.payload;
+      const updatedAt = Date.now();
       return {
         ...state,
         logs: [
@@ -23,9 +24,10 @@ export const reducer: Reducer<ITransfer, TransferActions> = (state, action) => {
               message,
               previousStatus: state.status,
             },
+            date: updatedAt,
           },
         ],
-        updatedAt: Date.now(),
+        updatedAt,
       };
 
     case "set-status":

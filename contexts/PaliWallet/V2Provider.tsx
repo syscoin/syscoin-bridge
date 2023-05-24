@@ -92,7 +92,7 @@ export const PaliWalletV2Provider: React.FC<{
       });
       return account;
     },
-    enabled: isInstalled,
+    enabled: isInstalled && isBitcoinBased.data,
   });
   const sysAddress = useMemo(
     () =>

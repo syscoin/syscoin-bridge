@@ -1,6 +1,9 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
+import { Box, Button, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
 
 const NEVMConnect = () => {
   const { transfer, setNevm } = useTransfer();
@@ -14,25 +17,32 @@ const NEVMConnect = () => {
 
   if (transfer.nevmAddress) {
     return (
-      <div>
-        <span>{transfer.nevmAddress}</span>
-      </div>
+      <Box display="flex">
+        <Typography variant="body1">{transfer.nevmAddress}</Typography>
+        <CheckBoxIcon />
+      </Box>
     );
   }
 
   if (isBitcoinBased) {
-    return <button onClick={() => switchTo("ethereum")}>Switch to NEVM</button>;
+    return (
+      <Button variant="contained" onClick={() => switchTo("ethereum")}>
+        Set NEVM
+      </Button>
+    );
   }
 
   if (!account) {
-    return <button onClick={() => connect()}>Fetch account</button>;
+    return <Button onClick={() => connect()}>Fetch account</Button>;
   }
 
   return (
-    <div>
-      <span>{account}</span>
-      <button onClick={setTransferNevm}>Set</button>
-    </div>
+    <Box>
+      <Typography variant="body1">{account}</Typography>
+      <Button variant="outlined" onClick={setTransferNevm} color="success">
+        Set <CheckIcon />
+      </Button>
+    </Box>
   );
 };
 

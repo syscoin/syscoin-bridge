@@ -1,5 +1,8 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
+import { Box, Button, Typography } from "@mui/material";
+import CheckIcon from "@mui/icons-material/Check";
+import CheckBoxIcon from "@mui/icons-material/CheckBox";
 
 const UTXOConnect = () => {
   const { transfer, setUtxo } = useTransfer();
@@ -13,25 +16,30 @@ const UTXOConnect = () => {
 
   if (transfer.utxoXpub) {
     return (
-      <div>
-        <span>{transfer.utxoAddress}</span>
-      </div>
+      <Box display="flex">
+        <Typography variant="body1" color="success">
+          {transfer.utxoAddress}
+        </Typography>
+        <CheckBoxIcon />
+      </Box>
     );
   }
 
   if (!isBitcoinBased) {
     return (
-      <button onClick={() => switchTo("bitcoin")}>
-        Switch to Syscoin Core
-      </button>
+      <Button variant="contained" onClick={() => switchTo("bitcoin")}>
+        Set Syscoin Core
+      </Button>
     );
   }
 
   return (
-    <div>
-      <span>{connectedAccount}</span>
-      <button onClick={setTransferUtxo}>Set</button>
-    </div>
+    <Box>
+      <Typography variant="body1">{connectedAccount}</Typography>
+      <Button variant="outlined" onClick={setTransferUtxo} color="success">
+        Set <CheckIcon />
+      </Button>
+    </Box>
   );
 };
 
