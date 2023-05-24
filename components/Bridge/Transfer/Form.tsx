@@ -95,7 +95,7 @@ const BridgeTransferForm: React.FC = () => {
               message: `You can transfer up to ${maxAmountFixed} SYS`,
             },
             min: {
-              value: 0.001,
+              value: 0.1,
               message: "Amount must be atleast 0.1",
             },
             required: {
