@@ -152,21 +152,26 @@ const runWithSysToNevmStateMachine = async (
       );
       const syscoinBlockheader = `0x${proof.header}`;
 
-      const maxGasPrice = await web3.eth.getGasPrice();
+      const method = relayContract.methods.relayTx(
+        nevmBlock.number,
+        txBytes,
+        txIndex,
+        merkleProof.sibling,
+        syscoinBlockheader
+      );
+
+      const gasPrice = await web3.eth.getGasPrice();
+
+      const gas = await method
+        .estimateGas({ from: fromAccount })
+        .catch((error: Error) => console.error("Estimate gas error", error));
+
       return new Promise((resolve, reject) => {
-        relayContract.methods
-          .relayTx(
-            nevmBlock.number,
-            txBytes,
-            txIndex,
-            merkleProof.sibling,
-            syscoinBlockheader
-          )
+        method
           .send({
             from: fromAccount,
-            gas: 400000,
-            maxFeePerGas: maxGasPrice, // 10 gwei
-            maxGasPrice,
+            gas: gas ?? 400_000,
+            gasPrice,
           })
           .once("transactionHash", (hash: string | { success: false }) => {
             if (typeof hash !== "string" && !hash.success) {

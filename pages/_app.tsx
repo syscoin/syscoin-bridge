@@ -44,13 +44,13 @@ function MyApp({ Component, pageProps }: AppProps) {
         <MetamaskProvider>
           <NEVMProvider>
             <ConnectedWalletProvider>
-              <DAppProvider config={dappConfig}>
+              {/* <DAppProvider config={dappConfig}> */}
                 {/* <NetworkValidator> */}
                 <ThemeProvider theme={theme}>
                   <Component {...pageProps} />
                 </ThemeProvider>
                 {/* </NetworkValidator> */}
-              </DAppProvider>
+              {/* </DAppProvider> */}
             </ConnectedWalletProvider>
           </NEVMProvider>
         </MetamaskProvider>
