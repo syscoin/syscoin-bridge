@@ -1,6 +1,6 @@
 import { BlockbookAPIURL, NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import { IPaliWalletContext, PaliWalletContext } from "./Provider";
 import { utils as syscoinUtils } from "syscoinjs-lib";
@@ -70,6 +70,7 @@ export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
   const [isInstalled, setIsInstalled] = useState(false);
+  const queryClient = useQueryClient();
 
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
     queryFn: () => {
@@ -92,8 +93,9 @@ export const PaliWalletV2Provider: React.FC<{
       });
       return account;
     },
-    enabled: isInstalled && isBitcoinBased.data,
+    enabled: isInstalled && isBitcoinBased.isFetched && isBitcoinBased.data,
   });
+
   const sysAddress = useMemo(
     () =>
       connectedAccount.isSuccess && connectedAccount.data
@@ -173,18 +175,22 @@ export const PaliWalletV2Provider: React.FC<{
             connectedAccount.refetch();
           });
       } else if (networkType === "ethereum") {
-        return window.ethereum.request({
-          method: "eth_changeUTXOEVM",
-          params: [
-            {
-              chainId: 57,
-            },
-          ],
-        });
+        return window.ethereum
+          .request({
+            method: "eth_changeUTXOEVM",
+            params: [
+              {
+                chainId: 57,
+              },
+            ],
+          })
+          .then(() => {
+            queryClient.invalidateQueries(["nevm"]);
+          });
       }
       return Promise.reject("Invalid network type");
     },
-    [connectedAccount, isBitcoinBased, isInstalled]
+    [connectedAccount, isBitcoinBased, isInstalled, queryClient]
   );
 
   const value: IPaliWalletV2Context = useMemo(
