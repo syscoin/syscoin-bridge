@@ -69,7 +69,12 @@ declare global {
 export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
-  const [isInstalled, setIsInstalled] = useState(false);
+  const installed = useQuery(["pali", "is-installed"], () => {
+    return Boolean(window.pali) && window.pali.wallet === "pali-v2";
+  });
+
+  const isInstalled = installed.isFetched && installed.data;
+
   const queryClient = useQueryClient();
 
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
@@ -232,10 +237,6 @@ export const PaliWalletV2Provider: React.FC<{
       switchTo,
     ]
   );
-
-  useEffect(() => {
-    setIsInstalled(Boolean(window.pali) && window.pali.wallet === "pali-v2");
-  }, []);
 
   return (
     <PaliWalletContext.Provider value={value}>
