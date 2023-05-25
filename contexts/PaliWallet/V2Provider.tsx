@@ -1,4 +1,4 @@
-import { BlockbookAPIURL, NEVMNetwork } from "@contexts/Transfer/constants";
+import { NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
@@ -74,7 +74,8 @@ export const PaliWalletV2Provider: React.FC<{
 
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
     queryFn: () => {
-      return window.pali.isBitcoinBased();
+      const bitcoinBased = window.pali.isBitcoinBased();
+      return Boolean(bitcoinBased);
     },
     enabled: isInstalled,
   });
@@ -88,9 +89,17 @@ export const PaliWalletV2Provider: React.FC<{
   });
   const connectedAccount = useQuery(["pali", "connected-account"], {
     queryFn: async () => {
-      const account: Account = await window.pali.request({
+      let account: Account = await window.pali.request({
         method: "wallet_getAccount",
       });
+
+      if (!account) {
+        await window.pali.request({ method: "sys_requestAccounts" });
+        account = await window.pali.request({
+          method: "wallet_getAccount",
+        });
+      }
+
       return account;
     },
     enabled: isInstalled && isBitcoinBased.isFetched && isBitcoinBased.data,
