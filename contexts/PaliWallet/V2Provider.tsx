@@ -1,3 +1,4 @@
+'use client';
 import { NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
