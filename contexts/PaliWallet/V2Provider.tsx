@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import { NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
@@ -70,8 +70,11 @@ declare global {
 export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
-  const installed = useQuery(["pali", "is-installed"], () => {
-    return Boolean(window.pali) && window.pali.wallet === "pali-v2";
+  const installed = useQuery(["pali", "is-installed"], {
+    queryFn: () => {
+      return Boolean(window.pali) && window.pali.wallet === "pali-v2";
+    },
+    refetchInterval: 1000,
   });
 
   const isInstalled = installed.isFetched && installed.data;
@@ -84,7 +87,9 @@ export const PaliWalletV2Provider: React.FC<{
       return Boolean(bitcoinBased);
     },
     enabled: isInstalled,
+    refetchInterval: 1000,
   });
+
   const providerState = useQuery<ProviderState>(["pali", "provider-state"], {
     queryFn: () => {
       return window.pali.request({
