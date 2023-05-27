@@ -1,11 +1,4 @@
-import {
-  Box,
-  Button,
-  Container,
-  Grid,
-  styled,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Container, Grid, Typography } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import type { NextPage } from "next";
 import Head from "next/head";
@@ -85,14 +78,14 @@ const Home: NextPage = () => {
             <Grid component={Container} container sx={{ my: 3 }}>
               <Grid item md={6}>
                 <Box>
-                  <object
+                  {/* <object
                     className="animation"
                     type="image/svg+xml"
                     data="/bridge-diagram.svg"
                     style={{
                       width: "100%",
                     }}
-                  ></object>
+                  ></object> */}
                 </Box>
               </Grid>
               <Grid item md={6} sx={{ my: "auto", padding: 2 }}>
