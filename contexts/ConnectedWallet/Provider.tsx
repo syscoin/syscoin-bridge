@@ -57,11 +57,13 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
   const web3 = useMemo(() => new Web3(Web3.givenProvider), []);
-  const [utxoWalletType, setUtxoWalletType] =
-    useState<UTXOWallet>("pali-wallet");
-  const [nevmWalletType, setNevmWalletType] = useState<NEVMWallet>("metamask");
   const paliWallet = usePaliWallet();
   const metamask = useMetamask();
+  const [utxoWalletType, setUtxoWalletType] =
+    useState<UTXOWallet>("pali-wallet");
+  const [nevmWalletType, setNevmWalletType] = useState<NEVMWallet>(
+    paliWallet.version === "v2" ? "pali-wallet" : "metamask"
+  );
   const nevm = useNEVM();
 
   const utxoAccount = paliWallet.connectedAccount;
