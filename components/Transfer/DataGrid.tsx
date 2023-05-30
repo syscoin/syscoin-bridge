@@ -23,12 +23,14 @@ type TransferDataGridProps = {
   account?: string;
   isFullyConnected: boolean;
   items: ITransfer[];
+  version?: string;
 };
 const TransferDataGrid: React.FC<TransferDataGridProps> = ({
   account,
   xpub,
   isFullyConnected,
   items,
+  version,
 }) => {
   const { data, isFetched, isLoading, error } = useQuery(
     "transfers",
@@ -39,6 +41,9 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
       }
       if (account) {
         searchParams.set("nevm", account);
+      }
+      if (version) {
+        searchParams.set("version", version);
       }
       return axios(`/api/transfer?${searchParams.toString()}`);
     },
@@ -54,7 +59,9 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
           width: 130,
           renderCell: ({ value, row }) => (
             <NextLink
-              href={`/bridge/${row.version !== 'v1' ? row.version + "/" : ""}${value}`}
+              href={`/bridge/${
+                row.version !== "v1" ? row.version + "/" : ""
+              }${value}`}
             >
               <Typography
                 variant="body2"

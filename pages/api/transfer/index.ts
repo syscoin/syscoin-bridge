@@ -13,7 +13,7 @@ import {
 import { signInWithEmailAndPassword } from "firebase/auth";
 
 const getAll: NextApiHandler = async (req, res) => {
-  const { nevm, utxo } = req.query;
+  const { nevm, utxo, version } = req.query;
 
   if (process.env.NODE_ENV !== "development" && firebase.auth) {
     await signInWithEmailAndPassword(
@@ -44,8 +44,11 @@ const getAll: NextApiHandler = async (req, res) => {
   );
 
   const { docs } = await getDocs(transferQuery);
-
-  return res.status(200).json(Object.values(docs.map((doc) => doc.data())));
+  let transfers = docs.map((doc) => doc.data());
+  if (version) {
+    transfers = transfers.filter((transfer) => transfer.version === version);
+  }
+  return res.status(200).json(Object.values(transfers));
 };
 
 const handler: NextApiHandler = (req, res) => {

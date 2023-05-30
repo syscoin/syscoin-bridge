@@ -50,6 +50,7 @@ const TransfersPage: NextPage = () => {
           isFullyConnected={isFullyConnected}
           items={items}
           xpub={utxo.xpub}
+          version={isPaliV2Connected ? version : undefined}
         />
         {!isFullyConnected && (
           <Alert severity="info" sx={{ mb: 2 }}>
