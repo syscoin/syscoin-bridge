@@ -39,7 +39,9 @@ const TransfersPage: NextPage = () => {
           Transfers
         </Typography>
         <Box display="flex" mb={2}>
-          <NextLink href={`/bridge/${Date.now()}`}>
+          <NextLink
+            href={`/bridge/${version === "v2" ? "v2/" : ""}${Date.now()}`}
+          >
             <Button sx={{ ml: "auto" }}>New Transfer</Button>
           </NextLink>
         </Box>

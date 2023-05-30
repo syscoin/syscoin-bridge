@@ -45,6 +45,9 @@ export const reducer: Reducer<ITransfer, TransferActions> = (state, action) => {
     case "setNevmAddress": {
       return { ...state, nevmAddress: action.payload, updatedAt: Date.now() };
     }
+    case "setVersion": {
+      return { ...state, version: action.payload, updatedAt: Date.now() };
+    }
     default:
       return state;
   }

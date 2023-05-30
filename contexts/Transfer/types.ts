@@ -35,7 +35,7 @@ export interface ITransferLog<T = any> {
     data: T;
     previousStatus?: TransferStatus;
   };
-  date: number
+  date: number;
 }
 
 export interface ITransfer {
@@ -49,4 +49,5 @@ export interface ITransfer {
   utxoAddress?: string;
   utxoXpub?: string;
   nevmAddress?: string;
+  version: "v1" | "v2";
 }

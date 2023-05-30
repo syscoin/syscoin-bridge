@@ -71,6 +71,13 @@ export const setNevmAddress = (
   payload: address,
 });
 
+export const setVersion = (
+  version: "v1" | "v2"
+): { type: "setVersion"; payload: "v1" | "v2" } => ({
+  type: "setVersion",
+  payload: version,
+});
+
 export type TransferActions =
   | ReturnType<typeof setType>
   | ReturnType<typeof setAmount>
@@ -79,4 +86,5 @@ export type TransferActions =
   | ReturnType<typeof initialize>
   | ReturnType<typeof setUtxoAddress>
   | ReturnType<typeof setUtxoXpub>
-  | ReturnType<typeof setNevmAddress>;
+  | ReturnType<typeof setNevmAddress>
+  | ReturnType<typeof setVersion>;

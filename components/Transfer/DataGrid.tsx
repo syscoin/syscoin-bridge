@@ -52,8 +52,10 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
           field: "id",
           headerName: "Id",
           width: 130,
-          renderCell: ({ value }) => (
-            <NextLink href={`/bridge/${value}`}>
+          renderCell: ({ value, row }) => (
+            <NextLink
+              href={`/bridge/${row.version !== 'v1' ? row.version + "/" : ""}${value}`}
+            >
               <Typography
                 variant="body2"
                 color="primary"

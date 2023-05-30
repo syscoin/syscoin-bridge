@@ -7,6 +7,8 @@ import {
   orderBy,
   query,
   where,
+  or,
+  QueryFilterConstraint,
 } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
 
@@ -20,7 +22,7 @@ const getAll: NextApiHandler = async (req, res) => {
       process.env.FIREBASE_AUTH_PASSWORD!
     );
   }
-  const queryConstraints: QueryConstraint[] = [];
+  const queryConstraints: QueryFilterConstraint[] = [];
 
   if (nevm) {
     queryConstraints.push(where("nevmAddress", "==", nevm));
@@ -28,6 +30,7 @@ const getAll: NextApiHandler = async (req, res) => {
 
   if (utxo) {
     queryConstraints.push(where("utxoXpub", "==", utxo));
+    queryConstraints.push(where("utxoAddress", "==", utxo));
   }
 
   if (queryConstraints.length === 0) {
@@ -36,7 +39,7 @@ const getAll: NextApiHandler = async (req, res) => {
 
   const transferQuery = query(
     collection(firebase.firestore, "transfers"),
-    ...queryConstraints,
+    or(...queryConstraints),
     orderBy("createdAt", "desc")
   );
 

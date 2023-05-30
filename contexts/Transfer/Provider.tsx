@@ -17,11 +17,13 @@ import {
   setStatus,
   setUtxoAddress,
   setUtxoXpub,
+  setVersion,
 } from "./store/actions";
 import relayAbi from "./relay-abi";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
+import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -52,6 +54,8 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   const { sendUtxoTransaction, confirmTransaction, syscoinInstance, web3 } =
     useConnectedWallet();
 
+  const { version } = usePaliWallet();
+
   const relayContract = useMemo(() => {
     return new web3.eth.Contract(
       relayAbi,
@@ -67,6 +71,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       status: "initialize",
       logs: [],
       createdAt: Date.now(),
+      version: "v1",
     };
   }, [id]);
 
@@ -122,9 +127,9 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       return;
     }
     updateAmount(`${amount}`);
+    dispatch(setVersion(version));
     dispatch(setStatus("initialize"));
     dispatch(addLog("initialize", "Starting Sys to NEVM transfer", transfer));
-
     if (transfer.type === "sys-to-nevm") {
       dispatch(setStatus("burn-sys"));
     } else if (transfer.type === "nevm-to-sys") {
