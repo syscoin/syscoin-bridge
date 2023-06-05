@@ -14,14 +14,50 @@ import React, { useEffect } from "react";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 
 const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const {
-    transfer: { type },
+    transfer: { type, nevmAddress, utxoAddress, utxoXpub },
+    setNevm,
+    setUtxo,
   } = useTransfer();
   const paliwallet = usePaliWallet() as IPaliWalletV2Context;
+  const nevm = useNEVM();
+
+  useEffect(() => {
+    if (paliwallet.version === "v2") {
+      return;
+    }
+
+    if (!nevmAddress && nevm.account && nevmAddress !== nevm.account) {
+      setNevm({ address: nevm.account });
+    }
+
+    const utxoNotDefined = !utxoAddress || !utxoXpub;
+    if (
+      utxoNotDefined &&
+      paliwallet.connectedAccount &&
+      paliwallet.xpubAddress
+    ) {
+      setUtxo({
+        xpub: paliwallet.xpubAddress,
+        address: paliwallet.connectedAccount,
+      });
+    }
+  }, [
+    paliwallet.version,
+    setNevm,
+    setUtxo,
+    paliwallet.xpubAddress,
+    paliwallet.connectedAccount,
+    nevm.account,
+    nevmAddress,
+    utxoAddress,
+    utxoXpub,
+  ]);
 
   if (paliwallet.version === "v2") {
     if (type === "sys-to-nevm" && !paliwallet.isBitcoinBased) {
