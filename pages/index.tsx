@@ -11,6 +11,7 @@ import ContactUs from "components/Home/ContactUs";
 import FAQ from "components/Home/FAQ";
 import Footer from "components/Footer";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import NextImage from "next/image";
 
 const PaliAndMetamaskBridge = () => {
   const { nevm, utxo } = useConnectedWallet();
@@ -78,14 +79,17 @@ const Home: NextPage = () => {
             <Grid component={Container} container sx={{ my: 3 }}>
               <Grid item md={6}>
                 <Box>
-                  {/* <object
+                  <NextImage
                     className="animation"
-                    type="image/svg+xml"
-                    data="/bridge-diagram.svg"
+                    src="/bridge-diagram.svg"
+                    width={258}
+                    height={258}
+                    alt="Syscoin Bridge Diagram"
                     style={{
                       width: "100%",
+                      height: "auto",
                     }}
-                  ></object> */}
+                  />
                 </Box>
               </Grid>
               <Grid item md={6} sx={{ my: "auto", padding: 2 }}>
