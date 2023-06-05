@@ -1,6 +1,6 @@
 export type UTXOWallet = "pali-wallet";
 
-export type NEVMWallet = "metamask";
+export type NEVMWallet = "metamask" | "pali-wallet";
 
 export interface UTXOInfo {
   type: UTXOWallet;

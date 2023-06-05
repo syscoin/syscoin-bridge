@@ -14,12 +14,10 @@ import { TransactionReceipt } from "web3-core";
 
 type SysToNevmStateMachineParams = {
   transfer: ITransfer;
+  dispatch: Dispatch<TransferActions>;
   syscoinInstance: syscoin;
   web3: Web3;
-  utxo: Partial<UTXOInfo>;
-  dispatch: Dispatch<TransferActions>;
   sendUtxoTransaction: SendUtxoTransaction;
-  nevm: Partial<NEVMInfo>;
   relayContract: Contract;
   confirmTransaction: (
     chain: "nevm" | "utxo",
@@ -37,22 +35,20 @@ const runWithSysToNevmStateMachine = async (
     syscoinInstance,
     web3,
     dispatch,
-    nevm,
     relayContract,
     sendUtxoTransaction,
-    utxo,
     confirmTransaction,
   } = params;
   switch (transfer.status) {
     case "burn-sys": {
-      if (transfer.logs.some((l) => l.status === "burn-sys")) {
-        return dispatch(setStatus("burn-sysx"));
+      if (transfer.logs.find((log) => log.status === "burn-sys")) {
+        return Promise.resolve();
       }
       const burnSysTransaction = await burnSysToSysx(
         syscoinInstance,
         parseFloat(transfer.amount).toFixed(6),
-        utxo.xpub!,
-        utxo.account!
+        transfer.utxoXpub!,
+        transfer.utxoAddress!
       );
       await sendUtxoTransaction(burnSysTransaction)
         .then((burnSysTransactionReceipt) => {
@@ -60,7 +56,6 @@ const runWithSysToNevmStateMachine = async (
           dispatch(
             addLog("burn-sys", "Burning SYS to SYSX", burnSysTransactionReceipt)
           );
-          dispatch(setStatus("confirm-burn-sys"));
         })
         .catch((error) => {
           console.error("burn-sys error", error);
@@ -76,18 +71,20 @@ const runWithSysToNevmStateMachine = async (
       if (!transactionRaw) {
         return;
       }
-      dispatch(setStatus("burn-sysx"));
       break;
     }
 
     case "burn-sysx": {
+      if (transfer.logs.find((log) => log.status === "burn-sysx")) {
+        return Promise.resolve();
+      }
       const burnSysxTransaction = await burnSysx(
         syscoinInstance,
         transfer.amount,
         SYSX_ASSET_GUID,
-        utxo.account!,
-        utxo.xpub!,
-        nevm.account!.replace(/^0x/g, "")
+        transfer.utxoAddress!,
+        transfer.utxoXpub!,
+        transfer.nevmAddress!.replace(/^0x/g, "")
       );
       await sendUtxoTransaction(burnSysxTransaction)
         .then((burnSysxTransactionReceipt) => {
@@ -98,7 +95,6 @@ const runWithSysToNevmStateMachine = async (
               burnSysxTransactionReceipt
             )
           );
-          dispatch(setStatus("confirm-burn-sysx"));
         })
         .catch((error) => {
           console.error("burn-sysx error", error);
@@ -114,7 +110,6 @@ const runWithSysToNevmStateMachine = async (
       if (!transactionRaw) {
         return;
       }
-      dispatch(setStatus("generate-proofs"));
       break;
     }
 
@@ -131,11 +126,20 @@ const runWithSysToNevmStateMachine = async (
       }
       const results = JSON.parse(proof.result) as SPVProof;
       dispatch(addLog("generate-proofs", "Submitting proofs", { results }));
-      dispatch(setStatus("submit-proofs"));
       break;
     }
 
     case "submit-proofs": {
+      if (transfer.logs.find((log) => log.status === "submit-proofs")) {
+        return Promise.resolve();
+      }
+      let fromAccount = transfer.nevmAddress!;
+      const switchLog = transfer.logs
+        .reverse()
+        .find((log) => log.status === "switch")?.payload.data;
+      if (switchLog) {
+        fromAccount = switchLog.address;
+      }
       const proof = transfer.logs.find(
         (log) => log.status === "generate-proofs"
       )?.payload.data.results as SPVProof;
@@ -147,27 +151,44 @@ const runWithSysToNevmStateMachine = async (
         (sibling) => `0x${sibling}`
       );
       const syscoinBlockheader = `0x${proof.header}`;
+
+      const method = relayContract.methods.relayTx(
+        nevmBlock.number,
+        txBytes,
+        txIndex,
+        merkleProof.sibling,
+        syscoinBlockheader
+      );
+
+      const gasPrice = await web3.eth.getGasPrice();
+
+      const gas = await method
+        .estimateGas({ from: fromAccount })
+        .catch((error: Error) => console.error("Estimate gas error", error));
+
       return new Promise((resolve, reject) => {
-        relayContract.methods
-          .relayTx(
-            nevmBlock.number,
-            txBytes,
-            txIndex,
-            merkleProof.sibling,
-            syscoinBlockheader
-          )
+        method
           .send({
-            from: nevm.account!,
-            gas: 400000,
+            from: fromAccount,
+            gas: gas ?? 400_000,
+            gasPrice,
           })
-          .once("transactionHash", (hash: string) => {
-            dispatch(
-              addLog("submit-proofs", "Transaction hash", {
-                hash,
-              })
-            );
-            dispatch(setStatus("finalizing"));
-            resolve(hash);
+          .once("transactionHash", (hash: string | { success: false }) => {
+            if (typeof hash !== "string" && !hash.success) {
+              dispatch(
+                addLog("error", "Submission Failed", {
+                  error: hash,
+                })
+              );
+              reject("Failed to submit proofs. Check browser logs");
+            } else {
+              dispatch(
+                addLog("submit-proofs", "Transaction hash", {
+                  hash,
+                })
+              );
+              resolve(hash);
+            }
           })
           .on("error", (error: { message: string }) => {
             if (/might still be mined/.test(error.message)) {
@@ -200,9 +221,9 @@ const runWithSysToNevmStateMachine = async (
             receipt,
           })
         );
-        dispatch(setStatus("completed"));
       }
       break;
+
     default:
       return;
   }

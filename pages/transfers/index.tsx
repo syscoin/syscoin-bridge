@@ -1,46 +1,25 @@
-import { Alert, Box, Button, Container, Typography, Link } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
-import axios from "axios";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { Alert, Box, Button, Container, Typography } from "@mui/material";
 import DrawerPage from "components/DrawerPage";
+import TransferDataGrid from "components/Transfer/DataGrid";
 import WalletList from "components/WalletList";
 import { useConnectedWallet } from "contexts/ConnectedWallet/useConnectedWallet";
 import { ITransfer } from "contexts/Transfer/types";
 import { NextPage } from "next";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
-import { useQuery } from "react-query";
-
-const DateField: React.FC<{ value: number }> = ({ value }) => {
-  if (!value) {
-    return (
-      <Typography variant="body2" color="GrayText">
-        EMPTY
-      </Typography>
-    );
-  }
-  return (
-    <Typography variant="body1">{new Date(value).toLocaleString()}</Typography>
-  );
-};
 
 const TransfersPage: NextPage = () => {
   const [items, setItems] = useState<ITransfer[]>([]);
   const { utxo, nevm } = useConnectedWallet();
-  const isFullyConnected = Boolean(utxo.account && nevm.account);
-  const { data, isFetched, isLoading, error } = useQuery(
-    "transfers",
-    () => {
-      const searchParams = new URLSearchParams();
-      if (utxo.xpub) {
-        searchParams.set("utxo", utxo.xpub);
-      }
-      if (nevm.account) {
-        searchParams.set("nevm", nevm.account);
-      }
-      return axios(`/api/transfer?${searchParams.toString()}`);
-    },
-    { enabled: isFullyConnected }
-  );
+  const { version, isBitcoinBased } = usePaliWalletV2();
+  const isPaliV2Connected = isBitcoinBased
+    ? Boolean(utxo.account)
+    : Boolean(nevm.account);
+  const isFullyConnected =
+    version === "v1"
+      ? Boolean(utxo.account && nevm.account)
+      : isPaliV2Connected;
 
   useEffect(() => {
     if (!localStorage) {
@@ -60,83 +39,18 @@ const TransfersPage: NextPage = () => {
           Transfers
         </Typography>
         <Box display="flex" mb={2}>
-          <NextLink href={`/bridge/${Date.now()}`}>
+          <NextLink
+            href={`/bridge/${version === "v2" ? "v2/" : ""}${Date.now()}`}
+          >
             <Button sx={{ ml: "auto" }}>New Transfer</Button>
           </NextLink>
         </Box>
-        <DataGrid
-          loading={isLoading}
-          columns={[
-            {
-              field: "id",
-              headerName: "Id",
-              width: 130,
-              renderCell: ({ value }) => (
-                <NextLink href={`/bridge/${value}`}>
-                  <Typography
-                    variant="body2"
-                    color="primary"
-                    sx={{ cursor: "pointer" }}
-                  >
-                    {value}
-                  </Typography>
-                </NextLink>
-              ),
-            },
-            {
-              field: "type",
-              headerName: "Type",
-            },
-            {
-              field: "amount",
-              headerName: "Amount",
-              renderCell: ({ value }) => `${value} SYS`,
-            },
-            {
-              field: "utxoAddress",
-              headerName: "ZPUB",
-              width: 320,
-            },
-            {
-              field: "nevmAddress",
-              headerName: "NEVM",
-              width: 300,
-            },
-            {
-              field: "status",
-              headerName: "Status",
-              renderCell: ({ value }) => {
-                let color = "inherit";
-                if (value === "completed") {
-                  color = "green";
-                }
-                if (value === "error") {
-                  color = "error";
-                }
-                return (
-                  <Typography variant="body1" color={color}>
-                    {value}
-                  </Typography>
-                );
-              },
-            },
-            {
-              field: "createdAt",
-              headerName: "Created At",
-              width: 200,
-              renderCell: ({ value }) => <DateField value={value} />,
-            },
-            {
-              field: "updatedAt",
-              headerName: "Updated At",
-              width: 200,
-              renderCell: ({ value }) => <DateField value={value} />,
-            },
-          ]}
-          rows={isFetched ? data?.data ?? items : []}
-          sx={{ background: "white", mb: 2 }}
-          autoHeight
-          error={error}
+        <TransferDataGrid
+          account={nevm.account}
+          isFullyConnected={isFullyConnected}
+          items={items}
+          xpub={utxo.xpub}
+          version={isPaliV2Connected ? version : undefined}
         />
         {!isFullyConnected && (
           <Alert severity="info" sx={{ mb: 2 }}>

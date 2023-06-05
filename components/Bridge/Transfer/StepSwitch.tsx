@@ -1,4 +1,3 @@
-import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { Alert, Button, Typography } from "@mui/material";
 import { useTransfer } from "contexts/Transfer/useTransfer";
 import BridgeTransferComplete from "./Complete";
@@ -7,10 +6,11 @@ import WaitMetaMaskSign from "./StepSwitch/WailMetamaskSign";
 import WaitMetamaskTransactionConfirmation from "./StepSwitch/WaitMetamaskTransactionConfirmation";
 import WaitForPaliWalletSign from "./StepSwitch/WaitPaliWalletSign";
 import WaitPaliWalletTransactionConfirmation from "./StepSwitch/WaitPaliwalletTransactionConfirmation";
+import PaliSwitch from "./StepSwitch/PaliSwitchNetwork";
 
 const BridgeTransferStepSwitch: React.FC = () => {
   const {
-    transfer: { status, logs },
+    transfer: { status, logs, type },
     revertToPreviousStatus,
   } = useTransfer();
 
@@ -40,6 +40,14 @@ const BridgeTransferStepSwitch: React.FC = () => {
   }
   if (["completed", "finalizing"].includes(status)) {
     return <BridgeTransferComplete isComplete={status === "completed"} />;
+  }
+
+  if (status === "switch") {
+    if (type === "sys-to-nevm") {
+      return <PaliSwitch networkType="ethereum" />;
+    } else if (type === "nevm-to-sys") {
+      return <PaliSwitch networkType="bitcoin" />;
+    }
   }
 
   const lastLog = logs[logs.length - 1];
