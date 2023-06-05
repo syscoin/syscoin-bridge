@@ -1,9 +1,12 @@
 "use client";
 import { NEVMNetwork } from "@contexts/Transfer/constants";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
-import { IPaliWalletContext, PaliWalletContext } from "./Provider";
+import PaliWalletContextProvider, {
+  IPaliWalletContext,
+  PaliWalletContext,
+} from "./Provider";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
@@ -70,6 +73,7 @@ declare global {
 export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
+  const queryClient = useQueryClient();
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
@@ -78,8 +82,6 @@ export const PaliWalletV2Provider: React.FC<{
   });
 
   const isInstalled = installed.isFetched && installed.data;
-
-  const queryClient = useQueryClient();
 
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
     queryFn: () => {
@@ -243,6 +245,10 @@ export const PaliWalletV2Provider: React.FC<{
       switchTo,
     ]
   );
+
+  if (!isInstalled) {
+    return <PaliWalletContextProvider>{children}</PaliWalletContextProvider>;
+  }
 
   return (
     <PaliWalletContext.Provider value={value}>
