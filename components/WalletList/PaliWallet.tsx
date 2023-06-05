@@ -82,13 +82,19 @@ const WalletListPaliWallet = () => {
 
   if (utxo.type !== "pali-wallet" || !utxo.account) {
     return (
-      <>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+        <Image
+          src="/pali-wallet-logo.svg"
+          height={32}
+          width={32}
+          alt="PaliWallet logo"
+        />
         <Typography variant="body1">PaliWallet</Typography>
         <Link href="https://paliwallet.com/" title="Go to PaliWallet">
           <Launch />
         </Link>
         <ConnectToPaliWallet />
-      </>
+      </Box>
     );
   }
 
