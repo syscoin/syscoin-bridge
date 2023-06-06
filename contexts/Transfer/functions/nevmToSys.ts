@@ -12,6 +12,9 @@ import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";
 
+const ERROR_MESSAGE_EVM_ONLY =
+  "Method only available when connected on EVM chains";
+
 const freezeAndBurn = (
   contract: Contract,
   transfer: ITransfer,
@@ -70,13 +73,25 @@ const confirmFreezeAndBurnSys = async (
       addLog("confirm-freeze-burn-sys", "Confirm Freeze and Burn SYS", receipt)
     );
     return dispatch(setStatus("mint-sysx"));
-  } catch (error) {
+  } catch (error: any) {
+    const isEVMOnlyError =
+      error.cause && error.cause.message === ERROR_MESSAGE_EVM_ONLY;
+
     dispatch(
-      addLog("error", "Confirm Freeze and Burn error", {
-        error,
-      })
+      addLog(
+        "error",
+        `Confirm Freeze and Burn error${
+          isEVMOnlyError
+            ? ": Please switch your Pali to the Syscoin NEVM network"
+            : ""
+        }`,
+        {
+          error,
+        }
+      )
     );
     dispatch(setStatus("error"));
+    throw error;
   }
 };
 

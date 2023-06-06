@@ -221,15 +221,22 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     if (transfer.logs.length === 0) {
       return;
     }
-    const latestLog = transfer.logs[transfer.logs.length - 1];
-    if (latestLog.payload.previousStatus) {
-      dispatch(setStatus(latestLog.payload.previousStatus));
+    const sortedLogs = [...transfer.logs].sort((a, b) => a.date - b.date);
+
+    for (let i = sortedLogs.length - 1; i >= 0; i--) {
+      const log = sortedLogs[i];
+      if (log.payload.previousStatus !== "error") {
+        if (log.payload.previousStatus) {
+          dispatch(setStatus(log.payload.previousStatus));
+          break;
+        }
+      }
     }
   };
 
   useEffect(() => {
     if (
-      ["initialize", "completed"].includes(transfer.status) ||
+      ["initialize", "completed", "error"].includes(transfer.status) ||
       previousStatus === transfer.status
     ) {
       return;

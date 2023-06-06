@@ -106,14 +106,24 @@ export const PaliWalletV2Provider: React.FC<{
         method: "wallet_getAccount",
       });
 
-      if (!account) {
-        await window.pali.request({ method: "sys_requestAccounts" });
-        account = await window.pali.request({
-          method: "wallet_getAccount",
-        });
+      if (account) {
+        return account;
       }
 
-      return account;
+      const receivedAccounts: (string | { success: boolean })[] =
+        await window.pali.request({
+          method: "sys_requestAccounts",
+        });
+      if (
+        receivedAccounts.length === 0 ||
+        (typeof receivedAccounts[0] !== "string" &&
+          receivedAccounts[0].success === false)
+      ) {
+        return null;
+      }
+      return await window.pali.request({
+        method: "wallet_getAccount",
+      });
     },
     enabled: isInstalled && isBitcoinBased.isFetched && isBitcoinBased.data,
   });

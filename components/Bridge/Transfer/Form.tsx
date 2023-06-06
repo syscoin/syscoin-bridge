@@ -84,6 +84,8 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   return <>{children}</>;
 };
 
+const minAmount = 0.0001;
+
 const BridgeTransferForm: React.FC = () => {
   const { startTransfer, transfer } = useTransfer();
   const { utxo, nevm } = useConnectedWallet();
@@ -131,8 +133,8 @@ const BridgeTransferForm: React.FC = () => {
               message: `You can transfer up to ${maxAmountFixed} SYS`,
             },
             min: {
-              value: 0.1,
-              message: "Amount must be atleast 0.1",
+              value: minAmount,
+              message: `Amount must be at least ${minAmount}`,
             },
             required: {
               message: "Amount is required",
