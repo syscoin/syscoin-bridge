@@ -20,7 +20,9 @@ const NavigationItem: React.FC<INavigationItem> = ({ label, path }) => {
                   backgroundColor: "primary.dark",
                   color: "white",
                 }
-              : undefined
+              : {
+                  color: "primary.main",
+                }
           }
         >
           <ListItemText primary={label} />
