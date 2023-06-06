@@ -155,9 +155,9 @@ export const PaliWalletV2Provider: React.FC<{
   const connectWallet = useCallback(
     (networkType: PaliWalletNetworkType = "bitcoin") => {
       if (networkType === "bitcoin") {
-        window.pali.request({ method: "sys_requestAccounts" }).then(() => {
-          connectedAccount.refetch();
-        });
+        window.pali
+          .request({ method: "sys_requestAccounts" })
+          .then(() => connectedAccount.refetch());
       }
     },
     [connectedAccount]
@@ -203,8 +203,7 @@ export const PaliWalletV2Provider: React.FC<{
             ],
           })
           .then(() => {
-            isBitcoinBased.refetch();
-            connectedAccount.refetch();
+            isBitcoinBased.refetch().then(() => connectedAccount.refetch());
           });
       } else if (networkType === "ethereum") {
         return window.ethereum
