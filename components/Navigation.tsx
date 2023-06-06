@@ -1,3 +1,4 @@
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { List, ListItem, ListItemButton, ListItemText } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -8,13 +9,13 @@ interface INavigationItem {
 }
 
 const NavigationItem: React.FC<INavigationItem> = ({ label, path }) => {
-  const { pathname } = useRouter();
+  const { asPath } = useRouter();
   return (
     <ListItem disablePadding>
       <Link href={path}>
         <ListItemButton
           sx={
-            pathname.startsWith(path)
+            asPath.startsWith(path)
               ? {
                   backgroundColor: "primary.dark",
                   color: "white",
@@ -30,7 +31,12 @@ const NavigationItem: React.FC<INavigationItem> = ({ label, path }) => {
 };
 
 const Navigation: React.FC = () => {
+  const { version } = usePaliWalletV2();
   const routes: INavigationItem[] = [
+    {
+      label: "New Transfer",
+      path: `/bridge/${version === "v2" ? "v2/" : ""}${Date.now()}`,
+    },
     {
       label: "My Transfers",
       path: "/transfers",
