@@ -6,21 +6,43 @@ import CheckBoxIcon from "@mui/icons-material/CheckBox";
 
 const UTXOConnect = () => {
   const { transfer, setUtxo } = useTransfer();
-  const { isBitcoinBased, switchTo, connectedAccount, xpubAddress } =
-    usePaliWalletV2();
+  const {
+    isBitcoinBased,
+    switchTo,
+    connectedAccount,
+    xpubAddress,
+    changeAccount,
+  } = usePaliWalletV2();
 
   const setTransferUtxo = () => {
     if (!connectedAccount || !xpubAddress) return;
     setUtxo({ xpub: xpubAddress, address: connectedAccount });
   };
 
-  if (transfer.utxoXpub) {
+  const change = () => {
+    const prom = !isBitcoinBased ? switchTo("bitcoin") : Promise.resolve();
+
+    prom.then(() => changeAccount());
+  };
+
+  if (
+    isBitcoinBased
+      ? transfer.utxoAddress === connectedAccount
+      : Boolean(transfer.utxoAddress)
+  ) {
     return (
-      <Box display="flex">
-        <Typography variant="body1" color="success">
-          {transfer.utxoAddress}
-        </Typography>
-        <CheckBoxIcon />
+      <Box>
+        <Box display="flex">
+          <Typography variant="body1" color="success">
+            {transfer.utxoAddress}
+          </Typography>
+          <CheckBoxIcon />
+        </Box>
+        {transfer.status === "initialize" && (
+          <Button variant="contained" onClick={change}>
+            Change
+          </Button>
+        )}
       </Box>
     );
   }

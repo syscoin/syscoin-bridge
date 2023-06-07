@@ -1,7 +1,7 @@
 "use client";
 import { NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useMemo } from "react";
-import { useQuery, useQueryClient } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import PaliWalletContextProvider, {
   IPaliWalletContext,
@@ -63,6 +63,7 @@ export interface IPaliWalletV2Context extends IPaliWalletContext {
   chainType: string | undefined;
   isBitcoinBased: boolean;
   switchTo: (networkType: PaliWalletNetworkType) => Promise<void>;
+  changeAccount: () => void;
 }
 
 declare global {
@@ -79,7 +80,6 @@ export const PaliWalletV2Provider: React.FC<{
     queryFn: () => {
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
     },
-    refetchInterval: 1000,
   });
 
   const isInstalled = installed.isFetched && installed.data;
@@ -101,6 +101,13 @@ export const PaliWalletV2Provider: React.FC<{
     },
     enabled: isInstalled,
   });
+
+  const requestAccounts = () => {
+    return window.pali.request({
+      method: "sys_requestAccounts",
+    }) as Promise<(string | { success: boolean })[]>;
+  };
+
   const connectedAccount = useQuery(["pali", "connected-account"], {
     queryFn: async () => {
       let account: Account = await window.pali.request({
@@ -111,10 +118,8 @@ export const PaliWalletV2Provider: React.FC<{
         return account;
       }
 
-      const receivedAccounts: (string | { success: boolean })[] =
-        await window.pali.request({
-          method: "sys_requestAccounts",
-        });
+      const receivedAccounts = await requestAccounts();
+
       if (
         receivedAccounts.length === 0 ||
         (typeof receivedAccounts[0] !== "string" &&
@@ -128,6 +133,12 @@ export const PaliWalletV2Provider: React.FC<{
     },
     enabled: isInstalled && isBitcoinBased.isFetched && isBitcoinBased.data,
   });
+
+  const changeAccount = useCallback(() => {
+    return window.pali.request({
+      method: "wallet_changeAccount",
+    });
+  }, []);
 
   const sysAddress = useMemo(
     () =>
@@ -243,6 +254,7 @@ export const PaliWalletV2Provider: React.FC<{
       chainType: providerState.data?.chainId === "0x39" ? "nevm" : "syscoin",
       isBitcoinBased: Boolean(isBitcoinBased.data),
       switchTo,
+      changeAccount,
     }),
     [
       isInstalled,
@@ -255,6 +267,7 @@ export const PaliWalletV2Provider: React.FC<{
       xpubAddress,
       isBitcoinBased.data,
       switchTo,
+      changeAccount,
     ]
   );
 
