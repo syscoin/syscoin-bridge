@@ -58,6 +58,9 @@ const UTXOConnect = () => {
   return (
     <Box>
       <Typography variant="body1">{connectedAccount}</Typography>
+      <Button variant="contained" onClick={change} sx={{ mr: 2 }}>
+        Change
+      </Button>
       <Button variant="contained" onClick={setTransferUtxo} color="success">
         Confirm <CheckIcon />
       </Button>

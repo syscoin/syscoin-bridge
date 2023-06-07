@@ -56,6 +56,9 @@ const NEVMConnect = () => {
   return (
     <Box>
       <Typography variant="body1">{account}</Typography>
+      <Button variant="contained" onClick={change} sx={{ mr: 2 }}>
+        Change
+      </Button>
       <Button variant="contained" onClick={setTransferNevm} color="success">
         Confirm <CheckIcon />
       </Button>
