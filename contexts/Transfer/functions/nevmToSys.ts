@@ -7,7 +7,6 @@ import { SYSX_ASSET_GUID } from "../constants";
 import { addLog, setStatus, TransferActions } from "../store/actions";
 import { ITransfer } from "../types";
 import { syscoin, utils } from "syscoinjs-lib";
-import { UTXOInfo } from "@contexts/ConnectedWallet/types";
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";

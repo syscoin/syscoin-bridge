@@ -24,7 +24,6 @@ import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
-import { Contract } from "web3-eth-contract";
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -61,7 +60,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     return new web3.eth.Contract(
       relayAbi,
       "0xD822557aC2F2b77A1988617308e4A29A89Cb95A6"
-    ) as unknown as Contract;
+    );
   }, [web3]);
 
   const baseTransfer: Partial<ITransfer> = useMemo(() => {
