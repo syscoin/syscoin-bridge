@@ -80,7 +80,7 @@ const Home: NextPage = () => {
               <Grid item md={6}>
                 <Box>
                   <NextImage
-                    className="animatiogn"
+                    className="animation"
                     src="/bridge-diagram.svg"
                     width={258}
                     height={258}
