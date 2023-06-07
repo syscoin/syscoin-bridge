@@ -1,5 +1,4 @@
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
-import { NEVMInfo, UTXOInfo } from "@contexts/ConnectedWallet/types";
 import { Dispatch } from "react";
 import { SPVProof, syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import { BlockbookAPIURL, SYSX_ASSET_GUID } from "../constants";
@@ -8,7 +7,9 @@ import burnSysx from "./burnSysx";
 import { addLog, setStatus, TransferActions } from "../store/actions";
 import { ITransfer } from "../types";
 import Web3 from "web3";
-import { Contract } from "web3-eth-contract";
+import { Contract } from 'web3-eth-contract'
+
+
 import { getProof } from "bitcoin-proof";
 import { TransactionReceipt } from "web3-core";
 
