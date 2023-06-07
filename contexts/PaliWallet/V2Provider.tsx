@@ -10,6 +10,7 @@ import PaliWalletContextProvider, {
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
+import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
 
 export interface ProviderState {
   xpub: string;
@@ -130,7 +131,9 @@ export const PaliWalletV2Provider: React.FC<{
 
   const sysAddress = useMemo(
     () =>
-      connectedAccount.isSuccess && connectedAccount.data
+      connectedAccount.isSuccess &&
+      connectedAccount.data &&
+      isValidSYSAddress(connectedAccount.data.address, 57)
         ? connectedAccount.data.address
         : undefined,
     [connectedAccount.data, connectedAccount.isSuccess]
