@@ -1,6 +1,9 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
-import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import {
+  usePaliWallet,
+  usePaliWalletV2,
+} from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Button } from "@mui/material";
 import { ArrowCircleRight } from "@mui/icons-material";
@@ -14,8 +17,7 @@ const PaliSwitch: React.FC<Props> = ({ networkType }) => {
   const { proceedNextStep } = useTransfer();
   const queryClient = useQueryClient();
   const { account } = useNEVM();
-  const { switchTo, connectedAccount } =
-    usePaliWallet() as IPaliWalletV2Context;
+  const { switchTo, connectedAccount, isBitcoinBased } = usePaliWalletV2();
 
   let networkName = "unknown";
   if (networkType === "bitcoin") {
@@ -35,8 +37,8 @@ const PaliSwitch: React.FC<Props> = ({ networkType }) => {
   };
 
   if (
-    (networkType === "ethereum" && account) ||
-    (networkType === "bitcoin" && connectedAccount)
+    (networkType === "ethereum" && !isBitcoinBased && account) ||
+    (networkType === "bitcoin" && isBitcoinBased && connectedAccount)
   ) {
     return (
       <Button variant="contained" color="success" onClick={proceedNextStep}>

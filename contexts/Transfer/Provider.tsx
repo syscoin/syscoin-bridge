@@ -51,10 +51,14 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   includeSwitchStep,
   children,
 }) => {
-  const { sendUtxoTransaction, confirmTransaction, syscoinInstance, web3 } =
-    useConnectedWallet();
-
-  const { version } = usePaliWallet();
+  const {
+    sendUtxoTransaction,
+    confirmTransaction,
+    syscoinInstance,
+    web3,
+    nevm,
+    utxo,
+  } = useConnectedWallet();
 
   const relayContract = useMemo(() => {
     return new web3.eth.Contract(
@@ -127,7 +131,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       return;
     }
     updateAmount(`${amount}`);
-    dispatch(setVersion(version));
+    dispatch(setVersion(utxo.type === nevm.type ? "v2" : "v1"));
     dispatch(setStatus("initialize"));
     dispatch(addLog("initialize", "Starting Sys to NEVM transfer", transfer));
     if (transfer.type === "sys-to-nevm") {
@@ -221,15 +225,22 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     if (transfer.logs.length === 0) {
       return;
     }
-    const latestLog = transfer.logs[transfer.logs.length - 1];
-    if (latestLog.payload.previousStatus) {
-      dispatch(setStatus(latestLog.payload.previousStatus));
+    const sortedLogs = [...transfer.logs].sort((a, b) => a.date - b.date);
+
+    for (let i = sortedLogs.length - 1; i >= 0; i--) {
+      const log = sortedLogs[i];
+      if (log.payload.previousStatus !== "error") {
+        if (log.payload.previousStatus) {
+          dispatch(setStatus(log.payload.previousStatus));
+          break;
+        }
+      }
     }
   };
 
   useEffect(() => {
     if (
-      ["initialize", "completed"].includes(transfer.status) ||
+      ["initialize", "completed", "error"].includes(transfer.status) ||
       previousStatus === transfer.status
     ) {
       return;

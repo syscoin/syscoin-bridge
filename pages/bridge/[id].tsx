@@ -23,6 +23,7 @@ import { useMetamask } from "@contexts/Metamask/Provider";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
 import TransferTitle from "components/Bridge/Transfer/Title";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { useEffect } from "react";
 
 interface Props {
   transfer: ITransfer;

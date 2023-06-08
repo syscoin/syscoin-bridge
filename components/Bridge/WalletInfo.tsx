@@ -80,8 +80,8 @@ const BridgeWalletInfo: React.FC<IProps> = ({ label, network, walletType }) => {
                 Connect
               </Button>
             )
-          ) : utxo.xpub ? (
-            utxo.xpub === transfer.utxoAddress ? (
+          ) : utxo.account ? (
+            utxo.account === transfer.utxoAddress ? (
               <UTXOAddress type={transfer.type} utxo={utxo} />
             ) : (
               <Typography variant="body2">

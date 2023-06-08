@@ -1,10 +1,15 @@
+import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Alert, AlertColor, Button } from "@mui/material";
 
-const WaitMetaMaskSign = () => {
+const WaitNEVMSign = () => {
   const { retry, error } = useTransfer();
+  const { nevm } = useConnectedWallet();
   let alertColor: AlertColor = "info";
-  let message = "Check Metmask Wallet for signing";
+  let message = `Check ${
+    nevm.type === "pali-wallet" ? "Pali" : "Metmask"
+  } Wallet for signing`;
   if (error) {
     alertColor = "error";
     if (typeof error === "string") {
@@ -26,4 +31,4 @@ const WaitMetaMaskSign = () => {
   );
 };
 
-export default WaitMetaMaskSign;
+export default WaitNEVMSign;

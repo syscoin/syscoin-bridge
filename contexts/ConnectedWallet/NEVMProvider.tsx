@@ -37,13 +37,14 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     if (!isEthereumAvailable) {
       return false;
     }
-    if (paliWallet.version === "v2") {
+    if (paliWallet.version === "v2" && paliWallet.isEVMInjected) {
       return !paliWallet.isBitcoinBased;
     }
     return metamask.isEnabled;
   }, [
     metamask.isEnabled,
     paliWallet.version,
+    paliWallet.isEVMInjected,
     paliWallet.isBitcoinBased,
     isEthereumAvailable,
   ]);
@@ -64,13 +65,21 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   );
 
   const account = useQuery(["nevm", "account"], {
-    queryFn: () => {
-      return window.ethereum.request({
-        method: "eth_requestAccounts",
-      });
+    queryFn: async () => {
+      const result: (string | { success: false })[] =
+        await window.ethereum.request({
+          method: "eth_requestAccounts",
+        });
+      if (
+        result.length > 0 &&
+        typeof result[0] === "string" &&
+        web3?.utils.isAddress(result[0] as string)
+      ) {
+        return result[0] as string;
+      }
+      return Promise.reject("No account found");
     },
-    enabled: isEnabled,
-    refetchInterval: 1000,
+    enabled: Boolean(web3) && isEnabled,
   });
 
   const balance = useQuery(["nevm", "balance"], {
@@ -79,7 +88,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         return;
       }
       return web3.eth
-        .getBalance(account.data[0])
+        .getBalance(account.data)
         .then((balance) => web3.utils.fromWei(balance || "0"));
     },
     enabled: Boolean(isEnabled && account.isFetched && account.data),
@@ -115,8 +124,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   return (
     <NEVMContext.Provider
       value={{
-        account:
-          account.isSuccess && account.data ? account.data[0] : undefined,
+        account: account.isSuccess && account.data ? account.data : undefined,
         sendTransaction,
         balance: balance.data,
         isTestnet: !!isTestnet,

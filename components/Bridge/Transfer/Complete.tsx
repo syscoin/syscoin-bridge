@@ -142,11 +142,11 @@ const BridgeTransferComplete: React.FC<BridgeTransferCompleteProps> = ({
   const {
     transfer: { type },
   } = useTransfer();
-  const { version } = usePaliWallet();
+  const { utxo, nevm } = useConnectedWallet();
 
   const newTransfer = () => {
     setReinitializing(true);
-    push(`/bridge/${version !== "v1" ? `${version}/` : ""}${Date.now()}`);
+    push(`/bridge/${utxo.type === nevm.type ? `v2/` : ""}${Date.now()}`);
   };
 
   return (

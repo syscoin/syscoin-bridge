@@ -12,14 +12,14 @@ import { useEffect, useState } from "react";
 const TransfersPage: NextPage = () => {
   const [items, setItems] = useState<ITransfer[]>([]);
   const { utxo, nevm } = useConnectedWallet();
-  const { version, isBitcoinBased } = usePaliWalletV2();
+  const { version, isBitcoinBased, isEVMInjected } = usePaliWalletV2();
   const isPaliV2Connected = isBitcoinBased
     ? Boolean(utxo.account)
     : Boolean(nevm.account);
-  const isFullyConnected =
-    version === "v1"
-      ? Boolean(utxo.account && nevm.account)
-      : isPaliV2Connected;
+  const onlyV2 = version === "v2" && isEVMInjected;
+  const isFullyConnected = onlyV2
+    ? isPaliV2Connected
+    : Boolean(utxo.account && nevm.account);
 
   useEffect(() => {
     if (!localStorage) {
@@ -50,7 +50,7 @@ const TransfersPage: NextPage = () => {
           isFullyConnected={isFullyConnected}
           items={items}
           xpub={utxo.xpub}
-          version={isPaliV2Connected ? version : undefined}
+          version={onlyV2 ? version : undefined}
         />
         {!isFullyConnected && (
           <Alert severity="info" sx={{ mb: 2 }}>

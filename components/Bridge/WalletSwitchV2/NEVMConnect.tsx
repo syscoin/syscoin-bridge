@@ -8,18 +8,35 @@ import CheckBoxIcon from "@mui/icons-material/CheckBox";
 const NEVMConnect = () => {
   const { transfer, setNevm } = useTransfer();
   const { account, connect } = useNEVM();
-  const { isBitcoinBased, switchTo } = usePaliWalletV2();
+  const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
 
   const setTransferNevm = () => {
     if (!account) return;
     setNevm({ address: account });
   };
 
-  if (transfer.nevmAddress) {
+  const change = () => {
+    const prom = isBitcoinBased ? switchTo("ethereum") : Promise.resolve();
+
+    prom.then(() => changeAccount());
+  };
+
+  if (
+    !isBitcoinBased
+      ? transfer.nevmAddress === account
+      : Boolean(transfer.nevmAddress)
+  ) {
     return (
-      <Box display="flex">
-        <Typography variant="body1">{transfer.nevmAddress}</Typography>
-        <CheckBoxIcon />
+      <Box>
+        <Box display="flex">
+          <Typography variant="body1">{transfer.nevmAddress}</Typography>
+          <CheckBoxIcon />
+        </Box>
+        {transfer.status === "initialize" && (
+          <Button variant="contained" onClick={change}>
+            Change
+          </Button>
+        )}
       </Box>
     );
   }
@@ -39,6 +56,9 @@ const NEVMConnect = () => {
   return (
     <Box>
       <Typography variant="body1">{account}</Typography>
+      <Button variant="contained" onClick={change} sx={{ mr: 2 }}>
+        Change
+      </Button>
       <Button variant="contained" onClick={setTransferNevm} color="success">
         Confirm <CheckIcon />
       </Button>

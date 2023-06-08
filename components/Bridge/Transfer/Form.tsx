@@ -14,16 +14,48 @@ import React, { useEffect } from "react";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 
 const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const {
-    transfer: { type },
+    transfer: { type, nevmAddress, utxoAddress, utxoXpub },
+    setNevm,
+    setUtxo,
   } = useTransfer();
   const paliwallet = usePaliWallet() as IPaliWalletV2Context;
+  const nevm = useNEVM();
 
-  if (paliwallet.version === "v2") {
+  useEffect(() => {
+    if (!nevmAddress && nevm.account && nevmAddress !== nevm.account) {
+      setNevm({ address: nevm.account });
+    }
+
+    const utxoNotDefined = !utxoAddress || !utxoXpub;
+    if (
+      utxoNotDefined &&
+      paliwallet.connectedAccount &&
+      paliwallet.xpubAddress
+    ) {
+      setUtxo({
+        xpub: paliwallet.xpubAddress,
+        address: paliwallet.connectedAccount,
+      });
+    }
+  }, [
+    paliwallet.version,
+    setNevm,
+    setUtxo,
+    paliwallet.xpubAddress,
+    paliwallet.connectedAccount,
+    nevm.account,
+    nevmAddress,
+    utxoAddress,
+    utxoXpub,
+  ]);
+
+  if (paliwallet.version === "v2" && paliwallet.isEVMInjected) {
     if (type === "sys-to-nevm" && !paliwallet.isBitcoinBased) {
       return (
         <Button
@@ -47,6 +79,8 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
 
   return <>{children}</>;
 };
+
+const minAmount = 0.0001;
 
 const BridgeTransferForm: React.FC = () => {
   const { startTransfer, transfer } = useTransfer();
@@ -95,8 +129,8 @@ const BridgeTransferForm: React.FC = () => {
               message: `You can transfer up to ${maxAmountFixed} SYS`,
             },
             min: {
-              value: 0.1,
-              message: "Amount must be atleast 0.1",
+              value: minAmount,
+              message: `Amount must be at least ${minAmount}`,
             },
             required: {
               message: "Amount is required",
