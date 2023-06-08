@@ -7,8 +7,7 @@ import burnSysx from "./burnSysx";
 import { addLog, setStatus, TransferActions } from "../store/actions";
 import { ITransfer } from "../types";
 import Web3 from "web3";
-import { Contract } from 'web3-eth-contract'
-
+import { Contract } from "web3-eth-contract";
 
 import { getProof } from "bitcoin-proof";
 import { TransactionReceipt } from "web3-core";
@@ -193,7 +192,6 @@ const runWithSysToNevmStateMachine = async (
           })
           .on("error", (error: { message: string }) => {
             if (/might still be mined/.test(error.message)) {
-              dispatch(setStatus("completed"));
               resolve("");
             } else {
               dispatch(

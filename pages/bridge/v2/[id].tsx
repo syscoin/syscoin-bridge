@@ -1,4 +1,3 @@
-import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { CircularProgress, Container, Grid, Typography } from "@mui/material";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
 import DrawerPage from "components/DrawerPage";
@@ -9,11 +8,10 @@ import TransferProvider from "@contexts/Transfer/Provider";
 import BridgeWalletSwitch from "components/Bridge/WalletSwitchV2";
 import TransferTitle from "components/Bridge/Transfer/Title";
 import BridgeTransferStepSwitch from "components/Bridge/Transfer/StepSwitch";
-import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
-import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
-import { useCallback } from "react";
+import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 
 const Bridge: NextPage = () => {
+  const { nevm, utxo } = useConnectedWallet();
   const router = useRouter();
 
   const { id } = router.query;
@@ -23,7 +21,10 @@ const Bridge: NextPage = () => {
   }
 
   return (
-    <TransferProvider id={id as string} includeSwitchStep>
+    <TransferProvider
+      id={id as string}
+      includeSwitchStep={nevm.type === utxo.type}
+    >
       <DrawerPage>
         <BlocktimeDisclaimer />
         <Container sx={{ mt: 10 }}>

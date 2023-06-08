@@ -1,4 +1,4 @@
-import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { List, ListItem, ListItemButton, ListItemText } from "@mui/material";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -33,11 +33,11 @@ const NavigationItem: React.FC<INavigationItem> = ({ label, path }) => {
 };
 
 const Navigation: React.FC = () => {
-  const { version } = usePaliWalletV2();
+  const { nevm, utxo } = useConnectedWallet();
   const routes: INavigationItem[] = [
     {
       label: "New Transfer",
-      path: `/bridge/${version === "v2" ? "v2/" : ""}${Date.now()}`,
+      path: `/bridge/${utxo.type === nevm.type ? "v2/" : ""}${Date.now()}`,
     },
     {
       label: "My Transfers",

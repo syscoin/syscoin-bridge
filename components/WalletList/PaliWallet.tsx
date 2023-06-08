@@ -29,7 +29,7 @@ const ConnectToPaliWallet = () => {
 
 const PaliWalletV2 = () => {
   const { utxo, nevm } = useConnectedWallet();
-  const { isBitcoinBased, switchTo } = usePaliWalletV2();
+  const { isBitcoinBased, switchTo, isEVMInjected } = usePaliWalletV2();
   const isConnected = isBitcoinBased
     ? Boolean(utxo.account)
     : Boolean(nevm.account);
@@ -61,13 +61,15 @@ const PaliWalletV2 = () => {
       <Typography variant="body1" color="success.main" sx={{ ml: "auto" }}>
         CONNECTED
       </Typography>
-      <Button
-        variant="contained"
-        onClick={() => switchTo(isBitcoinBased ? "ethereum" : "bitcoin")}
-        sx={{ ml: 2 }}
-      >
-        Switch
-      </Button>
+      {isEVMInjected && (
+        <Button
+          variant="contained"
+          onClick={() => switchTo(isBitcoinBased ? "ethereum" : "bitcoin")}
+          sx={{ ml: 2 }}
+        >
+          Switch
+        </Button>
+      )}
     </Box>
   );
 };

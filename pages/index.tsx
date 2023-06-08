@@ -10,7 +10,7 @@ import HomeHowItWorks from "components/Home/HowItWorks";
 import ContactUs from "components/Home/ContactUs";
 import FAQ from "components/Home/FAQ";
 import Footer from "components/Footer";
-import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import NextImage from "next/image";
 
 const PaliAndMetamaskBridge = () => {
@@ -60,9 +60,10 @@ const PaliV2Bridge = () => {
 };
 
 const Home: NextPage = () => {
-  const { isInstalled, version } = usePaliWallet();
+  const { isInstalled, version, isEVMInjected } = usePaliWalletV2();
 
-  const isPaliVersion2 = isInstalled && version && version === "v2";
+  const isPaliVersion2 =
+    isInstalled && version && version === "v2" && isEVMInjected;
 
   return (
     <Box>

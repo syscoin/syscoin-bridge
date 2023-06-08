@@ -38,7 +38,7 @@ const BridgeTransferStepSwitch: React.FC = () => {
     return <WaitPaliWalletTransactionConfirmation />;
   }
   if (["submit-proofs", "freeze-burn-sys"].includes(status)) {
-    if (pailwallet.version === "v2" && pailwallet.isBitcoinBased) {
+    if (pailwallet.version === "v2" && pailwallet.isBitcoinBased && pailwallet.isEVMInjected) {
       return <PaliSwitch networkType="ethereum" />;
     }
     return <WaitNEVMSign />;

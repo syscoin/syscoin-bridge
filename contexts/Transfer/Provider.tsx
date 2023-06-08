@@ -51,10 +51,14 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   includeSwitchStep,
   children,
 }) => {
-  const { sendUtxoTransaction, confirmTransaction, syscoinInstance, web3 } =
-    useConnectedWallet();
-
-  const { version } = usePaliWallet();
+  const {
+    sendUtxoTransaction,
+    confirmTransaction,
+    syscoinInstance,
+    web3,
+    nevm,
+    utxo,
+  } = useConnectedWallet();
 
   const relayContract = useMemo(() => {
     return new web3.eth.Contract(
@@ -127,7 +131,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       return;
     }
     updateAmount(`${amount}`);
-    dispatch(setVersion(version));
+    dispatch(setVersion(utxo.type === nevm.type ? "v2" : "v1"));
     dispatch(setStatus("initialize"));
     dispatch(addLog("initialize", "Starting Sys to NEVM transfer", transfer));
     if (transfer.type === "sys-to-nevm") {

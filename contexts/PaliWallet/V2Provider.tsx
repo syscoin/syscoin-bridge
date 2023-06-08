@@ -64,6 +64,7 @@ export interface IPaliWalletV2Context extends IPaliWalletContext {
   isBitcoinBased: boolean;
   switchTo: (networkType: PaliWalletNetworkType) => Promise<void>;
   changeAccount: () => void;
+  isEVMInjected: boolean;
 }
 
 declare global {
@@ -79,6 +80,12 @@ export const PaliWalletV2Provider: React.FC<{
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
+    },
+  });
+
+  const isEVMInjected = useQuery(["pali", "is-ethereum-injected"], {
+    queryFn: () => {
+      return Boolean(window.ethereum) && window.ethereum.wallet === "pali-v2";
     },
   });
 
@@ -255,6 +262,7 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased: Boolean(isBitcoinBased.data),
       switchTo,
       changeAccount,
+      isEVMInjected: isEVMInjected.isFetched && Boolean(isEVMInjected.data),
     }),
     [
       isInstalled,
@@ -268,12 +276,9 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased.data,
       switchTo,
       changeAccount,
+      isEVMInjected,
     ]
   );
-
-  if (!isInstalled) {
-    return <PaliWalletContextProvider>{children}</PaliWalletContextProvider>;
-  }
 
   return (
     <PaliWalletContext.Provider value={value}>

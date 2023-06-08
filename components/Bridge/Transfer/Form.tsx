@@ -28,10 +28,6 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   const nevm = useNEVM();
 
   useEffect(() => {
-    if (paliwallet.version === "v2") {
-      return;
-    }
-
     if (!nevmAddress && nevm.account && nevmAddress !== nevm.account) {
       setNevm({ address: nevm.account });
     }
@@ -59,7 +55,7 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
     utxoXpub,
   ]);
 
-  if (paliwallet.version === "v2") {
+  if (paliwallet.version === "v2" && paliwallet.isEVMInjected) {
     if (type === "sys-to-nevm" && !paliwallet.isBitcoinBased) {
       return (
         <Button

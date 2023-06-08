@@ -37,13 +37,14 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     if (!isEthereumAvailable) {
       return false;
     }
-    if (paliWallet.version === "v2") {
+    if (paliWallet.version === "v2" && paliWallet.isEVMInjected) {
       return !paliWallet.isBitcoinBased;
     }
     return metamask.isEnabled;
   }, [
     metamask.isEnabled,
     paliWallet.version,
+    paliWallet.isEVMInjected,
     paliWallet.isBitcoinBased,
     isEthereumAvailable,
   ]);

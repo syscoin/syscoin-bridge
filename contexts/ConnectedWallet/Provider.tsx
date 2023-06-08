@@ -9,7 +9,7 @@ import {
 } from "react";
 import { syscoin, utils as syscoinUtils, UTXOTransaction } from "syscoinjs-lib";
 
-import { usePaliWallet } from "../PaliWallet/usePaliWallet";
+import { usePaliWallet, usePaliWalletV2 } from "../PaliWallet/usePaliWallet";
 import { UTXOInfo, NEVMInfo, UTXOWallet, NEVMWallet } from "./types";
 import Web3 from "web3";
 import { TransactionReceipt } from "web3-core";
@@ -57,12 +57,14 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
   const web3 = useMemo(() => new Web3(Web3.givenProvider), []);
-  const paliWallet = usePaliWallet();
+  const paliWallet = usePaliWalletV2();
   const metamask = useMetamask();
   const [utxoWalletType, setUtxoWalletType] =
     useState<UTXOWallet>("pali-wallet");
   const [nevmWalletType, setNevmWalletType] = useState<NEVMWallet>(
-    paliWallet.version === "v2" ? "pali-wallet" : "metamask"
+    paliWallet.version === "v2" && paliWallet.isEVMInjected
+      ? "pali-wallet"
+      : "metamask"
   );
   const nevm = useNEVM();
 
@@ -181,6 +183,10 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     setOldRoute(route);
     setCreatedIntervals([]);
   }, [createdIntervals, route, oldRoute]);
+
+  useEffect(() => {
+    setNevmWalletType(paliWallet.isEVMInjected ? "pali-wallet" : "metamask");
+  }, [paliWallet.isEVMInjected]);
 
   return (
     <ConnectedWalletContext.Provider
