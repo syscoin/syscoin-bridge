@@ -44,13 +44,13 @@ export const TanenbaumChain: Chain = {
 }
 
 export const RolluxChain: Chain = {
-    chainId: 57000,
-    chainName: "Rollux Bedrock Testnet",
+    chainId: 570,
+    chainName: "Rollux",
     isLocalChain: false,
     isTestChain: false,
     nativeCurrency: {
-        name: "bSyscoin",
-        symbol: "bSYS",
+        name: "Syscoin",
+        symbol: "SYS",
         decimals: 18,
     },
     multicallAddress: '0x1F359C32b5D8c9678b076eAac411A4d2Eb11E697',
@@ -61,6 +61,6 @@ export const RolluxChain: Chain = {
     getExplorerTransactionLink: (address: string) => {
         return address;
     },
-    rpcUrl: "https://rpc-tanenbaum.rollux.com/",
-    blockExplorerUrl: "https://rollux.tanenbaum.io",
+    rpcUrl: "https://rpc.rollux.com/",
+    blockExplorerUrl: "https://explorer.rollux.com/",
 }
