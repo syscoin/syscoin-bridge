@@ -88,6 +88,7 @@ export const PaliWalletV2Provider: React.FC<{
     queryFn: () => {
       return Boolean(window.ethereum) && window.ethereum.wallet === "pali-v2";
     },
+    refetchInterval: 1000,
   });
 
   const isInstalled = installed.isFetched && installed.data;
