@@ -7,6 +7,24 @@ import {
   usePaliWalletV2,
 } from "@contexts/PaliWallet/usePaliWallet";
 
+const InstallPaliWallet = () => {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+      <Image
+        src="/pali-wallet-logo.svg"
+        height={32}
+        width={32}
+        alt="PaliWallet logo"
+      />
+      <Typography variant="body1">PaliWallet</Typography>
+      <Link href="https://paliwallet.com/" title="Go to PaliWallet">
+        <Launch />
+      </Link>
+      <ConnectToPaliWallet />
+    </Box>
+  );
+};
+
 const ConnectToPaliWallet = () => {
   const { connectUTXO, availableWallets } = useConnectedWallet();
 
@@ -29,20 +47,13 @@ const ConnectToPaliWallet = () => {
 
 const PaliWalletV2 = () => {
   const { utxo, nevm } = useConnectedWallet();
-  const { isBitcoinBased, switchTo, isEVMInjected } = usePaliWalletV2();
+  const { isBitcoinBased, switchTo, isInstalled, isEVMInjected } =
+    usePaliWalletV2();
   const isConnected = isBitcoinBased
     ? Boolean(utxo.account)
     : Boolean(nevm.account);
-  if (utxo.type !== "pali-wallet" || !isConnected) {
-    return (
-      <>
-        <Typography variant="body1">PaliWallet</Typography>
-        <Link href="https://paliwallet.com/" title="Go to PaliWallet">
-          <Launch />
-        </Link>
-        <ConnectToPaliWallet />
-      </>
-    );
+  if (utxo.type !== "pali-wallet" || !isInstalled || !isConnected) {
+    return <InstallPaliWallet />;
   }
 
   const connectedAccount = isBitcoinBased ? utxo.account : nevm.account;
@@ -83,21 +94,7 @@ const WalletListPaliWallet = () => {
   }
 
   if (utxo.type !== "pali-wallet" || !utxo.account) {
-    return (
-      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-        <Image
-          src="/pali-wallet-logo.svg"
-          height={32}
-          width={32}
-          alt="PaliWallet logo"
-        />
-        <Typography variant="body1">PaliWallet</Typography>
-        <Link href="https://paliwallet.com/" title="Go to PaliWallet">
-          <Launch />
-        </Link>
-        <ConnectToPaliWallet />
-      </Box>
-    );
+    return <InstallPaliWallet />;
   }
 
   return (
