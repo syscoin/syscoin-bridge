@@ -81,6 +81,7 @@ export const PaliWalletV2Provider: React.FC<{
     queryFn: () => {
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
     },
+    refetchInterval: 1000,
   });
 
   const isEVMInjected = useQuery(["pali", "is-ethereum-injected"], {
