@@ -12,11 +12,15 @@ import FAQ from "components/Home/FAQ";
 import Footer from "components/Footer";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import NextImage from "next/image";
+import { useEffect, useState } from "react";
 
 const PaliAndMetamaskBridge = () => {
+  const [isReady, setIsReady] = useState(false);
   const { nevm, utxo } = useConnectedWallet();
 
-  const isReady = nevm.account && utxo.xpub;
+  useEffect(() => {
+    setIsReady(Boolean(nevm.account) && Boolean(utxo.account));
+  }, [nevm.account, utxo.account]);
   return (
     <>
       <WalletList />
