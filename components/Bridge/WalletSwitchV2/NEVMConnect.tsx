@@ -17,7 +17,7 @@ const NEVMConnect = () => {
 
   const change = () => {
     const prom = isBitcoinBased ? switchTo("ethereum") : Promise.resolve();
-
+    setNevm({ address: "" });
     prom.then(() => changeAccount());
   };
 

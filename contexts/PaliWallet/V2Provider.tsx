@@ -65,6 +65,7 @@ export interface IPaliWalletV2Context extends IPaliWalletContext {
   switchTo: (networkType: PaliWalletNetworkType) => Promise<void>;
   changeAccount: () => void;
   isEVMInjected: boolean;
+  isLoading: boolean;
 }
 
 declare global {
@@ -247,6 +248,14 @@ export const PaliWalletV2Provider: React.FC<{
     [connectedAccount, isBitcoinBased, isInstalled, queryClient]
   );
 
+  const isLoading = useMemo(
+    () =>
+      installed.isLoading ||
+      isBitcoinBased.isLoading ||
+      isEVMInjected.isLoading,
+    [installed.isLoading, isBitcoinBased.isLoading, isEVMInjected.isLoading]
+  );
+
   const value: IPaliWalletV2Context = useMemo(
     () => ({
       isInstalled,
@@ -265,6 +274,7 @@ export const PaliWalletV2Provider: React.FC<{
       switchTo,
       changeAccount,
       isEVMInjected: isEVMInjected.isFetched && Boolean(isEVMInjected.data),
+      isLoading,
     }),
     [
       isInstalled,
@@ -279,6 +289,7 @@ export const PaliWalletV2Provider: React.FC<{
       switchTo,
       changeAccount,
       isEVMInjected,
+      isLoading,
     ]
   );
 

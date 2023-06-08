@@ -27,9 +27,10 @@ const InstallPaliWallet = () => {
 
 const ConnectToPaliWallet = () => {
   const { connectUTXO, availableWallets } = useConnectedWallet();
+  const { isLoading } = usePaliWalletV2();
 
   const checkPaliMessage =
-    availableWallets.paliWallet === undefined
+    availableWallets.paliWallet === undefined || isLoading
       ? "Checking Pali Wallet"
       : "Not installed";
 
@@ -52,6 +53,7 @@ const PaliWalletV2 = () => {
   const isConnected = isBitcoinBased
     ? Boolean(utxo.account)
     : Boolean(nevm.account);
+
   if (utxo.type !== "pali-wallet" || !isInstalled || !isConnected) {
     return <InstallPaliWallet />;
   }
