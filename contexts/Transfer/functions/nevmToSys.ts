@@ -155,6 +155,7 @@ const burnSysxToSys = async (
       ""
     );
   } catch (e) {
+    console.error("Burn SYSX error: Not enough funds", e);
     dispatch(addLog("burn-sysx", "Burn SYSX error: Not enough funds", e));
     return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
   }
