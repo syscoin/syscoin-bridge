@@ -155,7 +155,7 @@ const burnSysxToSys = async (
       ""
     );
   } catch (e) {
-    dispatch(addLog("mint-sysx", "Burn SYSX error: Not enough funds", e));
+    dispatch(addLog("burn-sysx", "Burn SYSX error: Not enough funds", e));
     return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
   }
 
