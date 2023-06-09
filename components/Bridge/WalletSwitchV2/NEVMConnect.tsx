@@ -1,14 +1,26 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
-import { Box, Button, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
-import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import { Button } from "@mui/material";
+import { useQuery } from "react-query";
+import WalletSwitchCard from "./Card";
+import WalletSwitchConfirmCard from "./ConfirmCard";
 
 const NEVMConnect = () => {
   const { transfer, setNevm } = useTransfer();
   const { account, connect } = useNEVM();
   const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
+  const balance = useQuery(
+    ["nevm", "balance", transfer.nevmAddress],
+    async () => {
+      const url = `https://explorer.syscoin.org/api?module=account&action=eth_get_balance&address=${transfer.nevmAddress}&tag=latest`;
+      const ethBalanceInHex = await fetch(url)
+        .then((res) => res.json())
+        .then((rpcResp) => rpcResp.result);
+      const ethBalance = parseInt(ethBalanceInHex) / Math.pow(10, 18);
+      return ethBalance;
+    }
+  );
 
   const setTransferNevm = () => {
     if (!account) return;
@@ -27,17 +39,16 @@ const NEVMConnect = () => {
       : Boolean(transfer.nevmAddress)
   ) {
     return (
-      <Box>
-        <Box display="flex">
-          <Typography variant="body1">{transfer.nevmAddress}</Typography>
-          <CheckBoxIcon />
-        </Box>
-        {transfer.status === "initialize" && (
-          <Button variant="contained" onClick={change}>
-            Change
-          </Button>
-        )}
-      </Box>
+      <WalletSwitchCard
+        address={transfer.nevmAddress ?? ""}
+        allowChange={transfer.status === "initialize"}
+        balance={
+          balance.isLoading
+            ? "Loading..."
+            : `${(isNaN(balance.data ?? 0) ? 0 : balance.data)?.toFixed(4)} SYS`
+        }
+        onChange={change}
+      />
     );
   }
 
@@ -54,15 +65,11 @@ const NEVMConnect = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="body1">{account}</Typography>
-      <Button variant="contained" onClick={change} sx={{ mr: 2 }}>
-        Change
-      </Button>
-      <Button variant="contained" onClick={setTransferNevm} color="success">
-        Confirm <CheckIcon />
-      </Button>
-    </Box>
+    <WalletSwitchConfirmCard
+      address={account ?? ""}
+      onChange={change}
+      onConfirm={setTransferNevm}
+    />
   );
 };
 

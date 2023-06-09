@@ -38,7 +38,10 @@ const WalletInfoCard: React.FC<WalletInfoCardProps> = ({
         }}
       >
         <SyscoinLogo />
-        <Box display="inline-block" sx={{ ml: 1 }}>
+        <Box
+          display="inline-block"
+          sx={{ ml: 1, flex: 1, maxWidth: "calc(100% - 16px - 48px)" }}
+        >
           <Typography variant="h6" display="block">
             {network.name}
           </Typography>

@@ -1,11 +1,26 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
-import { Box, Button, Typography } from "@mui/material";
-import CheckIcon from "@mui/icons-material/Check";
-import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import { Button } from "@mui/material";
+import { useQuery } from "react-query";
+import { BlockbookAPIURL } from "@contexts/Transfer/constants";
+import WalletSwitchCard from "./Card";
+import WalletSwitchConfirmCard from "./ConfirmCard";
 
 const UTXOConnect = () => {
   const { transfer, setUtxo } = useTransfer();
+  const balance = useQuery(
+    ["utxo", "balance", transfer.utxoXpub],
+    async () => {
+      const url = BlockbookAPIURL + "/api/v2/xpub/" + transfer.utxoXpub;
+      const balanceInText = await fetch(url)
+        .then((res) => res.json())
+        .then((res) => res.balance);
+      return parseInt(balanceInText) / Math.pow(10, 8);
+    },
+    {
+      enabled: Boolean(transfer.utxoXpub),
+    }
+  );
   const {
     isBitcoinBased,
     switchTo,
@@ -31,19 +46,16 @@ const UTXOConnect = () => {
       : Boolean(transfer.utxoAddress)
   ) {
     return (
-      <Box>
-        <Box display="flex">
-          <Typography variant="body1" color="success">
-            {transfer.utxoAddress}
-          </Typography>
-          <CheckBoxIcon />
-        </Box>
-        {transfer.status === "initialize" && (
-          <Button variant="contained" onClick={change}>
-            Change
-          </Button>
-        )}
-      </Box>
+      <WalletSwitchCard
+        address={transfer.utxoAddress ?? ""}
+        allowChange={transfer.status === "initialize"}
+        balance={
+          balance.isLoading
+            ? "Loading..."
+            : `${(isNaN(balance.data ?? 0) ? 0 : balance.data)?.toFixed(4)} SYS`
+        }
+        onChange={change}
+      />
     );
   }
 
@@ -56,15 +68,11 @@ const UTXOConnect = () => {
   }
 
   return (
-    <Box>
-      <Typography variant="body1">{connectedAccount}</Typography>
-      <Button variant="contained" onClick={change} sx={{ mr: 2 }}>
-        Change
-      </Button>
-      <Button variant="contained" onClick={setTransferUtxo} color="success">
-        Confirm <CheckIcon />
-      </Button>
-    </Box>
+    <WalletSwitchConfirmCard
+      address={connectedAccount ?? ""}
+      onChange={change}
+      onConfirm={setTransferUtxo}
+    />
   );
 };
 
