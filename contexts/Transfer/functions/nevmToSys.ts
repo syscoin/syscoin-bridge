@@ -223,6 +223,7 @@ const runWithNevmToSysStateMachine = async (
           transaction,
         })
       );
+      break;
     }
 
     case "switch": {
