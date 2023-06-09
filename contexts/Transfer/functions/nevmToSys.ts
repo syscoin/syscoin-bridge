@@ -4,7 +4,7 @@ import { Contract } from "web3-eth-contract";
 import { TransactionReceipt } from "web3-core";
 import SyscoinERC20ManagerABI from "../abi/SyscoinERC20Manager";
 import { SYSX_ASSET_GUID } from "../constants";
-import { addLog, setStatus, TransferActions } from "../store/actions";
+import { addLog, TransferActions } from "../store/actions";
 import { ITransfer } from "../types";
 import { syscoin, utils } from "syscoinjs-lib";
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
@@ -29,20 +29,15 @@ const freezeAndBurn = (
         dispatch(
           addLog("freeze-burn-sys", "Freeze and Burn SYS", transactionHash)
         );
-        dispatch(setStatus("confirm-freeze-burn-sys"));
         resolve(transactionHash);
       })
       .on("error", (error: { message: string }) => {
-        if (/might still be mined/.test(error.message)) {
-          dispatch(setStatus("confirm-freeze-burn-sys"));
-        } else {
-          dispatch(
-            addLog("error", "Freeze and Burn error", {
-              error,
-            })
-          );
-          reject(error.message);
-        }
+        dispatch(
+          addLog("error", "Freeze and Burn error", {
+            error,
+          })
+        );
+        reject(error.message);
       });
   });
 };
@@ -71,11 +66,9 @@ const confirmFreezeAndBurnSys = async (
     dispatch(
       addLog("confirm-freeze-burn-sys", "Confirm Freeze and Burn SYS", receipt)
     );
-    return dispatch(setStatus("mint-sysx"));
   } catch (error: any) {
     const isEVMOnlyError =
       error.cause && error.cause.message === ERROR_MESSAGE_EVM_ONLY;
-
     dispatch(
       addLog(
         "error",
@@ -89,8 +82,7 @@ const confirmFreezeAndBurnSys = async (
         }
       )
     );
-    dispatch(setStatus("error"));
-    throw error;
+    return Promise.reject(error);
   }
 };
 
@@ -135,7 +127,7 @@ const mintSysx = async (
   );
   if (!res) {
     dispatch(addLog("mint-sysx", "Mint SYS error: Not enough funds", res));
-    return dispatch(setStatus("error"));
+    return Promise.reject(new Error("Mint SYS error: Not enough funds"));
   }
   console.log("assetAllocationMint received", {
     res,
@@ -143,7 +135,6 @@ const mintSysx = async (
   const transaction = utils.exportPsbtToJson(res.psbt, res.assets);
   const mintSysxTransactionReceipt = await sendUtxoTransaction(transaction);
   dispatch(addLog("mint-sysx", "Mint Sysx", mintSysxTransactionReceipt));
-  dispatch(setStatus("confirm-mint-sysx"));
 };
 
 const burnSysxToSys = async (
@@ -164,13 +155,12 @@ const burnSysxToSys = async (
       ""
     );
   } catch (e) {
-    dispatch(addLog("mint-sysx", "Mint SYS error: Not enough funds", null));
-    return dispatch(setStatus("error"));
+    dispatch(addLog("mint-sysx", "Burn SYSX error: Not enough funds", e));
+    return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
   }
 
   const burnSysxTransactionReceipt = await sendUtxoTransaction(transaction);
   dispatch(addLog("burn-sysx", "Burn Sysx", burnSysxTransactionReceipt));
-  dispatch(setStatus("finalizing"));
 };
 
 const runWithNevmToSysStateMachine = async (
@@ -209,8 +199,6 @@ const runWithNevmToSysStateMachine = async (
       if (!transactionRaw) {
         return;
       }
-      dispatch(setStatus("burn-sysx"));
-
       break;
     }
 
@@ -234,7 +222,6 @@ const runWithNevmToSysStateMachine = async (
           transaction,
         })
       );
-      dispatch(setStatus("completed"));
     }
 
     case "switch": {
