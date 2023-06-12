@@ -38,16 +38,20 @@ const NEVMConnect = () => {
       ? transfer.nevmAddress === account
       : Boolean(transfer.nevmAddress)
   ) {
+    const balanceNum = isNaN(balance.data ?? 0) ? 0 : balance.data;
+    const faucetLink =
+      balance.isFetched && balanceNum === 0
+        ? "https://faucet.syscoin.org/"
+        : undefined;
     return (
       <WalletSwitchCard
         address={transfer.nevmAddress ?? ""}
         allowChange={transfer.status === "initialize"}
         balance={
-          balance.isLoading
-            ? "Loading..."
-            : `${(isNaN(balance.data ?? 0) ? 0 : balance.data)?.toFixed(4)} SYS`
+          balance.isLoading ? "Loading..." : `${balanceNum?.toFixed(4)} SYS`
         }
         onChange={change}
+        faucetLink={faucetLink}
       />
     );
   }

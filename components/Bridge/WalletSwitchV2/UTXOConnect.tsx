@@ -45,14 +45,13 @@ const UTXOConnect = () => {
       ? transfer.utxoAddress === connectedAccount
       : Boolean(transfer.utxoAddress)
   ) {
+    const balanceNum = isNaN(balance.data ?? 0) ? 0 : balance.data;
     return (
       <WalletSwitchCard
         address={transfer.utxoAddress ?? ""}
         allowChange={transfer.status === "initialize"}
         balance={
-          balance.isLoading
-            ? "Loading..."
-            : `${(isNaN(balance.data ?? 0) ? 0 : balance.data)?.toFixed(4)} SYS`
+          balance.isLoading ? "Loading..." : `${balanceNum?.toFixed(4)} SYS`
         }
         onChange={change}
       />

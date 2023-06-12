@@ -1,12 +1,19 @@
-import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Link,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Check from "@mui/icons-material/Check";
-import ChangeCirlce from "@mui/icons-material/ChangeCircle";
 
 type WalletSwitchCardProps = {
   address: string;
   balance: string;
   allowChange: boolean;
   onChange: () => void;
+  faucetLink?: string;
 };
 
 const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
@@ -14,6 +21,7 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
   balance,
   onChange,
   allowChange,
+  faucetLink,
 }) => {
   return (
     <Box>
@@ -24,9 +32,11 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
           alignItems: "center",
         }}
       >
-        <Typography variant="body1" noWrap>
-          {address}
-        </Typography>
+        <Tooltip title={address}>
+          <Typography variant="body1" noWrap>
+            {address}
+          </Typography>
+        </Tooltip>
         <Check color="success" />
         {allowChange && (
           <Button onClick={onChange} color="primary">
@@ -35,6 +45,11 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
         )}
       </Box>
       <Typography>Balance: {balance}</Typography>
+      {faucetLink && (
+        <Link href={faucetLink} variant="body2">
+          You don&apos;t have enough balance. Please go to Faucet
+        </Link>
+      )}
     </Box>
   );
 };
