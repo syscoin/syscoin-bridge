@@ -156,12 +156,18 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   };
 
   const setUtxo = (payload: { xpub: string; address: string }) => {
+    if (transfer.status !== "initialize") {
+      return;
+    }
     const { address, xpub } = payload;
     dispatch(setUtxoXpub(xpub));
     dispatch(setUtxoAddress(address));
   };
 
   const setNevm = (payload: { address: string }) => {
+    if (transfer.status !== "initialize") {
+      return;
+    }
     const { address } = payload;
     dispatch(setNevmAddress(address));
   };
