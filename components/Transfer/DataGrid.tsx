@@ -84,7 +84,7 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
         },
         {
           field: "utxoAddress",
-          headerName: "ZPUB",
+          headerName: "UTXO",
           width: 320,
         },
         {
