@@ -84,23 +84,27 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   return <>{children}</>;
 };
 
-const minAmount = 0.0001;
+const minAmount = 0.01;
 
 const BridgeTransferForm: React.FC = () => {
   const { startTransfer, transfer } = useTransfer();
   const { utxo, nevm } = useConnectedWallet();
-  let maxAmount: number | string | undefined = undefined;
+  let balance: number | string | undefined = undefined;
 
   if (transfer.type === "sys-to-nevm") {
-    maxAmount = utxo.balance;
+    balance = utxo.balance;
   } else if (transfer.type === "nevm-to-sys") {
-    maxAmount = nevm.balance;
+    balance = nevm.balance;
   }
 
   const accountsAreSet =
     transfer.utxoAddress && transfer.utxoXpub && transfer.nevmAddress;
 
-  const maxAmountFixed = parseFloat(`${maxAmount ?? "0"}`).toFixed(4);
+  let maxAmountCalculated = parseFloat(`${balance ?? "0"}`) - minAmount;
+
+  if (maxAmountCalculated < 0) {
+    maxAmountCalculated = 0;
+  }
 
   const {
     register,
@@ -116,7 +120,10 @@ const BridgeTransferForm: React.FC = () => {
     <Card component="form" onSubmit={handleSubmit(onSubmit)}>
       <CardContent sx={{ display: "flex", flexDirection: "column" }}>
         <Typography variant="body2" color="secondary">
-          Balance: {maxAmount === undefined ? "--" : maxAmountFixed}
+          Balance:{" "}
+          {balance === undefined
+            ? "--"
+            : parseFloat(`${balance ?? 0}`).toFixed(4)}
         </Typography>
         <TextField
           label="Amount"
@@ -129,8 +136,10 @@ const BridgeTransferForm: React.FC = () => {
           {...register("amount", {
             valueAsNumber: true,
             max: {
-              value: maxAmountFixed,
-              message: `You can transfer up to ${maxAmountFixed} SYS`,
+              value: maxAmountCalculated,
+              message: `You can transfer up to ${maxAmountCalculated.toFixed(
+                4
+              )} SYS`,
             },
             min: {
               value: minAmount,
@@ -143,7 +152,7 @@ const BridgeTransferForm: React.FC = () => {
             validate: (value) =>
               isNaN(value) ? "Must be a number" : undefined,
           })}
-          disabled={maxAmount === undefined}
+          disabled={balance === undefined}
           error={!!errors.amount}
           helperText={<>{errors.amount && errors.amount.message}</>}
         />

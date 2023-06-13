@@ -1,6 +1,6 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
-import { Button } from "@mui/material";
+import { Alert, Button, Typography } from "@mui/material";
 import { useQuery } from "react-query";
 import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import WalletSwitchCard from "./Card";
@@ -45,7 +45,21 @@ const UTXOConnect = () => {
       ? transfer.utxoAddress === connectedAccount
       : Boolean(transfer.utxoAddress)
   ) {
-    const balanceNum = isNaN(balance.data ?? 0) ? 0 : balance.data;
+    let balanceNum = balance.data ?? 0;
+    if (isNaN(balanceNum)) {
+      balanceNum = 0;
+    }
+
+    const faucetLink =
+      balance.isFetched && balanceNum <= 0.01 ? (
+        <Alert severity="warning">
+          <Typography variant="body2">
+            Please send at least 0.01 SYS into your Pali wallet to continue the
+            transaction
+          </Typography>
+        </Alert>
+      ) : undefined;
+
     return (
       <WalletSwitchCard
         address={transfer.utxoAddress ?? ""}
@@ -54,6 +68,7 @@ const UTXOConnect = () => {
           balance.isLoading ? "Loading..." : `${balanceNum?.toFixed(4)} SYS`
         }
         onChange={change}
+        faucetLink={faucetLink}
       />
     );
   }

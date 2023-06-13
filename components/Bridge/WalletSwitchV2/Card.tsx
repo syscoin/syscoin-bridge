@@ -1,11 +1,4 @@
-import {
-  Box,
-  Button,
-  IconButton,
-  Link,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Link, Typography } from "@mui/material";
 import Check from "@mui/icons-material/Check";
 
 type WalletSwitchCardProps = {
@@ -13,7 +6,7 @@ type WalletSwitchCardProps = {
   balance: string;
   allowChange: boolean;
   onChange: () => void;
-  faucetLink?: string;
+  faucetLink?: React.ReactNode;
 };
 
 const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
@@ -28,28 +21,24 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
       <Box
         sx={{
           display: "flex",
-          width: "calc(100% - 1rem)",
+          width: "calc(100%)",
           alignItems: "center",
         }}
       >
-        <Tooltip title={address}>
-          <Typography variant="body1" noWrap>
-            {address}
-          </Typography>
-        </Tooltip>
+        <Typography variant="body2" noWrap display="block" marginRight="auto">
+          {address}
+        </Typography>
         <Check color="success" />
+      </Box>
+      <Box display="flex" sx={{ alignItems: "center" }}>
+        <Typography marginRight="auto">Balance: {balance}</Typography>
         {allowChange && (
           <Button onClick={onChange} color="primary">
             Change
           </Button>
         )}
       </Box>
-      <Typography>Balance: {balance}</Typography>
-      {faucetLink && (
-        <Link href={faucetLink} variant="body2" target="_blank">
-          You don&apos;t have enough balance. Please go to Faucet
-        </Link>
-      )}
+      {faucetLink}
     </Box>
   );
 };

@@ -1,7 +1,7 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
-import { Button } from "@mui/material";
+import { Alert, Button, Link, Typography } from "@mui/material";
 import { useQuery } from "react-query";
 import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
@@ -38,11 +38,21 @@ const NEVMConnect = () => {
       ? transfer.nevmAddress === account
       : Boolean(transfer.nevmAddress)
   ) {
-    const balanceNum = isNaN(balance.data ?? 0) ? 0 : balance.data;
+    let balanceNum = balance.data ?? 0;
+    if (isNaN(balanceNum)) {
+      balanceNum = 0;
+    }
     const faucetLink =
-      balance.isFetched && balanceNum === 0
-        ? "https://faucet.syscoin.org/"
-        : undefined;
+      balance.isFetched && balanceNum <= 0.01 ? (
+        <Alert severity="warning">
+          <Typography variant="body2">
+            You don&apos;t have enough balance. Please go to&nbsp;
+            <Link href="https://faucet.syscoin.org/" target="_blank">
+              Faucet
+            </Link>
+          </Typography>
+        </Alert>
+      ) : undefined;
     return (
       <WalletSwitchCard
         address={transfer.nevmAddress ?? ""}
