@@ -46,7 +46,7 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
       </Box>
       <Typography>Balance: {balance}</Typography>
       {faucetLink && (
-        <Link href={faucetLink} variant="body2">
+        <Link href={faucetLink} variant="body2" target="_blank">
           You don&apos;t have enough balance. Please go to Faucet
         </Link>
       )}
