@@ -82,7 +82,9 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     if (type === "metamask") {
       nevm.connect();
     }
-    setNevmWalletType(type);
+    setNevmWalletType(
+      window.ethereum.wallet === "pali-v2" ? "pali-wallet" : "metamask"
+    );
   };
 
   const sendUtxoTransaction: SendUtxoTransaction = (
@@ -185,8 +187,10 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   }, [createdIntervals, route, oldRoute]);
 
   useEffect(() => {
-    setNevmWalletType(paliWallet.isEVMInjected ? "pali-wallet" : "metamask");
-  }, [paliWallet.isEVMInjected]);
+    setNevmWalletType(
+      window.ethereum.wallet === "pali-v2" ? "pali-wallet" : "metamask"
+    );
+  }, [paliWallet.isEVMInjected, setNevmWalletType]);
 
   return (
     <ConnectedWalletContext.Provider

@@ -3,7 +3,7 @@ import { useTransfer } from "contexts/Transfer/useTransfer";
 import BridgeTransferComplete from "./Complete";
 import BridgeTransferForm from "./Form";
 import WaitNEVMSign from "./StepSwitch/WaitNEVMSign";
-import WaitMetamaskTransactionConfirmation from "./StepSwitch/WaitMetamaskTransactionConfirmation";
+import WaitNevmTransactionConfirmation from "./StepSwitch/WaitNevmTransactionConfirmation";
 import WaitForPaliWalletSign from "./StepSwitch/WaitPaliWalletSign";
 import WaitPaliWalletTransactionConfirmation from "./StepSwitch/WaitPaliwalletTransactionConfirmation";
 import PaliSwitch from "./StepSwitch/PaliSwitchNetwork";
@@ -44,7 +44,7 @@ const BridgeTransferStepSwitch: React.FC = () => {
     return <WaitNEVMSign />;
   }
   if (status === "confirm-freeze-burn-sys") {
-    return <WaitMetamaskTransactionConfirmation />;
+    return <WaitNevmTransactionConfirmation />;
   }
   if (["completed", "finalizing"].includes(status)) {
     return <BridgeTransferComplete isComplete={status === "completed"} />;

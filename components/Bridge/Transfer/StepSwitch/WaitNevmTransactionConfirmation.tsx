@@ -1,15 +1,17 @@
+import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Alert, Button, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
 
-const WaitMetamaskTransactionConfirmation = () => {
+const WaitNevmTransactionConfirmation = () => {
   const { retry, error } = useTransfer();
   const [showRetry, setShowRetry] = useState(false);
+  const { nevm } = useConnectedWallet();
 
   const retryMessage =
     typeof error === "string"
       ? error
-      : "Check Metamask for transaction confirmations";
+      : `Check ${nevm.type === 'pali-wallet' ? 'Pali Wallet': 'Metamask'} for transaction confirmations`;
 
   useEffect(() => {
     setShowRetry(Boolean(error));
@@ -37,4 +39,4 @@ const WaitMetamaskTransactionConfirmation = () => {
   );
 };
 
-export default WaitMetamaskTransactionConfirmation;
+export default WaitNevmTransactionConfirmation;
