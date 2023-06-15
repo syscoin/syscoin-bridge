@@ -26,7 +26,7 @@
     "axios": "^0.27.2",
     "bitcoin-proof": "^2.0.0",
     "bitcoinjs-lib": "^6.0.1",
-    "ethers": "legacy-v5",
+    "ethers": "^6.6.0",
     "firebase": "^9.22.1",
     "firebase-admin": "^10.2.0",
     "framer-motion": "^10.2.4",
