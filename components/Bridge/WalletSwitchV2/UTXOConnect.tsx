@@ -40,8 +40,10 @@ const UTXOConnect = () => {
     prom.then(() => changeAccount());
   };
 
+  const allowChange = transfer.status === "initialize";
+
   if (
-    isBitcoinBased
+    isBitcoinBased && allowChange
       ? transfer.utxoAddress === connectedAccount
       : Boolean(transfer.utxoAddress)
   ) {
@@ -63,7 +65,7 @@ const UTXOConnect = () => {
     return (
       <WalletSwitchCard
         address={transfer.utxoAddress ?? ""}
-        allowChange={transfer.status === "initialize"}
+        allowChange={allowChange}
         balance={
           balance.isLoading ? "Loading..." : `${balanceNum?.toFixed(4)} SYS`
         }

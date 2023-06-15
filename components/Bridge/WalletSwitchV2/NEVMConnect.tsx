@@ -33,8 +33,9 @@ const NEVMConnect = () => {
     prom.then(() => changeAccount());
   };
 
+  const allowChange = transfer.status === "initialize";
   if (
-    !isBitcoinBased
+    !isBitcoinBased && allowChange
       ? transfer.nevmAddress === account
       : Boolean(transfer.nevmAddress)
   ) {
@@ -56,7 +57,7 @@ const NEVMConnect = () => {
     return (
       <WalletSwitchCard
         address={transfer.nevmAddress ?? ""}
-        allowChange={transfer.status === "initialize"}
+        allowChange={allowChange}
         balance={
           balance.isLoading ? "Loading..." : `${balanceNum?.toFixed(4)} SYS`
         }
