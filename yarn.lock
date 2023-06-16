@@ -3694,6 +3694,11 @@
   resolved "https://registry.yarnpkg.com/@tootallnate/once/-/once-2.0.0.tgz#f544a148d3ab35801c1f633a7441fd87c2e484bf"
   integrity sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==
 
+"@trezor/utils@9.0.9":
+  version "9.0.9"
+  resolved "https://registry.yarnpkg.com/@trezor/utils/-/utils-9.0.9.tgz#2082d0ed4d3bbda83403be43f3cf56ae50b7805f"
+  integrity sha512-+jzHy+YG3zJsnB11YfudT1a5u5lcwNX/tKoW9VmPU+isuW725M6uUOL+MSgW1aHucCJPyBAp0XUUssLE/ifqBw==
+
 "@trezor/utxo-lib@^0.1.2":
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/@trezor/utxo-lib/-/utxo-lib-0.1.2.tgz#19319a424b0d0c648b0df456f1849eb08697fb44"
@@ -3719,6 +3724,30 @@
     wif "^2.0.1"
   optionalDependencies:
     secp256k1 "^3.5.2"
+
+"@trezor/utxo-lib@^1.0.7":
+  version "1.0.7"
+  resolved "https://registry.yarnpkg.com/@trezor/utxo-lib/-/utxo-lib-1.0.7.tgz#0bfaf053ee06bf2a2c778101fceee608325c1493"
+  integrity sha512-brC5xqGgT6yloHz3RWUK1CdEYkOSEjrhYM18GAzAaqS4MBULWDBPDD5Qt2XcYTOaoR/+8PKUXHdHVm+olbRSlA==
+  dependencies:
+    "@trezor/utils" "9.0.9"
+    bchaddrjs "^0.5.2"
+    bech32 "^2.0.0"
+    bip66 "^1.1.5"
+    bitcoin-ops "^1.4.1"
+    blake-hash "^2.0.0"
+    blakejs "^1.2.1"
+    bn.js "^5.2.1"
+    bs58 "^5.0.0"
+    bs58check "^3.0.1"
+    create-hash "^1.2.0"
+    create-hmac "^1.1.7"
+    int64-buffer "^1.0.1"
+    pushdata-bitcoin "^1.0.1"
+    tiny-secp256k1 "^1.1.6"
+    typeforce "^1.18.0"
+    varuint-bitcoin "^1.1.2"
+    wif "^2.0.6"
 
 "@types/async-eventemitter@^0.2.1":
   version "0.2.1"
@@ -4584,6 +4613,11 @@ base-x@^3.0.2, base-x@^3.0.8:
   dependencies:
     safe-buffer "^5.0.1"
 
+base-x@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/base-x/-/base-x-4.0.0.tgz#d0e3b7753450c73f8ad2389b5c018a4af7b2224a"
+  integrity sha512-FuwxlW4H5kh37X/oW59pwTzzTKRzfrrQwhmyspRM7swOEZcHtDZSCt45U6oKgtuFE+WYPblePMVIPR4RZrh/hw==
+
 base64-js@^1.3.0, base64-js@^1.3.1:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/base64-js/-/base64-js-1.5.1.tgz#1b1b440160a5bf7ad40b650f095963481903930a"
@@ -4600,6 +4634,16 @@ basic-auth@~2.0.1:
   integrity sha512-NF+epuEdnUYVlGuhaxbbq+dvJttwLnGY+YixlXlME5KpQ5W3CnXA5cVTneY3SPbPDRkcjMbifrwmFYcClgOZeg==
   dependencies:
     safe-buffer "5.1.2"
+
+bchaddrjs@^0.5.2:
+  version "0.5.2"
+  resolved "https://registry.yarnpkg.com/bchaddrjs/-/bchaddrjs-0.5.2.tgz#1f52b5077329774e7c82d4882964628106bb11a0"
+  integrity sha512-OO7gIn3m7ea4FVx4cT8gdlWQR2+++EquhdpWQJH9BQjK63tJJ6ngB3QMZDO6DiBoXiIGUsTPHjlrHVxPGcGxLQ==
+  dependencies:
+    bs58check "2.1.2"
+    buffer "^6.0.3"
+    cashaddrjs "0.4.4"
+    stream-browserify "^3.0.0"
 
 bcrypt-pbkdf@^1.0.0:
   version "1.0.2"
@@ -4622,6 +4666,11 @@ bech32@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/bech32/-/bech32-2.0.0.tgz#078d3686535075c8c79709f054b1b226a133b355"
   integrity sha512-LcknSilhIGatDAsY1ak2I8VtGaHNhgMSYVxFrGLXv+xLHytaKZKcaUJJUE7qmBr7h33o5YQwP55pMI0xmkpJwg==
+
+big-integer@1.6.36:
+  version "1.6.36"
+  resolved "https://registry.yarnpkg.com/big-integer/-/big-integer-1.6.36.tgz#78631076265d4ae3555c04f85e7d9d2f3a071a36"
+  integrity sha512-t70bfa7HYEA1D9idDbmuv7YbsbVkQ+Hp+8KFSul4aE5e/i1bjCNIRYJZlA8Q8p0r9T8cF/RVvwUgRA//FydEyg==
 
 big-integer@^1.6.16, big-integer@^1.6.17:
   version "1.6.51"
@@ -4787,6 +4836,15 @@ bl@^4.0.3, bl@^4.1.0:
     inherits "^2.0.4"
     readable-stream "^3.4.0"
 
+blake-hash@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/blake-hash/-/blake-hash-2.0.0.tgz#af184dce641951126d05b7d1c3de3224f538d66e"
+  integrity sha512-Igj8YowDu1PRkRsxZA7NVkdFNxH5rKv5cpLxQ0CVXSIA77pVYwCPRQJ2sMew/oneUpfuYRyjG6r8SmmmnbZb1w==
+  dependencies:
+    node-addon-api "^3.0.0"
+    node-gyp-build "^4.2.2"
+    readable-stream "^3.6.0"
+
 "blake2b-wasm@https://github.com/BitGo/blake2b-wasm#193cdb71656c1a6c7f89b05d0327bb9b758d071b":
   version "2.0.0"
   resolved "https://github.com/BitGo/blake2b-wasm#193cdb71656c1a6c7f89b05d0327bb9b758d071b"
@@ -4800,7 +4858,7 @@ bl@^4.0.3, bl@^4.1.0:
     blake2b-wasm "https://github.com/BitGo/blake2b-wasm#193cdb71656c1a6c7f89b05d0327bb9b758d071b"
     nanoassert "^1.0.0"
 
-blakejs@^1.1.0:
+blakejs@^1.1.0, blakejs@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/blakejs/-/blakejs-1.2.1.tgz#5057e4206eadb4a97f7c0b6e197a505042fc3814"
   integrity sha512-QXUSXI3QVc/gJME0dBpXrag1kbzOqCjCX8/b54ntNyW6sjtoqxqRk3LTmXzaJoh71zMsDCjM+47jS7XiwN/+fQ==
@@ -4970,7 +5028,14 @@ bs58@^4.0.0:
   dependencies:
     base-x "^3.0.2"
 
-bs58check@<3.0.0, bs58check@^2.0.0, bs58check@^2.1.1, bs58check@^2.1.2:
+bs58@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/bs58/-/bs58-5.0.0.tgz#865575b4d13c09ea2a84622df6c8cbeb54ffc279"
+  integrity sha512-r+ihvQJvahgYT50JD05dyJNKlmmSlMoOGwn1lCcEzanPglg7TxYjioQUYehQ9mAR/+hOSd2jRc/Z2y5UxBymvQ==
+  dependencies:
+    base-x "^4.0.0"
+
+bs58check@2.1.2, bs58check@<3.0.0, bs58check@^2.0.0, bs58check@^2.1.1, bs58check@^2.1.2:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/bs58check/-/bs58check-2.1.2.tgz#53b018291228d82a5aa08e7d796fdafda54aebfc"
   integrity sha512-0TS1jicxdU09dwJMNZtVAfzPi6Q6QeN0pM1Fkzrjn+XYHvzMKPU3pHVpva+769iNVSfIYWf7LJ6WR+BuuMf8cA==
@@ -4978,6 +5043,14 @@ bs58check@<3.0.0, bs58check@^2.0.0, bs58check@^2.1.1, bs58check@^2.1.2:
     bs58 "^4.0.0"
     create-hash "^1.1.0"
     safe-buffer "^5.1.2"
+
+bs58check@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/bs58check/-/bs58check-3.0.1.tgz#2094d13720a28593de1cba1d8c4e48602fdd841c"
+  integrity sha512-hjuuJvoWEybo7Hn/0xOrczQKKEKD63WguEjlhLExYs2wUBcebDC1jDNK17eEAD2lYfw82d5ASC1d7K3SWszjaQ==
+  dependencies:
+    "@noble/hashes" "^1.2.0"
+    bs58 "^5.0.0"
 
 bson@^4.7.0:
   version "4.7.2"
@@ -5168,6 +5241,13 @@ caseless@~0.12.0:
   version "0.12.0"
   resolved "https://registry.yarnpkg.com/caseless/-/caseless-0.12.0.tgz#1b681c21ff84033c826543090689420d187151dc"
   integrity sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==
+
+cashaddrjs@0.4.4:
+  version "0.4.4"
+  resolved "https://registry.yarnpkg.com/cashaddrjs/-/cashaddrjs-0.4.4.tgz#169f1ae620d325db77700273d972282adeeee331"
+  integrity sha512-xZkuWdNOh0uq/mxJIng6vYWfTowZLd9F4GMAlp2DwFHlcCqCm91NtuAc47RuV4L7r4PYcY5p6Cr2OKNb4hnkWA==
+  dependencies:
+    big-integer "1.6.36"
 
 catering@^2.1.0, catering@^2.1.1:
   version "2.1.1"
@@ -6552,6 +6632,13 @@ eth-lib@^0.1.26:
 eth-object@^1.0.3, "eth-object@https://github.com/syscoin/eth-object.git":
   version "1.0.3"
   resolved "https://github.com/syscoin/eth-object.git#b5ff300f57c136138b31d6e570c816a147e0f1c9"
+  dependencies:
+    eth-util-lite "^1.0.1"
+
+"eth-object@git+https://github.com/syscoin/eth-object.git":
+  version "1.0.3"
+  uid b5ff300f57c136138b31d6e570c816a147e0f1c9
+  resolved "git+https://github.com/syscoin/eth-object.git#b5ff300f57c136138b31d6e570c816a147e0f1c9"
   dependencies:
     eth-util-lite "^1.0.1"
 
@@ -8079,7 +8166,7 @@ inflight@^1.0.4:
     once "^1.3.0"
     wrappy "1"
 
-inherits@2, inherits@2.0.4, inherits@^2.0.1, inherits@^2.0.3, inherits@^2.0.4, inherits@~2.0.0, inherits@~2.0.1, inherits@~2.0.3:
+inherits@2, inherits@2.0.4, inherits@^2.0.1, inherits@^2.0.3, inherits@^2.0.4, inherits@~2.0.0, inherits@~2.0.1, inherits@~2.0.3, inherits@~2.0.4:
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/inherits/-/inherits-2.0.4.tgz#0fa2c64f932917c3433a0ded55363aae37416b7c"
   integrity sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==
@@ -8124,6 +8211,11 @@ int64-buffer@0.99.1007:
   version "0.99.1007"
   resolved "https://registry.yarnpkg.com/int64-buffer/-/int64-buffer-0.99.1007.tgz#211ea089a2fdb960070a2e77cd6d17dc456a5220"
   integrity sha512-XDBEu44oSTqlvCSiOZ/0FoUkpWu/vwjJLGSKDabNISPQNZ5wub1FodGHBljRsrR0IXRPq7SslshZYMuA55CgTQ==
+
+int64-buffer@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/int64-buffer/-/int64-buffer-1.0.1.tgz#c78d841b444cadf036cd04f8683696c740f15dca"
+  integrity sha512-+3azY4pXrjAupJHU1V9uGERWlhoqNswJNji6aD/02xac7oxol508AsMC5lxKhEqyZeDFy3enq5OGWXF4u75hiw==
 
 internal-slot@^1.0.3, internal-slot@^1.0.4:
   version "1.0.5"
@@ -9824,6 +9916,11 @@ node-addon-api@^2.0.0:
   resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-2.0.2.tgz#432cfa82962ce494b132e9d72a15b29f71ff5d32"
   integrity sha512-Ntyt4AIXyaLIuMHF6IOoTakB3K+RWxwtsHNRxllEoA6vPwP9o4866g6YWDLUdnucilZhmkxiHwHr11gAENw+QA==
 
+node-addon-api@^3.0.0:
+  version "3.2.1"
+  resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-3.2.1.tgz#81325e0a2117789c0128dab65e7e38f07ceba161"
+  integrity sha512-mmcei9JghVNDYydghQmeDX8KoAm0FAiYyIcUt/N4nhyAipB17pllZQDOJD2fotxABnt4Mdz+dKTO7eftLg4d0A==
+
 node-emoji@^1.11.0:
   version "1.11.0"
   resolved "https://registry.yarnpkg.com/node-emoji/-/node-emoji-1.11.0.tgz#69a0150e6946e2f115e9d7ea4df7971e2628301c"
@@ -9858,7 +9955,7 @@ node-forge@^1.3.1:
   resolved "https://registry.yarnpkg.com/node-forge/-/node-forge-1.3.1.tgz#be8da2af243b2417d5f646a770663a92b7e9ded3"
   integrity sha512-dPEtOeMvF9VMcYV/1Wb8CPoVAXtp6MKMlcbAt4ddqmGqUJ6fQZFXkNZNkNlfevtNkGtaSoXf/vNNNSvgrdXwtA==
 
-node-gyp-build@^4.2.0, node-gyp-build@^4.3.0:
+node-gyp-build@^4.2.0, node-gyp-build@^4.2.2, node-gyp-build@^4.3.0:
   version "4.6.0"
   resolved "https://registry.yarnpkg.com/node-gyp-build/-/node-gyp-build-4.6.0.tgz#0c52e4cbf54bbd28b709820ef7b6a3c2d6209055"
   integrity sha512-NTZVKn9IylLwUzaKjkas1e4u2DLNcV4rdYagA4PWdPwW87Bi7z+BznyKSRwS/761tV/lzCGXplWsiaMjLqP2zQ==
@@ -10761,7 +10858,7 @@ readable-stream@^2.0.0, readable-stream@^2.0.2, readable-stream@^2.0.5, readable
     string_decoder "~1.1.1"
     util-deprecate "~1.0.1"
 
-readable-stream@^3.0.6, readable-stream@^3.1.1, readable-stream@^3.4.0, readable-stream@^3.6.0:
+readable-stream@^3.0.6, readable-stream@^3.1.1, readable-stream@^3.4.0, readable-stream@^3.5.0, readable-stream@^3.6.0:
   version "3.6.2"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-3.6.2.tgz#56a9b36ea965c00c5a93ef31eb111a0f11056967"
   integrity sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==
@@ -11414,6 +11511,14 @@ stop-iteration-iterator@^1.0.0:
   dependencies:
     internal-slot "^1.0.4"
 
+stream-browserify@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/stream-browserify/-/stream-browserify-3.0.0.tgz#22b0a2850cdf6503e73085da1fc7b7d0c2122f2f"
+  integrity sha512-H73RAHsVBapbim0tU2JwwOiXUj+fikfiaoYAKHF3VJfA0pe2BCzkhAHBlLG6REzE+2WNZcxOXjK7lkso+9euLA==
+  dependencies:
+    inherits "~2.0.4"
+    readable-stream "^3.5.0"
+
 stream-chain@^2.2.4, stream-chain@^2.2.5:
   version "2.2.5"
   resolved "https://registry.yarnpkg.com/stream-chain/-/stream-chain-2.2.5.tgz#b30967e8f14ee033c5b9a19bbe8a2cba90ba0d09"
@@ -11636,26 +11741,6 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@^1.0.214:
-  version "1.0.214"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.214.tgz#aaa2e2fc8355b60738f9dea3807ad9526286abcf"
-  integrity sha512-RURwpNoVpZsq0cs7wl/tjTLfydBA8/eJwmvz/YqNNI7a3WIDPa4Ayj3LtkezWIGEfAIe2KTcVaRKJ93232yLCg==
-  dependencies:
-    "@trezor/utxo-lib" "^0.1.2"
-    axios "^0.21.1"
-    bip84 "^0.2.7"
-    bitcoin-ops "^1.4.1"
-    bitcoinjs-lib "^5.2.0"
-    bn.js "^5.1.3"
-    crypto-js "^4.0.0"
-    eth-object "https://github.com/syscoin/eth-object.git"
-    eth-proof "^2.1.6"
-    node-localstorage "^2.1.6"
-    syscointx-js "^1.0.102"
-    trezor-connect "^8.1.29"
-    varuint-bitcoin "^1.1.2"
-    web3 "^1.4.0"
-
 syscoinjs-lib@^1.0.217:
   version "1.0.217"
   resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.217.tgz#39eb99f630f949cae19005e375f7ac58d67b5cab"
@@ -11676,18 +11761,25 @@ syscoinjs-lib@^1.0.217:
     varuint-bitcoin "^1.1.2"
     web3 "^1.4.0"
 
-syscointx-js@^1.0.102:
-  version "1.0.105"
-  resolved "https://registry.yarnpkg.com/syscointx-js/-/syscointx-js-1.0.105.tgz#21d81b2bbd08a708d2570d28ea498581d598691a"
-  integrity sha512-CFdnU/eYXQwvDUqRMnTtlg/frSY8cVi9Zkop8WyjRO9x1ZDoC9JF/0H0zRULzBBW6YXksXQ/u6xSJ/512WRw8w==
+syscoinjs-lib@^1.0.218:
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.218.tgz#a45fe2e70d8d26c12b0b924ee012cee959c6a599"
+  integrity sha512-9kpPvOcDmhK0KedmS1sgaKdbmwLayinxQ+dWcr5FBzIjdFuWB90gYSaQ4hY7sHj4SH3X4rIrTX7ULzrCwb2Tzg==
   dependencies:
+    "@trezor/utxo-lib" "^1.0.7"
+    axios "^0.21.1"
+    bip84 "^0.2.7"
     bitcoin-ops "^1.4.1"
     bitcoinjs-lib "^5.2.0"
     bn.js "^5.1.3"
-    coinselectsyscoin "^1.0.79"
-    secp256k1 "^3.8.0"
-    typeforce "^1.18.0"
+    crypto-js "^4.0.0"
+    eth-object "https://github.com/syscoin/eth-object.git"
+    eth-proof "^2.1.6"
+    node-localstorage "^2.1.6"
+    syscointx-js "^1.0.106"
+    trezor-connect "^8.1.29"
     varuint-bitcoin "^1.1.2"
+    web3 "^1.4.0"
 
 syscointx-js@^1.0.106:
   version "1.0.106"
@@ -11787,7 +11879,7 @@ tiny-invariant@^1.0.6:
   resolved "https://registry.yarnpkg.com/tiny-invariant/-/tiny-invariant-1.3.1.tgz#8560808c916ef02ecfd55e66090df23a4b7aa642"
   integrity sha512-AD5ih2NlSssTCwsMznbvwMZpJ1cbhkGd2uueNxzv2jDlEeZdU04JQfRnggJQ8DrcVBGjAsCKwFBbDlVNtEMlzw==
 
-tiny-secp256k1@^1.1.1, tiny-secp256k1@^1.1.3:
+tiny-secp256k1@^1.1.1, tiny-secp256k1@^1.1.3, tiny-secp256k1@^1.1.6:
   version "1.1.6"
   resolved "https://registry.yarnpkg.com/tiny-secp256k1/-/tiny-secp256k1-1.1.6.tgz#7e224d2bee8ab8283f284e40e6b4acb74ffe047c"
   integrity sha512-FmqJZGduTyvsr2cF3375fqGHUovSwDi/QytexX1Se4BPuPZpTE5Ftp5fg+EFSuEf3lhZqgCRjEG3ydUQ/aNiwA==
