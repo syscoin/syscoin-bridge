@@ -11741,12 +11741,12 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@^1.0.217:
-  version "1.0.217"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.217.tgz#39eb99f630f949cae19005e375f7ac58d67b5cab"
-  integrity sha512-1llH2cbNM9CzjgNNhL4Ntmh0FQozl02h4Gp7qULGwPpmnzNo512twozyq7Y9iEA8x9dIPaAilAz03tN23m61Eg==
+syscoinjs-lib@1.0.218:
+  version "1.0.218"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.218.tgz#a45fe2e70d8d26c12b0b924ee012cee959c6a599"
+  integrity sha512-9kpPvOcDmhK0KedmS1sgaKdbmwLayinxQ+dWcr5FBzIjdFuWB90gYSaQ4hY7sHj4SH3X4rIrTX7ULzrCwb2Tzg==
   dependencies:
-    "@trezor/utxo-lib" "^0.1.2"
+    "@trezor/utxo-lib" "^1.0.7"
     axios "^0.21.1"
     bip84 "^0.2.7"
     bitcoin-ops "^1.4.1"
@@ -11761,12 +11761,12 @@ syscoinjs-lib@^1.0.217:
     varuint-bitcoin "^1.1.2"
     web3 "^1.4.0"
 
-syscoinjs-lib@^1.0.218:
-  version "1.0.218"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.218.tgz#a45fe2e70d8d26c12b0b924ee012cee959c6a599"
-  integrity sha512-9kpPvOcDmhK0KedmS1sgaKdbmwLayinxQ+dWcr5FBzIjdFuWB90gYSaQ4hY7sHj4SH3X4rIrTX7ULzrCwb2Tzg==
+syscoinjs-lib@^1.0.217:
+  version "1.0.217"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.217.tgz#39eb99f630f949cae19005e375f7ac58d67b5cab"
+  integrity sha512-1llH2cbNM9CzjgNNhL4Ntmh0FQozl02h4Gp7qULGwPpmnzNo512twozyq7Y9iEA8x9dIPaAilAz03tN23m61Eg==
   dependencies:
-    "@trezor/utxo-lib" "^1.0.7"
+    "@trezor/utxo-lib" "^0.1.2"
     axios "^0.21.1"
     bip84 "^0.2.7"
     bitcoin-ops "^1.4.1"
