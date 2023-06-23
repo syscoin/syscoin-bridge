@@ -187,6 +187,9 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   }, [createdIntervals, route, oldRoute]);
 
   useEffect(() => {
+    if (!window.ethereum) {
+      return;
+    }
     setNevmWalletType(
       window.ethereum.wallet === "pali-v2" ? "pali-wallet" : "metamask"
     );
