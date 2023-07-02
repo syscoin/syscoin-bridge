@@ -17,6 +17,7 @@
     "@mui/material": "^5.7.0",
     "@mui/x-data-grid": "^5.11.1",
     "@pollum-io/sysweb3-utils": "^1.1.223",
+    "@sentry/nextjs": "^7.57.0",
     "axios": "^0.27.2",
     "bitcoin-proof": "^2.0.0",
     "bitcoinjs-lib": "^6.0.1",

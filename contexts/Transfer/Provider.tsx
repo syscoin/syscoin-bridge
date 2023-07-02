@@ -24,6 +24,7 @@ import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import { captureException } from "@sentry/nextjs";
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -215,6 +216,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
         proceedNextStep();
       })
       .catch((err) => {
+        captureException(err);
         setError(err);
       });
   }, [
