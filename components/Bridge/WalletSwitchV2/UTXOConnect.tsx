@@ -53,7 +53,7 @@ const UTXOConnect = () => {
     }
 
     const faucetLink =
-      balance.isFetched && balanceNum <= 0.01 ? (
+      balance.isFetched && balanceNum < 0.01 ? (
         <Alert severity="warning">
           <Typography variant="body2">
             Please send at least 0.01 SYS into your Pali wallet to continue the
