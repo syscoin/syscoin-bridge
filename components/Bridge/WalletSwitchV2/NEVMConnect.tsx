@@ -13,6 +13,7 @@ const NEVMConnect = () => {
   const balance = useQuery(
     ["nevm", "balance", transfer.nevmAddress],
     async () => {
+      if (!transfer.nevmAddress) return Promise.resolve(0);
       const url = `https://explorer.syscoin.org/api?module=account&action=eth_get_balance&address=${transfer.nevmAddress}&tag=latest`;
       const ethBalanceInHex = await fetch(url)
         .then((res) => res.json())
@@ -44,7 +45,7 @@ const NEVMConnect = () => {
       balanceNum = 0;
     }
     const faucetLink =
-      balance.isFetched && balanceNum <= 0.01 ? (
+      balance.isFetched && balanceNum < 0.01 ? (
         <Alert severity="warning">
           <Typography variant="body2">
             You don&apos;t have enough balance. Please go to&nbsp;
