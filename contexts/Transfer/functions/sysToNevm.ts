@@ -11,6 +11,7 @@ import { Contract } from "web3-eth-contract";
 
 import { getProof } from "bitcoin-proof";
 import { TransactionReceipt } from "web3-core";
+import { captureException } from "@sentry/nextjs";
 
 type SysToNevmStateMachineParams = {
   transfer: ITransfer;
@@ -58,6 +59,7 @@ const runWithSysToNevmStateMachine = async (
           );
         })
         .catch((error) => {
+          captureException(error);
           console.error("burn-sys error", error);
           return Promise.reject(error);
         });
@@ -97,6 +99,7 @@ const runWithSysToNevmStateMachine = async (
           );
         })
         .catch((error) => {
+          captureException(error);
           console.error("burn-sysx error", error);
           return Promise.reject(error);
         });
@@ -164,7 +167,10 @@ const runWithSysToNevmStateMachine = async (
 
       const gas = await method
         .estimateGas({ from: fromAccount })
-        .catch((error: Error) => console.error("Estimate gas error", error));
+        .catch((error: Error) => {
+          captureException(error);
+          console.error("Estimate gas error", error);
+        });
 
       return new Promise((resolve, reject) => {
         method

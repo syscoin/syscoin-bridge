@@ -10,6 +10,7 @@ import { syscoin, utils } from "syscoinjs-lib";
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";
+import { captureException } from "@sentry/nextjs";
 
 const ERROR_MESSAGE_EVM_ONLY =
   "Method only available when connected on EVM chains";
@@ -67,6 +68,7 @@ const confirmFreezeAndBurnSys = async (
       addLog("confirm-freeze-burn-sys", "Confirm Freeze and Burn SYS", receipt)
     );
   } catch (error: any) {
+    captureException(error);
     const isEVMOnlyError =
       error.cause && error.cause.message === ERROR_MESSAGE_EVM_ONLY;
     dispatch(
@@ -155,6 +157,7 @@ const burnSysxToSys = async (
       ""
     );
   } catch (e) {
+    captureException(e);
     console.error("Burn SYSX error: Not enough funds", e);
     dispatch(addLog("burn-sysx", "Burn SYSX error: Not enough funds", e));
     return Promise.reject(new Error("Burn SYSX error: Not enough funds"));

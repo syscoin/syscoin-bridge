@@ -40,3 +40,5 @@ yarn-error.log*
 *.log
 
 .yarn
+# Sentry Auth Token
+.sentryclirc

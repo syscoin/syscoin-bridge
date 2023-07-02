@@ -6,6 +6,7 @@ import { useQuery } from "react-query";
 import { useMetamask } from "@contexts/Metamask/Provider";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
+import { captureException } from "@sentry/nextjs";
 
 interface INEVMContext {
   account?: string;
@@ -107,7 +108,9 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         method: "wallet_switchEthereumChain",
         params: [{ chainId: "0x39" }],
       })
-      .catch(({ code }) => {
+      .catch((err) => {
+        const { code } = err;
+        captureException(err);
         if (code === 4902) {
           window.ethereum.request({
             method: "wallet_addEthereumChain",

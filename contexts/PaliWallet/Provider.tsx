@@ -9,6 +9,7 @@ import { useQuery } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
+import { captureException } from "@sentry/nextjs";
 
 const tenMinutes = 10 * 60 * 1000;
 
@@ -105,6 +106,7 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
     const signedTransaction = await windowController
       .signAndSend(transaction)
       .catch((sendTransactionError) => {
+        captureException(sendTransactionError);
         console.error("PaliWallet Sendtransaction", { sendTransactionError });
         return Promise.reject(sendTransactionError);
       });
@@ -151,7 +153,7 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    const callback = async (event: any) => {
+    const callback = (event: any) => {
       if (event.detail.SyscoinInstalled) {
         setIsInstalled(true);
         console.log("syscoin is installed");
@@ -173,7 +175,7 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
 
     window.addEventListener("SyscoinStatus", callback);
 
-    const check = setInterval(async () => {
+    const check = setInterval(() => {
       if (window.ConnectionsController) {
         setIsInstalled(true);
         console.log("syscoin is installed");
