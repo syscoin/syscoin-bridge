@@ -147,6 +147,9 @@ const runWithSysToNevmStateMachine = async (
         (log) => log.status === "generate-proofs"
       )?.payload.data.results as SPVProof;
       const nevmBlock = await web3.eth.getBlock(`0x${proof.nevm_blockhash}`);
+      if (!nevmBlock) {
+        throw new Error("NEVM block not found: " + proof.nevm_blockhash);
+      }
       const txBytes = `0x${proof.transaction}`;
       const txIndex = proof.index;
       const merkleProof = getProof(proof.siblings, txIndex);
