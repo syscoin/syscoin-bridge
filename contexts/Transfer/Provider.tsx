@@ -16,41 +16,49 @@ import {
   setNevmAddress,
   setStatus,
   setUtxoAddress,
+  setUtxoXpub,
+  setVersion,
 } from "./store/actions";
 import relayAbi from "./relay-abi";
-import Web3 from "web3";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
+import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
+import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
+import { captureException } from "@sentry/nextjs";
 
 interface ITransferContext {
   transfer: ITransfer;
-  maxAmount: number | string | undefined;
+  error?: any;
+  steps: TransferStep[];
   startTransfer: (amount: number) => void;
   setTransferType: (type: TransferType) => void;
   retry: () => void;
-  error?: any;
   revertToPreviousStatus: () => void;
+  proceedNextStep: () => void;
+  setUtxo: (payload: { xpub: string; address: string }) => void;
+  setNevm: (payload: { address: string }) => void;
 }
 
 export const TransferContext = createContext({} as ITransferContext);
 
 type TransferProviderProps = {
   id: string;
+  includeSwitchStep?: boolean;
   children: React.ReactNode;
 };
 
 const TransferProvider: React.FC<TransferProviderProps> = ({
   id,
+  includeSwitchStep,
   children,
 }) => {
   const {
-    utxo,
-    nevm,
     sendUtxoTransaction,
-    refreshBalances,
     confirmTransaction,
     syscoinInstance,
     web3,
+    nevm,
+    utxo,
   } = useConnectedWallet();
 
   const relayContract = useMemo(() => {
@@ -68,6 +76,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       status: "initialize",
       logs: [],
       createdAt: Date.now(),
+      version: "v1",
     };
   }, [id]);
 
@@ -80,27 +89,52 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   const [previousStatus, setPreviousStatus] = useState<TransferStatus>();
   const [error, setError] = useState();
 
+  const steps = useMemo(() => {
+    let conditionalSteps: TransferStep[] = [];
+
+    if (transfer.type === "sys-to-nevm") {
+      conditionalSteps = [...sysToNevmSteps];
+    } else if (transfer.type === "nevm-to-sys") {
+      conditionalSteps = [...nevmToSysSteps];
+    }
+
+    if (includeSwitchStep) {
+      const transferType = transfer.type;
+      const switchStep: TransferStep = {
+        id: "switch",
+        label:
+          transferType === "sys-to-nevm"
+            ? "Switch to NEVM"
+            : "Switch to SYSCOIN",
+      };
+
+      const targetStepId =
+        transferType === "sys-to-nevm" ? "submit-proofs" : "mint-sysx";
+      const targetStepIndex = conditionalSteps.findIndex(
+        (step) => step.id === targetStepId
+      );
+
+      conditionalSteps.splice(targetStepIndex, 0, switchStep);
+    }
+
+    return conditionalSteps;
+  }, [transfer.type, includeSwitchStep]);
+
   const startTransfer = (amount: number) => {
-    if (!utxo.xpub || !nevm.account) {
+    if (
+      (!transfer.utxoAddress || !transfer.nevmAddress) &&
+      !includeSwitchStep
+    ) {
       console.log("Some accounts are not connected", {
-        nevm: nevm.account,
-        utxo: utxo.xpub,
+        nevm: transfer.nevmAddress,
+        utxo: transfer.utxoAddress,
       });
       return;
     }
     updateAmount(`${amount}`);
-    dispatch(setUtxoAddress(utxo.xpub));
-    dispatch(setNevmAddress(nevm.account));
+    dispatch(setVersion(utxo.type === nevm.type ? "v2" : "v1"));
     dispatch(setStatus("initialize"));
-    dispatch(
-      addLog("initialize", "Starting Sys to NEVM transfer", {
-        amount: transfer.amount,
-        type: transfer.type,
-        utxoAddress: utxo.xpub,
-        nevmAddress: nevm.account,
-      })
-    );
-
+    dispatch(addLog("initialize", "Starting Sys to NEVM transfer", transfer));
     if (transfer.type === "sys-to-nevm") {
       dispatch(setStatus("burn-sys"));
     } else if (transfer.type === "nevm-to-sys") {
@@ -122,70 +156,99 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     });
   };
 
-  const runSideEffects = useCallback(() => {
-    if (transfer.type === "sys-to-nevm") {
-      runWithSysToNevmStateMachine({
-        transfer,
-        syscoinInstance,
-        web3,
-        utxo,
-        dispatch,
-        sendUtxoTransaction,
-        nevm,
-        relayContract,
-        confirmTransaction,
-      }).catch((err) => {
-        setError(err);
-      });
-    } else if (transfer.type === "nevm-to-sys") {
-      runWithNevmToSysStateMachine(
-        transfer,
-        web3,
-        syscoinInstance,
-        utxo,
-        sendUtxoTransaction,
-        dispatch,
-        confirmTransaction
-      ).catch((err) => {
-        setError(err);
-      });
-    } else {
-      throw new Error("Unknown transfer type");
+  const setUtxo = (payload: { xpub: string; address: string }) => {
+    if (transfer.status !== "initialize") {
+      return;
     }
+    const { address, xpub } = payload;
+    dispatch(setUtxoXpub(xpub));
+    dispatch(setUtxoAddress(address));
+  };
+
+  const setNevm = (payload: { address: string }) => {
+    if (transfer.status !== "initialize") {
+      return;
+    }
+    const { address } = payload;
+    dispatch(setNevmAddress(address));
+  };
+
+  const proceedNextStep = useCallback(() => {
+    if (transfer.status === "completed") {
+      return;
+    }
+    const currentStepIndex = steps.findIndex(
+      (step) => step.id === transfer.status
+    );
+    const nextStep = steps[currentStepIndex + 1];
+    if (nextStep) {
+      dispatch(setStatus(nextStep.id));
+    } else if (transfer.status === "finalizing") {
+      dispatch(setStatus("completed"));
+    }
+  }, [steps, transfer.status, dispatch]);
+
+  const runSideEffects = useCallback(() => {
+    let sideEffectPromise =
+      transfer.type === "sys-to-nevm"
+        ? runWithSysToNevmStateMachine({
+            transfer,
+            syscoinInstance,
+            web3,
+            dispatch,
+            sendUtxoTransaction,
+            relayContract,
+            confirmTransaction,
+          })
+        : runWithNevmToSysStateMachine(
+            transfer,
+            web3,
+            syscoinInstance,
+            sendUtxoTransaction,
+            dispatch,
+            confirmTransaction
+          );
+    sideEffectPromise
+      .then(() => {
+        if (transfer.status === "switch") {
+          return;
+        }
+        proceedNextStep();
+      })
+      .catch((err) => {
+        captureException(err);
+        setError(err);
+      });
   }, [
     transfer,
     syscoinInstance,
     web3,
-    utxo,
-    dispatch,
     sendUtxoTransaction,
-    nevm,
     relayContract,
     confirmTransaction,
+    proceedNextStep,
   ]);
 
   const revertToPreviousStatus = () => {
     if (transfer.logs.length === 0) {
       return;
     }
-    const latestLog = transfer.logs[transfer.logs.length - 1];
-    if (latestLog.payload.previousStatus) {
-      dispatch(setStatus(latestLog.payload.previousStatus));
+    const sortedLogs = [...transfer.logs].sort((a, b) => a.date - b.date);
+
+    for (let i = sortedLogs.length - 1; i >= 0; i--) {
+      const log = sortedLogs[i];
+      if (log.payload.previousStatus !== "error") {
+        if (log.payload.previousStatus) {
+          dispatch(setStatus(log.payload.previousStatus));
+          break;
+        }
+      }
     }
   };
 
-  let maxAmount: number | string | undefined = undefined;
-
-  if (transfer.type === "sys-to-nevm") {
-    maxAmount = utxo.balance;
-  } else if (transfer.type === "nevm-to-sys") {
-    maxAmount = nevm.balance;
-  }
-
   useEffect(() => {
     if (
-      !initialized ||
-      transfer.status === "initialize" ||
+      ["initialize", "completed", "error"].includes(transfer.status) ||
       previousStatus === transfer.status
     ) {
       return;
@@ -196,22 +259,20 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   }, [initialized, previousStatus, runSideEffects, transfer.status]);
 
   useEffect(() => {
-    if (!initialized || !transfer.id) {
+    if (!transfer.id || transfer.status === "initialize") {
       return;
     }
-    if (transfer.status !== "initialize") {
-      localStorage.setItem(`transfer-${transfer.id}`, JSON.stringify(transfer));
-      fetch(`/api/transfer/${transfer.id}`, {
-        body: JSON.stringify(transfer),
-        method: "PATCH",
-        headers: {
-          "content-type": "application/json",
-        },
-      }).catch((e) => {
-        console.error("Saved in DB Error", e);
-      });
-    }
-  }, [transfer, initialized]);
+    localStorage.setItem(`transfer-${transfer.id}`, JSON.stringify(transfer));
+    fetch(`/api/transfer/${transfer.id}`, {
+      body: JSON.stringify(transfer),
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+      },
+    }).catch((e) => {
+      console.error("Saved in DB Error", e);
+    });
+  }, [transfer, transfer.status, initialized]);
 
   useEffect(() => {
     if (initialized) {
@@ -222,8 +283,6 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       const item = localStorage.getItem(`transfer-${id}`);
       const defaultState = {
         ...baseTransfer,
-        nevmAddress: nevm.account!,
-        utxoAddress: utxo.xpub!,
         id,
       } as ITransfer;
       dispatch(initialize(item ? JSON.parse(item) : defaultState));
@@ -240,15 +299,11 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
         }
       })
       .catch(() => loadDefault());
-  }, [id, baseTransfer, nevm, utxo, initialized]);
+  }, [id, baseTransfer, initialized]);
 
   useEffect(() => {
     setIsInitialized(false);
   }, [id]);
-
-  useEffect(() => {
-    refreshBalances();
-  }, [transfer.type, refreshBalances]);
 
   return (
     <TransferContext.Provider
@@ -261,8 +316,11 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
           setError(undefined);
         },
         error,
-        maxAmount,
         revertToPreviousStatus,
+        steps,
+        proceedNextStep,
+        setNevm,
+        setUtxo,
       }}
     >
       {children}

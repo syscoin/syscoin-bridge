@@ -1,24 +1,29 @@
-import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { Alert, Button, Typography } from "@mui/material";
 import { useTransfer } from "contexts/Transfer/useTransfer";
 import BridgeTransferComplete from "./Complete";
 import BridgeTransferForm from "./Form";
-import WaitMetaMaskSign from "./StepSwitch/WailMetamaskSign";
-import WaitMetamaskTransactionConfirmation from "./StepSwitch/WaitMetamaskTransactionConfirmation";
+import WaitNEVMSign from "./StepSwitch/WaitNEVMSign";
+import WaitNevmTransactionConfirmation from "./StepSwitch/WaitNevmTransactionConfirmation";
 import WaitForPaliWalletSign from "./StepSwitch/WaitPaliWalletSign";
 import WaitPaliWalletTransactionConfirmation from "./StepSwitch/WaitPaliwalletTransactionConfirmation";
+import PaliSwitch from "./StepSwitch/PaliSwitchNetwork";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 
 const BridgeTransferStepSwitch: React.FC = () => {
   const {
-    transfer: { status, logs },
+    transfer: { status, logs, type },
     revertToPreviousStatus,
   } = useTransfer();
+  const pailwallet = usePaliWalletV2();
 
   if (status === "initialize") {
     return <BridgeTransferForm />;
   }
 
   if (["burn-sys", "burn-sysx", "mint-sysx"].includes(status)) {
+    if (pailwallet.version === "v2" && !pailwallet.isBitcoinBased) {
+      return <PaliSwitch networkType="bitcoin" />;
+    }
     return <WaitForPaliWalletSign />;
   }
 
@@ -33,13 +38,24 @@ const BridgeTransferStepSwitch: React.FC = () => {
     return <WaitPaliWalletTransactionConfirmation />;
   }
   if (["submit-proofs", "freeze-burn-sys"].includes(status)) {
-    return <WaitMetaMaskSign />;
+    if (pailwallet.version === "v2" && pailwallet.isBitcoinBased && pailwallet.isEVMInjected) {
+      return <PaliSwitch networkType="ethereum" />;
+    }
+    return <WaitNEVMSign />;
   }
   if (status === "confirm-freeze-burn-sys") {
-    return <WaitMetamaskTransactionConfirmation />;
+    return <WaitNevmTransactionConfirmation />;
   }
   if (["completed", "finalizing"].includes(status)) {
     return <BridgeTransferComplete isComplete={status === "completed"} />;
+  }
+
+  if (status === "switch") {
+    if (type === "sys-to-nevm") {
+      return <PaliSwitch networkType="ethereum" />;
+    } else if (type === "nevm-to-sys") {
+      return <PaliSwitch networkType="bitcoin" />;
+    }
   }
 
   const lastLog = logs[logs.length - 1];

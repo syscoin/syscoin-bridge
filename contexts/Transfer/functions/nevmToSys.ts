@@ -4,48 +4,41 @@ import { Contract } from "web3-eth-contract";
 import { TransactionReceipt } from "web3-core";
 import SyscoinERC20ManagerABI from "../abi/SyscoinERC20Manager";
 import { SYSX_ASSET_GUID } from "../constants";
-import { addLog, setStatus, TransferActions } from "../store/actions";
+import { addLog, TransferActions } from "../store/actions";
 import { ITransfer } from "../types";
 import { syscoin, utils } from "syscoinjs-lib";
-import { UTXOInfo } from "@contexts/ConnectedWallet/types";
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";
+import { captureException } from "@sentry/nextjs";
+
+const ERROR_MESSAGE_EVM_ONLY =
+  "Method only available when connected on EVM chains";
 
 const freezeAndBurn = (
   contract: Contract,
   transfer: ITransfer,
-  utxo: Partial<UTXOInfo>,
   dispatch: Dispatch<TransferActions>
 ) => {
   const amount = toWei(transfer.amount.toString(), "ether");
-  if (utxo?.xpub !== transfer.utxoAddress) {
-    return Promise.reject(
-      "Invalid freeze and burn, uxto address does not match"
-    );
-  }
+
   return new Promise((resolve, reject) => {
     contract.methods
-      .freezeBurnERC20(amount, SYSX_ASSET_GUID, utxo.account)
+      .freezeBurnERC20(amount, SYSX_ASSET_GUID, transfer.utxoAddress)
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
           addLog("freeze-burn-sys", "Freeze and Burn SYS", transactionHash)
         );
-        dispatch(setStatus("confirm-freeze-burn-sys"));
         resolve(transactionHash);
       })
       .on("error", (error: { message: string }) => {
-        if (/might still be mined/.test(error.message)) {
-          dispatch(setStatus("confirm-freeze-burn-sys"));
-        } else {
-          dispatch(
-            addLog("error", "Freeze and Burn error", {
-              error,
-            })
-          );
-          reject(error.message);
-        }
+        dispatch(
+          addLog("error", "Freeze and Burn error", {
+            error,
+          })
+        );
+        reject(error.message);
       });
   });
 };
@@ -74,21 +67,30 @@ const confirmFreezeAndBurnSys = async (
     dispatch(
       addLog("confirm-freeze-burn-sys", "Confirm Freeze and Burn SYS", receipt)
     );
-    return dispatch(setStatus("mint-sysx"));
-  } catch (error) {
+  } catch (error: any) {
+    captureException(error);
+    const isEVMOnlyError =
+      error.cause && error.cause.message === ERROR_MESSAGE_EVM_ONLY;
     dispatch(
-      addLog("error", "Confirm Freeze and Burn error", {
-        error,
-      })
+      addLog(
+        "error",
+        `Confirm Freeze and Burn error${
+          isEVMOnlyError
+            ? ": Please switch your Pali to the Syscoin NEVM network"
+            : ""
+        }`,
+        {
+          error,
+        }
+      )
     );
-    dispatch(setStatus("error"));
+    return Promise.reject(error);
   }
 };
 
 const mintSysx = async (
   transfer: ITransfer,
   syscoinInstance: syscoin,
-  utxo: Partial<UTXOInfo>,
   dispatch: Dispatch<TransferActions>,
   sendUtxoTransaction: SendUtxoTransaction
 ) => {
@@ -113,21 +115,21 @@ const mintSysx = async (
     assetOpts,
     txOpts,
     assetMap,
-    utxoAddress: utxo.account,
+    utxoAddress: transfer.utxoAddress,
     feeRate,
-    xpub: utxo.xpub,
+    xpub: transfer.utxoXpub,
   });
   const res = await syscoinInstance.assetAllocationMint(
     assetOpts,
     txOpts,
     assetMap,
-    utxo.account,
+    transfer.utxoAddress,
     feeRate,
-    utxo.xpub
+    transfer.utxoXpub
   );
   if (!res) {
     dispatch(addLog("mint-sysx", "Mint SYS error: Not enough funds", res));
-    return dispatch(setStatus("error"));
+    return Promise.reject(new Error("Mint SYS error: Not enough funds"));
   }
   console.log("assetAllocationMint received", {
     res,
@@ -135,12 +137,10 @@ const mintSysx = async (
   const transaction = utils.exportPsbtToJson(res.psbt, res.assets);
   const mintSysxTransactionReceipt = await sendUtxoTransaction(transaction);
   dispatch(addLog("mint-sysx", "Mint Sysx", mintSysxTransactionReceipt));
-  dispatch(setStatus("confirm-mint-sysx"));
 };
 
 const burnSysxToSys = async (
   transfer: ITransfer,
-  utxo: Partial<UTXOInfo>,
   syscoinInstance: syscoin,
   dispatch: Dispatch<TransferActions>,
   sendUtxoTransaction: SendUtxoTransaction
@@ -152,25 +152,25 @@ const burnSysxToSys = async (
       syscoinInstance,
       transfer.amount,
       SYSX_ASSET_GUID,
-      utxo.account!,
-      utxo.xpub!,
+      transfer.utxoAddress!,
+      transfer.utxoXpub!,
       ""
     );
   } catch (e) {
-    dispatch(addLog("mint-sysx", "Mint SYS error: Not enough funds", null));
-    return dispatch(setStatus("error"));
+    captureException(e);
+    console.error("Burn SYSX error: Not enough funds", e);
+    dispatch(addLog("burn-sysx", "Burn SYSX error: Not enough funds", e));
+    return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
   }
 
   const burnSysxTransactionReceipt = await sendUtxoTransaction(transaction);
   dispatch(addLog("burn-sysx", "Burn Sysx", burnSysxTransactionReceipt));
-  dispatch(setStatus("finalizing"));
 };
 
 const runWithNevmToSysStateMachine = async (
   transfer: ITransfer,
   web3: Web3,
   syscoinInstance: syscoin,
-  utxo: Partial<UTXOInfo>,
   sendUtxoTransaction: SendUtxoTransaction,
   dispatch: Dispatch<TransferActions>,
   confirmTransaction: (
@@ -178,7 +178,8 @@ const runWithNevmToSysStateMachine = async (
     transactionHash: string,
     duration?: number,
     confirmations?: number
-  ) => Promise<utils.BlockbookTransactionBTC | TransactionReceipt>
+  ) => Promise<utils.BlockbookTransactionBTC | TransactionReceipt>,
+  switchToUtxo?: () => Promise<string>
 ) => {
   const erc20Manager = new web3.eth.Contract(
     SyscoinERC20ManagerABI,
@@ -186,19 +187,13 @@ const runWithNevmToSysStateMachine = async (
   );
   switch (transfer.status) {
     case "freeze-burn-sys": {
-      return freezeAndBurn(erc20Manager, transfer, utxo, dispatch);
+      return freezeAndBurn(erc20Manager, transfer, dispatch);
     }
     case "confirm-freeze-burn-sys": {
       return confirmFreezeAndBurnSys(transfer, confirmTransaction, dispatch);
     }
     case "mint-sysx": {
-      return mintSysx(
-        transfer,
-        syscoinInstance,
-        utxo,
-        dispatch,
-        sendUtxoTransaction
-      );
+      return mintSysx(transfer, syscoinInstance, dispatch, sendUtxoTransaction);
     }
 
     case "confirm-mint-sysx": {
@@ -208,15 +203,12 @@ const runWithNevmToSysStateMachine = async (
       if (!transactionRaw) {
         return;
       }
-      dispatch(setStatus("burn-sysx"));
-
       break;
     }
 
     case "burn-sysx": {
       return burnSysxToSys(
         transfer,
-        utxo,
         syscoinInstance,
         dispatch,
         sendUtxoTransaction
@@ -234,7 +226,22 @@ const runWithNevmToSysStateMachine = async (
           transaction,
         })
       );
-      dispatch(setStatus("completed"));
+      break;
+    }
+
+    case "switch": {
+      if (!switchToUtxo) {
+        return Promise.reject("NEVM to SYS: Switch function not provided");
+      }
+
+      const utxoAddress = await switchToUtxo();
+
+      dispatch(
+        addLog("switch", "Address", {
+          address: utxoAddress,
+        })
+      );
+      break;
     }
 
     default:

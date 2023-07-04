@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { TransactionReceipt } from "web3-core";
 import { utils } from "syscoinjs-lib";
+import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 
 const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.elint.services/tx/";
 const NEVM_TX_BLOCKCHAIN_URL = "https://explorer.syscoin.org/tx/";
@@ -141,17 +142,22 @@ const BridgeTransferComplete: React.FC<BridgeTransferCompleteProps> = ({
   const {
     transfer: { type },
   } = useTransfer();
+  const { utxo, nevm } = useConnectedWallet();
 
   const newTransfer = () => {
     setReinitializing(true);
-    push(`/bridge/${Date.now()}`);
+    push(`/bridge/${utxo.type === nevm.type ? `v2/` : ""}${Date.now()}`);
   };
 
   return (
     <Box px={2}>
       <Card variant="outlined" sx={{ mt: 4 }}>
-        {type === "sys-to-nevm" && <SysToNevmComplete isComplete={isComplete} />}
-        {type === "nevm-to-sys" && <NevmToSysComplete isComplete={isComplete} />}
+        {type === "sys-to-nevm" && (
+          <SysToNevmComplete isComplete={isComplete} />
+        )}
+        {type === "nevm-to-sys" && (
+          <NevmToSysComplete isComplete={isComplete} />
+        )}
         {isComplete && (
           <CardActions>
             <LoadingButton

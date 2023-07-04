@@ -68,8 +68,8 @@ const BridgeWalletInfo: React.FC<IProps> = ({ label, network, walletType }) => {
         <Box display="flex" alignItems="center">
           <Image
             src="/pali-wallet-logo.svg"
-            height="32px"
-            width="32px"
+            height={32}
+            width={32}
             alt="PaliWallet logo"
           />
           {transfer.status === "initialize" ? (
@@ -80,8 +80,8 @@ const BridgeWalletInfo: React.FC<IProps> = ({ label, network, walletType }) => {
                 Connect
               </Button>
             )
-          ) : utxo.xpub ? (
-            utxo.xpub === transfer.utxoAddress ? (
+          ) : utxo.account ? (
+            utxo.account === transfer.utxoAddress ? (
               <UTXOAddress type={transfer.type} utxo={utxo} />
             ) : (
               <Typography variant="body2">
@@ -100,8 +100,8 @@ const BridgeWalletInfo: React.FC<IProps> = ({ label, network, walletType }) => {
           <Box display="flex" alignItems="center">
             <Image
               src="/metamask-logo.svg"
-              height="32px"
-              width="32px"
+              height={32}
+              width={32}
               alt="Metamask logo"
             />
             {transfer.status === "initialize" ? (
@@ -114,7 +114,7 @@ const BridgeWalletInfo: React.FC<IProps> = ({ label, network, walletType }) => {
               <Typography variant="body2">{transfer.nevmAddress}</Typography>
             )}
           </Box>
-          {(nevm.balance ?? 0) < 0.001 && (
+          {(parseFloat(nevm.balance!) ?? 0) < 0.001 && (
             <Alert severity="error" sx={{ width: "100%", flex: 1 }}>
               <Typography variant="body2">
                 It seems your wallet does not have any balance. In order to

@@ -21,22 +21,9 @@ import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { useMetamask } from "@contexts/Metamask/Provider";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
-
-const TransferTitle = () => {
-  const { transfer } = useTransfer();
-  if (transfer.status === "initialize") {
-    return (
-      <Typography variant="body1" sx={{ my: 3 }}>
-        New Transfer
-      </Typography>
-    );
-  }
-  return (
-    <Typography variant="body1" sx={{ my: 3 }}>
-      Transfer #{transfer.id}
-    </Typography>
-  );
-};
+import TransferTitle from "components/Bridge/Transfer/Title";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { useEffect } from "react";
 
 interface Props {
   transfer: ITransfer;
@@ -45,7 +32,7 @@ interface Props {
 const Bridge: NextPage<Props> = ({ transfer }) => {
   const router = useRouter();
   const paliWallet = usePaliWallet();
-  const metamask = useMetamask();
+  const metamask = useNEVM();
   const { id } = router.query;
 
   if (!id) {
@@ -55,7 +42,7 @@ const Bridge: NextPage<Props> = ({ transfer }) => {
   return (
     <TransferProvider id={id as string}>
       <DrawerPage>
-        <BlocktimeDisclaimer/>
+        <BlocktimeDisclaimer />
         <Container sx={{ mt: 10 }}>
           {paliWallet.isTestnet && (
             <Alert severity="error" sx={{ mb: 2 }}>
