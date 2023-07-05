@@ -5,9 +5,14 @@ import { Alert, Button, Link, Typography } from "@mui/material";
 import { useQuery } from "react-query";
 import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
+import { ITransfer } from "@contexts/Transfer/types";
 
-const NEVMConnect = () => {
-  const { transfer, setNevm } = useTransfer();
+type NEVMConnectProps = {
+  transfer: ITransfer;
+  setNevm: (nevm: { address: string }) => void;
+};
+
+const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const { account, connect } = useNEVM();
   const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
   const balance = useQuery(

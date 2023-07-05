@@ -1,20 +1,21 @@
+import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
+import ConnectedWalletProvider from "@contexts/ConnectedWallet/Provider";
+import MetamaskProvider from "@contexts/Metamask/Provider";
+import { PaliWalletV2Provider } from "@contexts/PaliWallet/V2Provider";
 import { ITransfer } from "@contexts/Transfer/types";
-import {
-  Box,
-  Step,
-  StepContent,
-  StepLabel,
-  Stepper,
-  Typography,
-} from "@mui/material";
-import { BridgeV3Layout } from "components/Bridge/v3/Layout";
-import BridgeV3StepBurnSys from "components/Bridge/v3/Steps/BurnSys";
+import { Box, Button, Container, Typography } from "@mui/material";
+import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
+import TransferTitle from "components/Bridge/Transfer/Title";
+import BridgeV3Stepper from "components/Bridge/v3/Stepper";
+import BridgeV3ConnectValidateStep from "components/Bridge/v3/Steps/ConnectValidate";
 import { TransferContextProvider } from "components/Bridge/v3/context/TransferContext";
 import {
   GetServerSideProps,
   InferGetServerSidePropsType,
   NextPage,
 } from "next";
+import { useMemo } from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import { getTransfer } from "services/transfer";
 import isTransfer from "utils/isTransfer";
@@ -23,6 +24,22 @@ export const getServerSideProps: GetServerSideProps<{
   transfer: ITransfer;
 }> = async (context) => {
   const { id } = context.query;
+  if (id === "sys-to-nevm" || id === "nevm-to-sys") {
+    return {
+      props: {
+        transfer: {
+          amount: "0",
+          id: `${Date.now()}`,
+          type: id,
+          status: "initialize",
+          logs: [],
+          createdAt: Date.now(),
+          version: "v2",
+        },
+      },
+    };
+  }
+
   try {
     const transfer = await getTransfer(id as string);
     if (!isTransfer(transfer)) {
@@ -44,77 +61,36 @@ export const getServerSideProps: GetServerSideProps<{
 const BridgeV3Page: NextPage<
   InferGetServerSidePropsType<typeof getServerSideProps>
 > = ({ transfer }) => {
+  const queryClient = useMemo(() => new QueryClient(), []);
   return (
-    <TransferContextProvider transfer={transfer}>
-      <BridgeV3Layout>
-        <Box
-          sx={{
-            flex: 3,
-            borderRight: "1px solid",
-            borderColor: "primary",
-            display: "flex",
-          }}
-        >
-          <Stepper
-            activeStep={0}
-            orientation="vertical"
-            sx={{ mx: "auto", minWidth: "20rem" }}
-          >
-            <Step key="Burn SYS">
-              <StepLabel>
-                <Typography>Burn Sys</Typography>
-              </StepLabel>
-              <StepContent>
-                <BridgeV3StepBurnSys />
-              </StepContent>
-            </Step>
-            <Step key="Burn SYSX">
-              <StepLabel>
-                <Typography>Burn SYSX</Typography>
-              </StepLabel>
-              <StepContent>
-                <Typography>Burn Sys</Typography>
-              </StepContent>
-            </Step>
-            <Step key="Generate Proofs">
-              <StepLabel>
-                <Typography>Generate Proofs</Typography>
-              </StepLabel>
-              <StepContent>
-                <Typography>Burn Sys</Typography>
-              </StepContent>
-            </Step>
-            <Step key="Switch">
-              <StepLabel>
-                <Typography>Switch</Typography>
-              </StepLabel>
-              <StepContent>
-                <Typography>Switch</Typography>
-              </StepContent>
-            </Step>
-            <Step key="Submit Proofs">
-              <StepLabel>
-                <Typography>Submit Proofs</Typography>
-              </StepLabel>
-              <StepContent>
-                <Typography>Burn Sys</Typography>
-              </StepContent>
-            </Step>
-            <Step key="Completed">
-              <StepLabel>
-                <Typography>Completed</Typography>
-              </StepLabel>
-              <StepContent>
-                <Typography>Burn Sys</Typography>
-              </StepContent>
-            </Step>
-          </Stepper>
-        </Box>
-        <Box sx={{ flex: 1, p: 2 }}>
-          <Typography>Transfer #{transfer.id}</Typography>
-        </Box>
-      </BridgeV3Layout>
-    </TransferContextProvider>
+    <QueryClientProvider client={queryClient}>
+      <PaliWalletV2Provider>
+        <MetamaskProvider>
+          <NEVMProvider>
+            <ConnectedWalletProvider>
+              <TransferContextProvider transfer={transfer}>
+                <Container sx={{ mt: 10 }}>
+                  <BlocktimeDisclaimer />
+                  <Typography variant="h5" fontWeight="bold">
+                    Bridge Your SYS
+                  </Typography>
+                  <Typography variant="caption" color="gray">
+                    Trustlessly transfer SYS back and forth between the Syscoin
+                    Base and Syscoin NEVM blockchains without middlemen!
+                  </Typography>
+                  <Box sx={{ display: "flex" }}>
+                    <TransferTitle />
+                    <Button></Button>
+                  </Box>
+                  <BridgeV3Stepper activeStep={0} transferType="nevm-to-sys" />
+                  <BridgeV3ConnectValidateStep />
+                </Container>
+              </TransferContextProvider>
+            </ConnectedWalletProvider>
+          </NEVMProvider>
+        </MetamaskProvider>
+      </PaliWalletV2Provider>
+    </QueryClientProvider>
   );
 };
 

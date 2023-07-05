@@ -6,7 +6,10 @@ const TransferTitle = () => {
 
   return (
     <Typography variant="body1" sx={{ my: 3 }}>
-      Transfer #{transfer.status === "initialize" ? "--------" : transfer.id}
+      Transfer #
+      {transfer == undefined || transfer.status === "initialize"
+        ? "--------"
+        : transfer.id}
     </Typography>
   );
 };

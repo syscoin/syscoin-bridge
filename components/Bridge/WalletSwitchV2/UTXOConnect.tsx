@@ -1,13 +1,17 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Alert, Button, Typography } from "@mui/material";
 import { useQuery } from "react-query";
 import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
+import { ITransfer } from "@contexts/Transfer/types";
 
-const UTXOConnect = () => {
-  const { transfer, setUtxo } = useTransfer();
+type UTXOConnectProps = {
+  transfer: ITransfer;
+  setUtxo: (utxo: { xpub: string; address: string }) => void;
+};
+
+const UTXOConnect: React.FC<UTXOConnectProps> = ({ setUtxo, transfer }) => {
   const balance = useQuery(
     ["utxo", "balance", transfer.utxoXpub],
     async () => {

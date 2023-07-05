@@ -1,13 +1,17 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 import { useQuery } from "react-query";
 import isTransfer from "utils/isTransfer";
 
 export interface ITransferContext {
-  transfer?: ITransfer;
+  transfer: ITransfer;
 }
 
-export const TransferContext = createContext<ITransferContext>({});
+export const TransferContext = createContext<ITransferContext>(
+  {} as ITransferContext
+);
+
+export const useTransfer = () => useContext(TransferContext);
 
 type TransferContextProviderProps = {
   children: React.ReactNode;
@@ -28,9 +32,10 @@ export const TransferContextProvider: React.FC<
       throw new Error("Invalid transfer");
     },
     initialData,
+    enabled: initialData.status !== "initialize",
   });
   return (
-    <TransferContext.Provider value={{ transfer }}>
+    <TransferContext.Provider value={{ transfer: transfer ?? initialData }}>
       {children}
     </TransferContext.Provider>
   );
