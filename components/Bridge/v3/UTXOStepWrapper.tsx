@@ -16,16 +16,16 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
     changeAccount,
   } = usePaliWalletV2();
 
-  if (!connectedAccount) {
-    return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
-  }
-
   if (version === "v2" && !isBitcoinBased) {
     return (
       <Button variant="contained" onClick={() => switchTo("bitcoin")}>
         Switch to Syscoin
       </Button>
     );
+  }
+
+  if (!connectedAccount) {
+    return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
   }
 
   if (!isValidSYSAddress(connectedAccount, 57)) {

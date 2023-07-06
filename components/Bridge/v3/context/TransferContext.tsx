@@ -23,21 +23,24 @@ type TransferContextProviderProps = {
 export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
-  const { data: transfer } = useQuery(["transfer", initialData.id], {
-    queryFn: async (): Promise<ITransfer> => {
-      const url = `/api/transfer/${initialData.id}`;
-      const res = await fetch(url, {
-        headers: { "Content-Type": "application/json" },
-      });
-      const jsonData = await res.json();
-      if (isTransfer(jsonData)) {
-        return jsonData;
-      }
-      throw new Error("Invalid transfer");
-    },
-    initialData,
-    enabled: initialData.status !== "initialize",
-  });
+  const { data: transfer, refetch: refetchTransfer } = useQuery(
+    ["transfer", initialData.id],
+    {
+      queryFn: async (): Promise<ITransfer> => {
+        const url = `/api/transfer/${initialData.id}`;
+        const res = await fetch(url, {
+          headers: { "Content-Type": "application/json" },
+        });
+        const jsonData = await res.json();
+        if (isTransfer(jsonData)) {
+          return jsonData;
+        }
+        throw new Error("Invalid transfer");
+      },
+      initialData,
+      enabled: initialData.status !== "initialize",
+    }
+  );
 
   const { mutate: saveTransfer, isLoading: isSaving } = useMutation(
     ["transfer", initialData.id],
@@ -55,6 +58,9 @@ export const TransferContextProvider: React.FC<
         return jsonData;
       }
       throw new Error("Invalid transfer");
+    },
+    {
+      onSuccess: () => refetchTransfer(),
     }
   );
 

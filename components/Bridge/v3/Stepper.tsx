@@ -1,11 +1,6 @@
-import { TransferStatus, TransferType } from "@contexts/Transfer/types";
 import { Step, StepLabel, Stepper } from "@mui/material";
 import { sysToNevmSteps } from "./contants/steps";
-
-type BridgeV3StepperProps = {
-  transferType: TransferType;
-  transferStatus: TransferStatus;
-};
+import { useTransfer } from "./context/TransferContext";
 
 const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
   <Stepper activeStep={activeStep}>
@@ -47,16 +42,16 @@ const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
   </Stepper>
 );
 
-const BridgeV3Stepper: React.FC<BridgeV3StepperProps> = ({
-  transferType,
-  transferStatus,
-}) => {
+const BridgeV3Stepper: React.FC = () => {
+  const {
+    transfer: { type, status },
+  } = useTransfer();
   let activeStep = 1;
-  if (transferType === "nevm-to-sys") {
+  if (type === "nevm-to-sys") {
     return <NEVMToSYSStepper activeStep={activeStep} />;
   }
 
-  let modifiedStatus = transferStatus;
+  let modifiedStatus = status;
 
   if (modifiedStatus === "confirm-burn-sys") {
     modifiedStatus = "burn-sys";

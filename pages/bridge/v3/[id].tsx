@@ -3,13 +3,24 @@ import ConnectedWalletProvider from "@contexts/ConnectedWallet/Provider";
 import MetamaskProvider from "@contexts/Metamask/Provider";
 import { PaliWalletV2Provider } from "@contexts/PaliWallet/V2Provider";
 import { ITransfer } from "@contexts/Transfer/types";
-import { Box, Button, Container, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Container,
+  Typography,
+} from "@mui/material";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
 import TransferTitle from "components/Bridge/Transfer/Title";
+import BridgeV3SavingIndicator from "components/Bridge/v3/SavingIndicator";
+import BridgeV3StepSwitch from "components/Bridge/v3/StepSwitch";
 import BridgeV3Stepper from "components/Bridge/v3/Stepper";
-import BridgeV3StepBurnSys from "components/Bridge/v3/Steps/BurnSys";
-import BridgeV3ConnectValidateStep from "components/Bridge/v3/Steps/ConnectValidate";
-import { TransferContextProvider } from "components/Bridge/v3/context/TransferContext";
+import { SyscoinProvider } from "components/Bridge/v3/context/Syscoin";
+import {
+  TransferContextProvider,
+  useTransfer,
+} from "components/Bridge/v3/context/TransferContext";
 import {
   GetServerSideProps,
   InferGetServerSidePropsType,
@@ -64,38 +75,50 @@ const BridgeV3Page: NextPage<
 > = ({ transfer }) => {
   const queryClient = useMemo(() => new QueryClient(), []);
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaliWalletV2Provider>
-        <MetamaskProvider>
-          <NEVMProvider>
-            <ConnectedWalletProvider>
-              <TransferContextProvider transfer={transfer}>
-                <Container sx={{ mt: 10 }}>
-                  <BlocktimeDisclaimer />
-                  <Typography variant="h5" fontWeight="bold">
-                    Bridge Your SYS
-                  </Typography>
-                  <Typography variant="caption" color="gray">
-                    Trustlessly transfer SYS back and forth between the Syscoin
-                    Base and Syscoin NEVM blockchains without middlemen!
-                  </Typography>
-                  <Box sx={{ display: "flex" }}>
-                    <TransferTitle />
-                    <Button></Button>
-                  </Box>
-                  <BridgeV3Stepper
-                    transferStatus={transfer.status}
-                    transferType={transfer.type}
-                  />
-                  <BridgeV3ConnectValidateStep />
-                  {/* <BridgeV3StepBurnSys /> */}
-                </Container>
-              </TransferContextProvider>
-            </ConnectedWalletProvider>
-          </NEVMProvider>
-        </MetamaskProvider>
-      </PaliWalletV2Provider>
-    </QueryClientProvider>
+    <SyscoinProvider>
+      <QueryClientProvider client={queryClient}>
+        <PaliWalletV2Provider>
+          <MetamaskProvider>
+            <NEVMProvider>
+              <ConnectedWalletProvider>
+                <TransferContextProvider transfer={transfer}>
+                  <Container sx={{ mt: 10 }}>
+                    <BlocktimeDisclaimer />
+                    <Typography variant="h5" fontWeight="bold">
+                      Bridge Your SYS
+                    </Typography>
+                    <Typography variant="caption" color="gray">
+                      Trustlessly transfer SYS back and forth between the
+                      Syscoin Base and Syscoin NEVM blockchains without
+                      middlemen!
+                    </Typography>
+                    <Box sx={{ display: "flex" }}>
+                      <TransferTitle />
+                      <Button></Button>
+                    </Box>
+                    <BridgeV3Stepper />
+                    <Card
+                      sx={{
+                        mt: 5,
+                        display: "flex",
+                        flexDirection: "column",
+                        minWidth: "20rem",
+                        width: "50%",
+                      }}
+                    >
+                      <CardContent>
+                        <BridgeV3StepSwitch />
+                        <BridgeV3SavingIndicator />
+                      </CardContent>
+                    </Card>
+                  </Container>
+                </TransferContextProvider>
+              </ConnectedWalletProvider>
+            </NEVMProvider>
+          </MetamaskProvider>
+        </PaliWalletV2Provider>
+      </QueryClientProvider>
+    </SyscoinProvider>
   );
 };
 
