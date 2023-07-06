@@ -7,6 +7,7 @@ import { Box, Button, Container, Typography } from "@mui/material";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
 import TransferTitle from "components/Bridge/Transfer/Title";
 import BridgeV3Stepper from "components/Bridge/v3/Stepper";
+import BridgeV3StepBurnSys from "components/Bridge/v3/Steps/BurnSys";
 import BridgeV3ConnectValidateStep from "components/Bridge/v3/Steps/ConnectValidate";
 import { TransferContextProvider } from "components/Bridge/v3/context/TransferContext";
 import {
@@ -82,8 +83,12 @@ const BridgeV3Page: NextPage<
                     <TransferTitle />
                     <Button></Button>
                   </Box>
-                  <BridgeV3Stepper activeStep={0} transferType="nevm-to-sys" />
+                  <BridgeV3Stepper
+                    transferStatus={transfer.status}
+                    transferType={transfer.type}
+                  />
                   <BridgeV3ConnectValidateStep />
+                  {/* <BridgeV3StepBurnSys /> */}
                 </Container>
               </TransferContextProvider>
             </ConnectedWalletProvider>

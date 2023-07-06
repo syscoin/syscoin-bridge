@@ -1,5 +1,5 @@
-import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Typography } from "@mui/material";
+import { useTransfer } from "../v3/context/TransferContext";
 
 const TransferTitle = () => {
   const { transfer } = useTransfer();

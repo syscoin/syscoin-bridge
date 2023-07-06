@@ -1,6 +1,7 @@
-import { Box, Button, Step, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
+import UTXOStepWrapper from "../UTXOStepWrapper";
 
-const BridgeV3StepBurnSys: React.FC = () => {
+const BurnSys: React.FC = () => {
   return (
     <Box>
       <Typography>Burning 10,000.0123 SYS</Typography>
@@ -11,5 +12,11 @@ const BridgeV3StepBurnSys: React.FC = () => {
     </Box>
   );
 };
+
+const BridgeV3StepBurnSys = () => (
+  <UTXOStepWrapper>
+    <BurnSys />
+  </UTXOStepWrapper>
+);
 
 export default BridgeV3StepBurnSys;

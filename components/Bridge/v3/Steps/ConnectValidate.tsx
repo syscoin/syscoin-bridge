@@ -1,11 +1,12 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { CheckCircleOutline } from "@mui/icons-material";
+import { CheckCircleOutline, CloseOutlined } from "@mui/icons-material";
 import {
   Box,
   Button,
   Card,
   CardContent,
+  CircularProgress,
   FormControl,
   FormHelperText,
   FormLabel,
@@ -15,7 +16,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useForm } from "react-hook-form";
+import { SubmitHandler, useForm } from "react-hook-form";
 import WalletList from "components/WalletList";
 import { useTransfer } from "../context/TransferContext";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
@@ -26,18 +27,37 @@ import {
 } from "@pollum-io/sysweb3-utils";
 import UTXOConnect from "components/Bridge/WalletSwitchV2/UTXOConnect";
 import NEVMConnect from "components/Bridge/WalletSwitchV2/NEVMConnect";
+import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
+import { ITransfer } from "@contexts/Transfer/types";
+import { useRouter } from "next/router";
+
+const ErrorMessage = ({ message }: { message: string }) => (
+  <Box sx={{ display: "flex", mb: 2 }}>
+    <Typography variant="body1" color="error">
+      {message}
+    </Typography>
+    <CloseOutlined color="error" />
+  </Box>
+);
+
+type ConnectValidateFormData = {
+  amount: number;
+  nevmAddress: string;
+  utxoAddress: string;
+  utxoXpub: string;
+};
 
 const BridgeV3ConnectValidateStep: React.FC = () => {
-  const { transfer } = useTransfer();
+  const { replace } = useRouter();
+  const { transfer, isSaving, saveTransfer } = useTransfer();
   const { isLoading } = usePaliWalletV2();
-  const { nevm, utxo } = useConnectedWallet();
   const {
     register,
     setValue,
     formState: { errors },
     handleSubmit,
     watch,
-  } = useForm({
+  } = useForm<ConnectValidateFormData>({
     mode: "all",
     values: {
       amount: 0.1,
@@ -47,10 +67,28 @@ const BridgeV3ConnectValidateStep: React.FC = () => {
     },
   });
 
+  const utxoAddress = watch("utxoAddress");
+  const utxoXpub = watch("utxoXpub");
+  const nevmAddress = watch("nevmAddress");
   const minAmount = 0.01;
-  //Todo: useQuery utxo balance
-  //Tod:  useQuery nevm balance
-  const balance = transfer.type === "sys-to-nevm" ? utxo.balance : nevm.balance;
+
+  const utxoBalance = useUtxoBalance(utxoXpub);
+  const nevmBalance = useNevmBalance(nevmAddress);
+
+  const isUtxoNotEnoughGas =
+    Boolean(utxoXpub) &&
+    utxoBalance.isFetched &&
+    utxoBalance.data !== undefined &&
+    utxoBalance.data < minAmount;
+
+  const isNevmNotEnoughGas =
+    Boolean(nevmAddress) &&
+    nevmBalance.isFetched &&
+    nevmBalance.data !== undefined &&
+    nevmBalance.data < minAmount;
+
+  const balance =
+    transfer.type === "sys-to-nevm" ? utxoBalance.data : nevmBalance.data;
 
   let maxAmountCalculated = parseFloat(`${balance ?? "0"}`) - minAmount;
 
@@ -58,20 +96,32 @@ const BridgeV3ConnectValidateStep: React.FC = () => {
     maxAmountCalculated = 0;
   }
 
+  const modifiedTransfer = { ...transfer, utxoAddress, utxoXpub, nevmAddress };
+
+  const isUtxoValid = isValidSYSAddress(utxoAddress, 57) && !isUtxoNotEnoughGas;
+  const isNevmValid =
+    isValidEthereumAddress(nevmAddress) && !isNevmNotEnoughGas;
+  const isAmountValid = errors.amount === undefined;
+  const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
+  const isReady = isUtxoValid && isNevmValid && isAmountValid && balanceFetched;
+
+  const onSubmit: SubmitHandler<ConnectValidateFormData> = (data) => {
+    const { amount, ...rest } = data;
+    const modifiedTransfer: ITransfer = {
+      ...transfer,
+      amount: amount.toString(),
+      ...rest,
+    };
+    saveTransfer(modifiedTransfer, {
+      onSuccess: (transfer) => {
+        replace(`/bridge/v3/${transfer.id}`);
+      },
+    });
+  };
+
   if (isLoading) {
     return <BridgeV3Loading />;
   }
-
-  const utxoAddress = watch("utxoAddress");
-  const utxoXpub = watch("utxoXpub");
-  const nevmAddress = watch("nevmAddress");
-
-  const modifiedTransfer = { ...transfer, utxoAddress, utxoXpub, nevmAddress };
-
-  const isUtxoValid = isValidSYSAddress(utxoAddress, 57);
-  const isNevmValid = isValidEthereumAddress(nevmAddress);
-  const isAmountValid = errors.amount === undefined;
-  const isReady = isUtxoValid && isNevmValid && isAmountValid;
 
   return (
     <Card
@@ -83,7 +133,7 @@ const BridgeV3ConnectValidateStep: React.FC = () => {
         width: "50%",
       }}
     >
-      <CardContent>
+      <CardContent component="form" onSubmit={handleSubmit(onSubmit)}>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body1" sx={{ mb: 1 }}>
             UTXO:
@@ -147,10 +197,27 @@ const BridgeV3ConnectValidateStep: React.FC = () => {
             <CheckCircleOutline color="success" />
           </Box>
         )}
-
-        <Button variant="contained" color="primary" disabled={!isReady}>
+        {isUtxoNotEnoughGas && (
+          <ErrorMessage message="UTXO: Not enough funds for gas" />
+        )}
+        {isNevmNotEnoughGas && (
+          <ErrorMessage message="NEVM: Not enough funds for gas" />
+        )}
+        <Button
+          sx={{ display: "block" }}
+          variant="contained"
+          color="primary"
+          disabled={!isReady || isSaving}
+          type="submit"
+        >
           Start Transfer
         </Button>
+        {isSaving && (
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            <CircularProgress sx={{ mr: 1 }} size={"1rem"} />
+            Saving ...
+          </Typography>
+        )}
       </CardContent>
     </Card>
   );
