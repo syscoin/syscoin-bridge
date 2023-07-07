@@ -57,7 +57,10 @@ const BridgeV3Stepper: React.FC = () => {
     modifiedStatus = "burn-sys";
   } else if (modifiedStatus === "confirm-burn-sysx") {
     modifiedStatus = "burn-sysx";
-  } else if (modifiedStatus === "finalizing") {
+  } else if (
+    modifiedStatus === "finalizing" ||
+    modifiedStatus === "generate-proofs"
+  ) {
     modifiedStatus = "submit-proofs";
   }
 
