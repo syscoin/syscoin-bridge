@@ -21,6 +21,7 @@ import {
   TransferContextProvider,
   useTransfer,
 } from "components/Bridge/v3/context/TransferContext";
+import { Web3Provider } from "components/Bridge/v3/context/Web";
 import {
   GetServerSideProps,
   InferGetServerSidePropsType,
@@ -76,48 +77,50 @@ const BridgeV3Page: NextPage<
   const queryClient = useMemo(() => new QueryClient(), []);
   return (
     <SyscoinProvider>
-      <QueryClientProvider client={queryClient}>
-        <PaliWalletV2Provider>
-          <MetamaskProvider>
-            <NEVMProvider>
-              <ConnectedWalletProvider>
-                <TransferContextProvider transfer={transfer}>
-                  <Container sx={{ mt: 10 }}>
-                    <BlocktimeDisclaimer />
-                    <Typography variant="h5" fontWeight="bold">
-                      Bridge Your SYS
-                    </Typography>
-                    <Typography variant="caption" color="gray">
-                      Trustlessly transfer SYS back and forth between the
-                      Syscoin Base and Syscoin NEVM blockchains without
-                      middlemen!
-                    </Typography>
-                    <Box sx={{ display: "flex" }}>
-                      <TransferTitle />
-                      <Button></Button>
-                    </Box>
-                    <BridgeV3Stepper />
-                    <Card
-                      sx={{
-                        mt: 5,
-                        display: "flex",
-                        flexDirection: "column",
-                        minWidth: "20rem",
-                        width: "50%",
-                      }}
-                    >
-                      <CardContent>
-                        <BridgeV3StepSwitch />
-                        <BridgeV3SavingIndicator />
-                      </CardContent>
-                    </Card>
-                  </Container>
-                </TransferContextProvider>
-              </ConnectedWalletProvider>
-            </NEVMProvider>
-          </MetamaskProvider>
-        </PaliWalletV2Provider>
-      </QueryClientProvider>
+      <Web3Provider>
+        <QueryClientProvider client={queryClient}>
+          <PaliWalletV2Provider>
+            <MetamaskProvider>
+              <NEVMProvider>
+                <ConnectedWalletProvider>
+                  <TransferContextProvider transfer={transfer}>
+                    <Container sx={{ mt: 10 }}>
+                      <BlocktimeDisclaimer />
+                      <Typography variant="h5" fontWeight="bold">
+                        Bridge Your SYS
+                      </Typography>
+                      <Typography variant="caption" color="gray">
+                        Trustlessly transfer SYS back and forth between the
+                        Syscoin Base and Syscoin NEVM blockchains without
+                        middlemen!
+                      </Typography>
+                      <Box sx={{ display: "flex" }}>
+                        <TransferTitle />
+                        <Button></Button>
+                      </Box>
+                      <BridgeV3Stepper />
+                      <Card
+                        sx={{
+                          mt: 5,
+                          display: "flex",
+                          flexDirection: "column",
+                          minWidth: "20rem",
+                          width: "50%",
+                        }}
+                      >
+                        <CardContent>
+                          <BridgeV3StepSwitch />
+                          <BridgeV3SavingIndicator />
+                        </CardContent>
+                      </Card>
+                    </Container>
+                  </TransferContextProvider>
+                </ConnectedWalletProvider>
+              </NEVMProvider>
+            </MetamaskProvider>
+          </PaliWalletV2Provider>
+        </QueryClientProvider>
+      </Web3Provider>
     </SyscoinProvider>
   );
 };
