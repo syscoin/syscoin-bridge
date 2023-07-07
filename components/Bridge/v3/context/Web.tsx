@@ -1,5 +1,4 @@
-"use client";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import Web3 from "web3";
 
 const Web3Context = createContext(new Web3());
@@ -14,7 +13,7 @@ export const Web3Provider: React.FC<Props> = ({ children }) => {
   const [web3, setWeb3] = useState<Web3>(new Web3(Web3.givenProvider));
 
   useEffect(() => {
-    if (!window || !window.ethereum) {
+    if (!window?.ethereum) {
       return;
     }
     setWeb3(new Web3(window.ethereum));

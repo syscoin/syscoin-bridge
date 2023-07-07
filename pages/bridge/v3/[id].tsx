@@ -17,10 +17,7 @@ import BridgeV3SavingIndicator from "components/Bridge/v3/SavingIndicator";
 import BridgeV3StepSwitch from "components/Bridge/v3/StepSwitch";
 import BridgeV3Stepper from "components/Bridge/v3/Stepper";
 import { SyscoinProvider } from "components/Bridge/v3/context/Syscoin";
-import {
-  TransferContextProvider,
-  useTransfer,
-} from "components/Bridge/v3/context/TransferContext";
+import { TransferContextProvider } from "components/Bridge/v3/context/TransferContext";
 import { Web3Provider } from "components/Bridge/v3/context/Web";
 import {
   GetServerSideProps,
@@ -30,13 +27,15 @@ import {
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 
-import { getTransfer } from "services/transfer";
-import isTransfer from "utils/isTransfer";
-
 export const getServerSideProps: GetServerSideProps<{
   transfer: ITransfer;
 }> = async (context) => {
   const { id } = context.query;
+  if (!id) {
+    return {
+      notFound: true,
+    };
+  }
   if (id === "sys-to-nevm" || id === "nevm-to-sys") {
     return {
       props: {
@@ -53,22 +52,13 @@ export const getServerSideProps: GetServerSideProps<{
     };
   }
 
-  try {
-    const transfer = await getTransfer(id as string);
-    if (!isTransfer(transfer)) {
-      throw new Error("Invalid transfer");
-    }
-    return {
-      props: {
-        transfer,
-      },
-    };
-  } catch (e) {
-    console.log(e);
-    return {
-      notFound: true,
-    };
-  }
+  return {
+    props: {
+      transfer: {
+        id,
+      } as ITransfer,
+    },
+  };
 };
 
 const BridgeV3Page: NextPage<
