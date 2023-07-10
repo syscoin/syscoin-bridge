@@ -69,7 +69,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({ setUtxo, transfer }) => {
   if (!isBitcoinBased) {
     return (
       <Button variant="contained" onClick={() => switchTo("bitcoin")}>
-        Set Syscoin Core
+        Set UTXO
       </Button>
     );
   }
