@@ -1,8 +1,6 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Alert, Button, Link, Typography } from "@mui/material";
-import { useQuery } from "react-query";
 import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
 import { ITransfer } from "@contexts/Transfer/types";
@@ -14,7 +12,7 @@ type NEVMConnectProps = {
 };
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
-  const { account, connect } = useNEVM();
+  const { account, connect, switchToMainnet } = useNEVM();
   const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
   const balance = useNevmBalance(transfer.nevmAddress);
 
@@ -66,7 +64,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   if (isBitcoinBased) {
     return (
       <Button variant="contained" onClick={() => switchTo("ethereum")}>
-        Set NEVM
+        Set NEVM Account
       </Button>
     );
   }

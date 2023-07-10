@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { TransactionConfig } from "web3-core";
 import Web3 from "web3";
 import { NEVMNetwork } from "../Transfer/constants";
@@ -12,10 +12,13 @@ interface INEVMContext {
   account?: string;
   balance?: string;
   isTestnet: boolean;
+  chainId?: string;
   switchToMainnet: () => void;
   sendTransaction: (transactionConfig: TransactionConfig) => Promise<string>;
   connect: () => void;
 }
+
+export const MAINNET_CHAIN_ID = "0x39";
 
 const NEVMContext = createContext({} as INEVMContext);
 
@@ -95,6 +98,12 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     enabled: Boolean(isEnabled && account.isFetched && account.data),
   });
 
+  const chainId = useQuery(
+    ["nevm", "chainId"],
+    async () => window.ethereum.request({ method: "eth_chainId" }),
+    { enabled: isEnabled, refetchOnMount: true, refetchOnWindowFocus: true }
+  );
+
   const sendTransaction = (config: TransactionConfig) => {
     return window.ethereum.request({
       method: "eth_sendTransaction",
@@ -106,8 +115,9 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     window.ethereum
       .request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0x39" }],
+        params: [{ chainId: MAINNET_CHAIN_ID }],
       })
+      .then(() => chainId.refetch())
       .catch((err) => {
         const { code } = err;
         captureException(err);
@@ -124,6 +134,12 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     account.refetch();
   };
 
+  useEffect(() => {
+    if (chainId.isFetched) {
+      window.ethereum.on("chainChanged", chainId.refetch);
+    }
+  }, [chainId.isFetched, chainId]);
+
   return (
     <NEVMContext.Provider
       value={{
@@ -133,6 +149,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         isTestnet: !!isTestnet,
         switchToMainnet,
         connect,
+        chainId: chainId.isSuccess && chainId.data ? chainId.data : undefined,
       }}
     >
       {children}

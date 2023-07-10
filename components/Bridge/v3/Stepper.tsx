@@ -50,7 +50,9 @@ const BridgeV3Stepper: React.FC = () => {
   let modifiedStatus = status;
 
   if (type === "nevm-to-sys") {
-    if (modifiedStatus === "confirm-mint-sysx") {
+    if (modifiedStatus === "confirm-freeze-burn-sys") {
+      modifiedStatus = "freeze-burn-sys";
+    } else if (modifiedStatus === "confirm-mint-sysx") {
       modifiedStatus = "mint-sysx";
     } else if (modifiedStatus === "confirm-burn-sysx") {
       modifiedStatus = "burn-sysx";

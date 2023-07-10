@@ -123,7 +123,7 @@ const BridgeV3ConnectValidateStep: React.FC<
     <form onSubmit={handleSubmit(onSubmit)}>
       <Box sx={{ mb: 2 }}>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          UTXO:
+          Syscoin UTXO:
         </Typography>
         <UTXOConnect
           transfer={modifiedTransfer}
@@ -135,7 +135,7 @@ const BridgeV3ConnectValidateStep: React.FC<
       </Box>
       <Box sx={{ mb: 2 }}>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          NEVM:
+          Syscoin NEVM:
         </Typography>
         <NEVMConnect
           transfer={modifiedTransfer}

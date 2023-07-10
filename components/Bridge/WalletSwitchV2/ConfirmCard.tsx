@@ -34,7 +34,7 @@ const WalletSwitchConfirmCard: React.FC<WalletSwitchConfirmCardProps> = ({
         sx={{ ml: 1 }}
         size="small"
       >
-        Confirm <CheckCircleIcon sx={{ ml: 1 }} />
+        Set <CheckCircleIcon sx={{ ml: 1 }} />
       </Button>
     </Box>
   );

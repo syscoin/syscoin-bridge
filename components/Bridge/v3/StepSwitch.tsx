@@ -37,7 +37,7 @@ const BridgeV3StepSwitch = () => {
       return (
         <BridgeV3StepConfirmUTXOTransaction
           invalidStateMessage="Invalid State: Mint Sysx transaction was not saved"
-          loadingMessage="Confirming Mint of Sysx"
+          loadingMessage="Confirming Mint of Sysx transaction..."
           sourceStatus="mint-sysx"
           successStatus="burn-sysx"
         />
@@ -53,7 +53,7 @@ const BridgeV3StepSwitch = () => {
       return (
         <BridgeV3StepConfirmUTXOTransaction
           invalidStateMessage="Invalid State: Burn Sysx transaction was not saved"
-          loadingMessage="Confirming Burn of Sysx"
+          loadingMessage="Confirming Burn of Sysx transaction..."
           sourceStatus="burn-sysx"
           successStatus="completed"
         />
