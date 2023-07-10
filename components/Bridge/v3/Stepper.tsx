@@ -52,6 +52,8 @@ const BridgeV3Stepper: React.FC = () => {
   if (type === "nevm-to-sys") {
     if (modifiedStatus === "confirm-mint-sysx") {
       modifiedStatus = "mint-sysx";
+    } else if (modifiedStatus === "confirm-burn-sysx") {
+      modifiedStatus = "burn-sysx";
     }
     activeStep = nevmToSysSteps.findIndex((step) => step === modifiedStatus);
     return <NEVMToSYSStepper activeStep={activeStep} />;

@@ -1,5 +1,6 @@
 import BridgeV3StepBurnSys from "./Steps/BurnSys";
 import BridgeV3StepBurnSysx from "./Steps/BurnSysx";
+import BridgeV3CompleteNevmToSys from "./Steps/CompleteNevmToSys";
 import BridgeV3CompleteSysToNevm from "./Steps/CompleteSysToNevm";
 import BridgeV3StepConfirmBurnSys from "./Steps/ConfirmBurnSys";
 import BridgeV3StepConfirmBurnSysx from "./Steps/ConfirmBurnSysx";
@@ -41,6 +42,24 @@ const BridgeV3StepSwitch = () => {
           successStatus="burn-sysx"
         />
       );
+    } else if (transfer.status === "burn-sysx") {
+      return (
+        <BridgeV3StepBurnSysx
+          successStatus="confirm-burn-sysx"
+          toNevm={false}
+        />
+      );
+    } else if (transfer.status === "confirm-burn-sysx") {
+      return (
+        <BridgeV3StepConfirmUTXOTransaction
+          invalidStateMessage="Invalid State: Burn Sysx transaction was not saved"
+          loadingMessage="Confirming Burn of Sysx"
+          sourceStatus="burn-sysx"
+          successStatus="completed"
+        />
+      );
+    } else if (transfer.status === "completed") {
+      return <BridgeV3CompleteNevmToSys transfer={transfer} />;
     }
   }
   if (transfer.status === "initialize") {
@@ -50,7 +69,9 @@ const BridgeV3StepSwitch = () => {
   } else if (transfer.status === "confirm-burn-sys") {
     return <BridgeV3StepConfirmBurnSys successStatus="burn-sysx" />;
   } else if (transfer.status === "burn-sysx") {
-    return <BridgeV3StepBurnSysx successStatus="confirm-burn-sysx" />;
+    return (
+      <BridgeV3StepBurnSysx successStatus="confirm-burn-sysx" toNevm={true} />
+    );
   } else if (transfer.status === "confirm-burn-sysx") {
     return <BridgeV3StepConfirmBurnSysx successStatus="generate-proofs" />;
   } else if (transfer.status === "generate-proofs") {
@@ -67,9 +88,7 @@ const BridgeV3StepSwitch = () => {
       />
     );
   } else if (transfer.status === "completed") {
-    if (transfer.type === "sys-to-nevm") {
-      return <BridgeV3CompleteSysToNevm transfer={transfer} />;
-    }
+    return <BridgeV3CompleteSysToNevm transfer={transfer} />;
   }
 
   return null;

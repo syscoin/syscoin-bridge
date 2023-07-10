@@ -56,7 +56,7 @@ const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
 
   return (
     <Alert severity="info">
-      {loadingMessage}
+      {loadingMessage} &nbsp;
       <CircularProgress size={"1rem"} />
     </Alert>
   );

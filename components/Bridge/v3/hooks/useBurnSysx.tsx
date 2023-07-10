@@ -6,7 +6,7 @@ import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import burnSysx from "@contexts/Transfer/functions/burnSysx";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 
-export const useBurnSysx = (transfer: ITransfer) => {
+export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
   const syscoinInstance = useSyscoin();
   const { sendTransaction } = usePaliWalletV2();
   return useMutation(["burnSyx", transfer.id], {
@@ -25,7 +25,7 @@ export const useBurnSysx = (transfer: ITransfer) => {
         SYSX_ASSET_GUID,
         transfer.utxoAddress,
         transfer.utxoXpub,
-        transfer.nevmAddress
+        toNevm ? transfer.nevmAddress : ""
       );
 
       const { tx, error } = await sendTransaction(psbt);
