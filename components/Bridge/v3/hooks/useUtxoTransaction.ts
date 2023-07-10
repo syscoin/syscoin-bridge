@@ -2,14 +2,14 @@ import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import { useQuery } from "react-query";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 
-export const useUtxoTransaction = (transactionId?: string) =>
+export const useUtxoTransaction = (transactionId?: string, confirmations = 1) =>
   useQuery(["utxo", "transaction", transactionId], {
     queryFn: async () => {
       const transaction = await syscoinUtils.fetchBackendRawTx(
         BlockbookAPIURL,
         transactionId!
       );
-      if (transaction.confirmations > 1) {
+      if (transaction.confirmations >= confirmations) {
         return transaction;
       }
       throw new Error("Transaction not confirmed");

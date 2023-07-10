@@ -18,7 +18,7 @@ const BridgeV3StepConfirmBurnSys: React.FC<BridgeV3StepConfirmBurnSysProps> = ({
 
   const burnSysTxId: string | undefined = burnSysLog?.payload?.data?.tx;
 
-  const { isLoading, data } = useUtxoTransaction(burnSysTxId);
+  const { isLoading, data } = useUtxoTransaction(burnSysTxId, 0);
 
   if (!burnSysTxId) {
     return (
