@@ -1,5 +1,5 @@
 import { Step, StepLabel, Stepper } from "@mui/material";
-import { sysToNevmSteps } from "./contants/steps";
+import { nevmToSysSteps, sysToNevmSteps } from "./contants/steps";
 import { useTransfer } from "./context/TransferContext";
 
 const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
@@ -47,11 +47,15 @@ const BridgeV3Stepper: React.FC = () => {
     transfer: { type, status },
   } = useTransfer();
   let activeStep = 1;
+  let modifiedStatus = status;
+
   if (type === "nevm-to-sys") {
+    if (modifiedStatus === "confirm-mint-sysx") {
+      modifiedStatus = "mint-sysx";
+    }
+    activeStep = nevmToSysSteps.findIndex((step) => step === modifiedStatus);
     return <NEVMToSYSStepper activeStep={activeStep} />;
   }
-
-  let modifiedStatus = status;
 
   if (modifiedStatus === "confirm-burn-sys") {
     modifiedStatus = "burn-sys";
@@ -65,7 +69,6 @@ const BridgeV3Stepper: React.FC = () => {
   }
 
   activeStep = sysToNevmSteps.findIndex((step) => step === modifiedStatus);
-
   return <SYSToNEVMStepper activeStep={activeStep} />;
 };
 

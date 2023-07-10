@@ -38,7 +38,7 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
         date: Date.now(),
         payload: {
           data,
-          message: "Confirm Transaction",
+          message: "Confirm NEVM Transaction",
         },
         status: transfer.status,
       },

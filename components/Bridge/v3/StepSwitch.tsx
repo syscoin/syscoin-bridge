@@ -4,9 +4,11 @@ import BridgeV3CompleteSysToNevm from "./Steps/CompleteSysToNevm";
 import BridgeV3StepConfirmBurnSys from "./Steps/ConfirmBurnSys";
 import BridgeV3StepConfirmBurnSysx from "./Steps/ConfirmBurnSysx";
 import BridgeV3ConfirmNEVMTransaction from "./Steps/ConfirmNEVMTransaction";
+import BridgeV3StepConfirmUTXOTransaction from "./Steps/ConfirmUTXOTransaction";
 import BridgeV3ConnectValidateStep from "./Steps/ConnectValidate";
 import BridgeV3StepFreezeAndBurnSys from "./Steps/FreezeAndBurnSys";
 import BridgeV3StepGenerateProofs from "./Steps/GenerateProofs";
+import BridgeV3StepMintSysx from "./Steps/MintSysx";
 import BridgeV3StepSubmitProofs from "./Steps/SubmitProofs";
 import { useTransfer } from "./context/TransferContext";
 
@@ -26,6 +28,17 @@ const BridgeV3StepSwitch = () => {
           loadingMessage="Confirming freeze and burn transaction..."
           sourceStatus="freeze-burn-sys"
           successStatus="mint-sysx"
+        />
+      );
+    } else if (transfer.status === "mint-sysx") {
+      return <BridgeV3StepMintSysx successStatus="confirm-mint-sysx" />;
+    } else if (transfer.status === "confirm-mint-sysx") {
+      return (
+        <BridgeV3StepConfirmUTXOTransaction
+          invalidStateMessage="Invalid State: Mint Sysx transaction was not saved"
+          loadingMessage="Confirming Mint of Sysx"
+          sourceStatus="mint-sysx"
+          successStatus="burn-sysx"
         />
       );
     }
