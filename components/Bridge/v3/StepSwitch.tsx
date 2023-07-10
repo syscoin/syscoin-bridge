@@ -5,12 +5,31 @@ import BridgeV3StepConfirmBurnSys from "./Steps/ConfirmBurnSys";
 import BridgeV3StepConfirmBurnSysx from "./Steps/ConfirmBurnSysx";
 import BridgeV3ConfirmNEVMTransaction from "./Steps/ConfirmNEVMTransaction";
 import BridgeV3ConnectValidateStep from "./Steps/ConnectValidate";
+import BridgeV3StepFreezeAndBurnSys from "./Steps/FreezeAndBurnSys";
 import BridgeV3StepGenerateProofs from "./Steps/GenerateProofs";
 import BridgeV3StepSubmitProofs from "./Steps/SubmitProofs";
 import { useTransfer } from "./context/TransferContext";
 
 const BridgeV3StepSwitch = () => {
   const { transfer } = useTransfer();
+  if (transfer.type === "nevm-to-sys") {
+    if (transfer.status === "initialize") {
+      return <BridgeV3ConnectValidateStep successStatus="freeze-burn-sys" />;
+    } else if (transfer.status === "freeze-burn-sys") {
+      return (
+        <BridgeV3StepFreezeAndBurnSys successStatus="confirm-freeze-burn-sys" />
+      );
+    } else if (transfer.status === "confirm-freeze-burn-sys") {
+      return (
+        <BridgeV3ConfirmNEVMTransaction
+          invalidStateMessage="Invalid State: Freeze and Burn logs was not saved"
+          loadingMessage="Confirming freeze and burn transaction..."
+          sourceStatus="freeze-burn-sys"
+          successStatus="mint-sysx"
+        />
+      );
+    }
+  }
   if (transfer.status === "initialize") {
     return <BridgeV3ConnectValidateStep successStatus="burn-sys" />;
   } else if (transfer.status === "burn-sys") {
