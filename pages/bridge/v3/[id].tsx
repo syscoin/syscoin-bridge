@@ -89,7 +89,7 @@ const BridgeV3Page: NextPage = () => {
                               LinkComponent={NextLink}
                               href="sys-to-nevm"
                             >
-                              <SwitchLeft /> Switch to NEVM-to-SYS
+                              <SwitchLeft /> Switch to SYS-to-NEVM
                             </Button>
                           )}
                           <Button LinkComponent={NextLink} href="/transfers/v2">
