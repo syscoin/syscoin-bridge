@@ -19,6 +19,8 @@ import NEVMConnect from "components/Bridge/WalletSwitchV2/NEVMConnect";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { ITransfer, TransferStatus } from "@contexts/Transfer/types";
 import { useRouter } from "next/router";
+import NextLink from "next/link";
+import CompareArrows from "@mui/icons-material/CompareArrows";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -123,26 +125,56 @@ const BridgeV3ConnectValidateStep: React.FC<
     <form onSubmit={handleSubmit(onSubmit)}>
       <Box sx={{ mb: 2 }}>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          Syscoin UTXO:
+          <strong>From</strong> Syscoin{" "}
+          {transfer.type === "sys-to-nevm" ? "UTXO" : "NEVM"}:
         </Typography>
-        <UTXOConnect
-          transfer={modifiedTransfer}
-          setUtxo={({ address, xpub }) => {
-            setValue("utxoAddress", address);
-            setValue("utxoXpub", xpub);
-          }}
-        />
+        {transfer.type === "sys-to-nevm" ? (
+          <UTXOConnect
+            transfer={modifiedTransfer}
+            setUtxo={({ address, xpub }) => {
+              setValue("utxoAddress", address);
+              setValue("utxoXpub", xpub);
+            }}
+          />
+        ) : (
+          <NEVMConnect
+            transfer={modifiedTransfer}
+            setNevm={({ address }) => {
+              setValue("nevmAddress", address);
+            }}
+          />
+        )}
       </Box>
-      <Box sx={{ mb: 2 }}>
+      <Button
+        variant="contained"
+        LinkComponent={NextLink}
+        href={transfer.type === "nevm-to-sys" ? "sys-to-nevm" : "nevm-to-sys"}
+        color="secondary"
+      >
+        <CompareArrows />
+        Switch
+      </Button>
+      <Box sx={{ mt: 2, mb: 2 }}>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          Syscoin NEVM:
+          <strong>To</strong> Syscoin{" "}
+          {transfer.type === "nevm-to-sys" ? "UTXO" : "NEVM"}:
         </Typography>
-        <NEVMConnect
-          transfer={modifiedTransfer}
-          setNevm={({ address }) => {
-            setValue("nevmAddress", address);
-          }}
-        />
+        {transfer.type === "nevm-to-sys" ? (
+          <UTXOConnect
+            transfer={modifiedTransfer}
+            setUtxo={({ address, xpub }) => {
+              setValue("utxoAddress", address);
+              setValue("utxoXpub", xpub);
+            }}
+          />
+        ) : (
+          <NEVMConnect
+            transfer={modifiedTransfer}
+            setNevm={({ address }) => {
+              setValue("nevmAddress", address);
+            }}
+          />
+        )}
       </Box>
       <TextField
         label="Amount"

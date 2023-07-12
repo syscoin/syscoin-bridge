@@ -25,8 +25,6 @@ import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
-import SwitchRightIcon from "@mui/icons-material/SwitchRight";
-import SwitchLeft from "@mui/icons-material/SwitchLeft";
 
 const createTransfer = (type: TransferType): ITransfer => ({
   amount: "0",
@@ -68,30 +66,12 @@ const BridgeV3Page: NextPage = () => {
                       </Typography>
                       <Typography variant="caption" color="gray">
                         Trustlessly transfer SYS back and forth between the
-                        Syscoin Base and Syscoin NEVM blockchains without
+                        Syscoin UTXO and Syscoin NEVM blockchains without
                         middlemen!
                       </Typography>
                       <Box sx={{ display: "flex" }}>
                         <TransferTitle />
                         <Box sx={{ ml: "auto" }}>
-                          {query.id === "sys-to-nevm" && (
-                            <Button
-                              variant="contained"
-                              LinkComponent={NextLink}
-                              href="nevm-to-sys"
-                            >
-                              <SwitchLeft /> Switch to NEVM-to-SYS
-                            </Button>
-                          )}
-                          {query.id === "nevm-to-sys" && (
-                            <Button
-                              variant="contained"
-                              LinkComponent={NextLink}
-                              href="sys-to-nevm"
-                            >
-                              <SwitchRightIcon /> Switch to SYS-to-NEVM
-                            </Button>
-                          )}
                           <Button LinkComponent={NextLink} href="/transfers/v2">
                             <TableRowsIcon />
                             View All Transfers
