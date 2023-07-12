@@ -23,6 +23,10 @@ import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
+import TableRowsIcon from "@mui/icons-material/TableRows";
+import NextLink from "next/link";
+import SwitchRightIcon from "@mui/icons-material/SwitchRight";
+import SwitchLeft from "@mui/icons-material/SwitchLeft";
 
 const createTransfer = (type: TransferType): ITransfer => ({
   amount: "0",
@@ -69,7 +73,30 @@ const BridgeV3Page: NextPage = () => {
                       </Typography>
                       <Box sx={{ display: "flex" }}>
                         <TransferTitle />
-                        <Button></Button>
+                        <Box sx={{ ml: "auto" }}>
+                          {query.id === "sys-to-nevm" && (
+                            <Button
+                              variant="contained"
+                              LinkComponent={NextLink}
+                              href="nevm-to-sys"
+                            >
+                              <SwitchLeft /> Switch to NEVM-to-SYS
+                            </Button>
+                          )}
+                          {query.id === "nevm-to-sys" && (
+                            <Button
+                              variant="contained"
+                              LinkComponent={NextLink}
+                              href="sys-to-nevm"
+                            >
+                              <SwitchLeft /> Switch to NEVM-to-SYS
+                            </Button>
+                          )}
+                          <Button LinkComponent={NextLink} href="/transfers/v2">
+                            <TableRowsIcon />
+                            View All Transfers
+                          </Button>
+                        </Box>
                       </Box>
                       <BridgeV3Stepper />
                       <Card
