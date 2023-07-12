@@ -21,20 +21,20 @@ const WalletSwitchConfirmCard: React.FC<WalletSwitchConfirmCardProps> = ({
         variant="contained"
         aria-label="Change"
         onClick={onChange}
-        color="primary"
+        color="secondary"
         size="small"
       >
-        Change <ChangeCirlce sx={{ ml: 1 }} />
+        Change
       </Button>
       <Button
         variant="contained"
-        aria-label="Change"
+        aria-label="Set"
         onClick={onConfirm}
-        color="success"
+        color="primary"
         sx={{ ml: 1 }}
         size="small"
       >
-        Set <CheckCircleIcon sx={{ ml: 1 }} />
+        Set
       </Button>
     </Box>
   );
