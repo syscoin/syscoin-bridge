@@ -67,13 +67,28 @@ const BridgeV3StepSwitch = () => {
   } else if (transfer.status === "burn-sys") {
     return <BridgeV3StepBurnSys successStatus="confirm-burn-sys" />;
   } else if (transfer.status === "confirm-burn-sys") {
-    return <BridgeV3StepConfirmBurnSys successStatus="burn-sysx" />;
+    return (
+      <BridgeV3StepConfirmUTXOTransaction
+        invalidStateMessage="Invalid State: Burn SYS transaction was not saved"
+        loadingMessage="Confirming Burn of SYS transaction..."
+        sourceStatus="burn-sys"
+        successStatus="burn-sysx"
+        confirmations={0}
+      />
+    );
   } else if (transfer.status === "burn-sysx") {
     return (
       <BridgeV3StepBurnSysx successStatus="confirm-burn-sysx" toNevm={true} />
     );
   } else if (transfer.status === "confirm-burn-sysx") {
-    return <BridgeV3StepConfirmBurnSysx successStatus="generate-proofs" />;
+    return (
+      <BridgeV3StepConfirmUTXOTransaction
+        invalidStateMessage="Invalid State: Burn SYSX transaction was not saved"
+        loadingMessage="Confirming Burn of SYSX transaction..."
+        sourceStatus="burn-sysx"
+        successStatus="generate-proofs"
+      />
+    );
   } else if (transfer.status === "generate-proofs") {
     return <BridgeV3StepGenerateProofs successStatus="submit-proofs" />;
   } else if (transfer.status === "submit-proofs") {

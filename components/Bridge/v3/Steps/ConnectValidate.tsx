@@ -67,7 +67,7 @@ const BridgeV3ConnectValidateStep: React.FC<
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
   const nevmAddress = watch("nevmAddress");
-  const minAmount = 0.01;
+  const minAmount = 0.001;
 
   const utxoBalance = useUtxoBalance(utxoXpub);
   const nevmBalance = useNevmBalance(nevmAddress);

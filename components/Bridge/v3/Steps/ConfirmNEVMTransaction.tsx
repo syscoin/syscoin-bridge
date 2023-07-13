@@ -26,7 +26,7 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
 
   const sourceTxHash = sourceLog?.payload.data.hash;
 
-  const { data, isLoading, isFetched } = useNevmTransaction(sourceTxHash);
+  const { data, isFetched } = useNevmTransaction(sourceTxHash);
 
   useEffect(() => {
     if (!isFetched || !data) {
@@ -50,16 +50,19 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
     return <Alert severity="error">{invalidStateMessage}</Alert>;
   }
 
-  if (isLoading) {
-    return (
-      <Alert severity="info">
-        {loadingMessage}
-        <CircularProgress size={"1rem"} />
-      </Alert>
-    );
-  }
-
-  return <Typography variant="body1">Summarizing Transfer</Typography>;
+  return (
+    <Alert
+      severity="info"
+      sx={{
+        "& .MuiAlert-message": {
+          width: "100%",
+        },
+      }}
+    >
+      {loadingMessage}
+      <CircularProgress size={"1rem"} />
+    </Alert>
+  );
 };
 
 export default BridgeV3ConfirmNEVMTransaction;

@@ -1,4 +1,4 @@
-import { Alert, Button, CircularProgress } from "@mui/material";
+import { Alert, Box, CircularProgress } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
@@ -9,6 +9,7 @@ type Props = {
   loadingMessage: string;
   successStatus: TransferStatus;
   sourceStatus: TransferStatus;
+  confirmations?: number;
 };
 
 const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
@@ -16,6 +17,7 @@ const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
   successStatus,
   invalidStateMessage,
   loadingMessage,
+  confirmations,
 }) => {
   const { transfer, saveTransfer } = useTransfer();
 
@@ -25,7 +27,7 @@ const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
 
   const txId: string | undefined = utxoStepLog?.payload?.data?.tx;
 
-  const { data, isFetched } = useUtxoTransaction(txId);
+  const { data, isFetched } = useUtxoTransaction(txId, confirmations);
 
   useEffect(() => {
     if (!isFetched || !data) {
@@ -55,7 +57,14 @@ const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
   }
 
   return (
-    <Alert severity="info">
+    <Alert
+      severity="info"
+      sx={{
+        "& .MuiAlert-message": {
+          width: "100%",
+        },
+      }}
+    >
       {loadingMessage} &nbsp;
       <CircularProgress size={"1rem"} />
     </Alert>

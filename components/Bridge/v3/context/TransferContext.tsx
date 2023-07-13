@@ -38,7 +38,8 @@ export const TransferContextProvider: React.FC<
         throw new Error("Invalid transfer");
       },
       initialData,
-      enabled: initialData.status !== "initialize",
+      enabled:
+        initialData.status !== "initialize" && initialData.id !== undefined,
     }
   );
 

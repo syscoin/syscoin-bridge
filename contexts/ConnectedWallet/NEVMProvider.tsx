@@ -29,6 +29,8 @@ type NEVMProviderProps = {
 };
 
 const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
+  const [isChainChangedCallbackSet, setIsChainChangedCallbackSet] =
+    useState(false);
   const { data: isEthereumAvailable } = useQuery(["nevm", "isEthAvailable"], {
     queryFn: () => {
       return typeof window.ethereum !== "undefined";
@@ -77,9 +79,9 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
       if (
         result.length > 0 &&
         typeof result[0] === "string" &&
-        web3?.utils.isAddress(result[0] as string)
+        web3?.utils.isAddress(result[0])
       ) {
-        return result[0] as string;
+        return result[0];
       }
       return Promise.reject("No account found");
     },
@@ -135,10 +137,13 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    if (chainId.isFetched) {
-      window.ethereum.on("chainChanged", chainId.refetch);
+    if (chainId.isFetched && !isChainChangedCallbackSet) {
+      window.ethereum.on("chainChanged", () => {
+        chainId.refetch();
+      });
+      setIsChainChangedCallbackSet(true);
     }
-  }, [chainId.isFetched, chainId]);
+  }, [chainId.isFetched, chainId, isChainChangedCallbackSet]);
 
   return (
     <NEVMContext.Provider
