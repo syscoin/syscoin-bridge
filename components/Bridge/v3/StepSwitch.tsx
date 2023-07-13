@@ -2,8 +2,6 @@ import BridgeV3StepBurnSys from "./Steps/BurnSys";
 import BridgeV3StepBurnSysx from "./Steps/BurnSysx";
 import BridgeV3CompleteNevmToSys from "./Steps/CompleteNevmToSys";
 import BridgeV3CompleteSysToNevm from "./Steps/CompleteSysToNevm";
-import BridgeV3StepConfirmBurnSys from "./Steps/ConfirmBurnSys";
-import BridgeV3StepConfirmBurnSysx from "./Steps/ConfirmBurnSysx";
 import BridgeV3ConfirmNEVMTransaction from "./Steps/ConfirmNEVMTransaction";
 import BridgeV3StepConfirmUTXOTransaction from "./Steps/ConfirmUTXOTransaction";
 import BridgeV3ConnectValidateStep from "./Steps/ConnectValidate";
