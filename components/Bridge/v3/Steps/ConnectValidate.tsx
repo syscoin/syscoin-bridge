@@ -145,15 +145,6 @@ const BridgeV3ConnectValidateStep: React.FC<
           />
         )}
       </Box>
-      <Button
-        variant="contained"
-        LinkComponent={NextLink}
-        href={transfer.type === "nevm-to-sys" ? "sys-to-nevm" : "nevm-to-sys"}
-        color="secondary"
-      >
-        <CompareArrows />
-        Switch
-      </Button>
       <Box sx={{ mt: 2, mb: 2 }}>
         <Typography variant="body1" sx={{ mb: 1 }}>
           <strong>To</strong> Syscoin{" "}

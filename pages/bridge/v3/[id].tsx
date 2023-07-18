@@ -25,6 +25,7 @@ import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
+import BridgeV3TransferSwitchTypeCard from "components/Bridge/v3/TransferSwitchTypeCard";
 
 const createTransfer = (type: TransferType): ITransfer => ({
   amount: "0",
@@ -77,9 +78,12 @@ const BridgeV3Page: NextPage = () => {
                         </Button>
                       </Box>
                       <BridgeV3Stepper />
+                      <Box sx={{ mt: 3, mb: 2, width: "50%" }}>
+                        <BridgeV3TransferSwitchTypeCard />
+                      </Box>
                       <Card
                         sx={{
-                          mt: 5,
+                          mt: 1,
                           display: "flex",
                           flexDirection: "column",
                           minWidth: "20rem",
