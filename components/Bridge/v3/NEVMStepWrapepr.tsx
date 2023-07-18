@@ -19,7 +19,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   if (version === "v2" && isBitcoinBased && isEVMInjected) {
     return (
       <Button variant="contained" onClick={() => switchTo("ethereum")}>
-        Switch to NEVM
+        Switch to Syscoin NEVM
       </Button>
     );
   }

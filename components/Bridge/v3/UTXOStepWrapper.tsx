@@ -19,7 +19,7 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
   if (version === "v2" && !isBitcoinBased) {
     return (
       <Button variant="contained" onClick={() => switchTo("bitcoin")}>
-        Switch to Syscoin
+        Switch to Syscoin UTXO
       </Button>
     );
   }
