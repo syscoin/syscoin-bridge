@@ -81,7 +81,7 @@ const Bridge: NextPage<Props> = ({ transfer }) => {
             Trustlessly transfer SYS back and forth between the Syscoin Base and
             Syscoin NEVM blockchains without middlemen!
           </Typography>
-          <TransferTitle />
+          <TransferTitle sx={{ my: 3 }} />
           <BridgeWalletSwitch />
           <BridgeTransferStepper />
           <Grid container>

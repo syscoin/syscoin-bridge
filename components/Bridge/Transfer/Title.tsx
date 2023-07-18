@@ -1,11 +1,11 @@
-import { Typography } from "@mui/material";
+import { Typography, TypographyProps } from "@mui/material";
 import { useTransfer } from "../v3/context/TransferContext";
 
-const TransferTitle = () => {
+const TransferTitle: React.FC<TypographyProps> = (props) => {
   const { transfer } = useTransfer();
 
   return (
-    <Typography variant="body1" sx={{ my: 3 }}>
+    <Typography variant="body1" {...props}>
       Transfer #
       {transfer == undefined || transfer.status === "initialize"
         ? "--------"

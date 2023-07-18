@@ -69,14 +69,12 @@ const BridgeV3Page: NextPage = () => {
                         Syscoin UTXO and Syscoin NEVM blockchains without
                         middlemen!
                       </Typography>
-                      <Box sx={{ display: "flex" }}>
+                      <Box sx={{ my: 3 }}>
                         <TransferTitle />
-                        <Box sx={{ ml: "auto" }}>
-                          <Button LinkComponent={NextLink} href="/transfers/v2">
-                            <TableRowsIcon />
-                            View All Transfers
-                          </Button>
-                        </Box>
+                        <Button LinkComponent={NextLink} href="/transfers/v2">
+                          <TableRowsIcon />
+                          View All Transfers
+                        </Button>
                       </Box>
                       <BridgeV3Stepper />
                       <Card
