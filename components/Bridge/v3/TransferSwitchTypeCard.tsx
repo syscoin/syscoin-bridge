@@ -25,8 +25,8 @@ const BridgeV3TransferSwitchTypeCard = () => {
           sx={{ ml: "auto" }}
           size="small"
         >
-          <ChangeCircle />
           Switch
+          <ChangeCircle />
         </Button>
       </CardContent>
     </Card>
