@@ -25,7 +25,7 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
         SYSX_ASSET_GUID,
         transfer.utxoAddress,
         transfer.utxoXpub,
-        toNevm ? transfer.nevmAddress : ""
+        toNevm ? transfer.nevmAddress.replace(/^0x/g, "") : ""
       );
 
       const { tx, error } = await sendTransaction(psbt);
