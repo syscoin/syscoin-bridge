@@ -1,5 +1,18 @@
-import { Box, Button, Container, Grid, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Container,
+  Grid,
+  List,
+  ListItem,
+  Typography,
+} from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { NextPage } from "next";
 import Head from "next/head";
 import Link from "next/link";
@@ -13,6 +26,8 @@ import Footer from "components/Footer";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import NextImage from "next/image";
 import { useEffect, useState } from "react";
+import Image from "next/image";
+import BridgeMetamaskNevmInstructions from "components/Bridge/MetamaskNevmInstructions";
 
 const PaliAndMetamaskBridge = () => {
   const [isReady, setIsReady] = useState(false);
@@ -106,6 +121,7 @@ const Home: NextPage = () => {
                   Blockchain
                 </Typography>
                 {isPaliVersion2 ? <PaliV2Bridge /> : <PaliAndMetamaskBridge />}
+                {isPaliVersion2 && <BridgeMetamaskNevmInstructions />}
               </Grid>
             </Grid>
           </Grid>
