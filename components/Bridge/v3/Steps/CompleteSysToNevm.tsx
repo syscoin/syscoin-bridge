@@ -15,8 +15,12 @@ const BridgeV3CompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
   const burnSysTx = logs.find(
     (log) => log.status === "burn-sys" && log.payload.data.tx !== undefined
   );
-  const burnSysxTx = logs.find((log) => log.status === "burn-sysx");
-  const submitProofsTx = logs.find((log) => log.status === "submit-proofs");
+  const burnSysxTx = logs.find(
+    (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
+  );
+  const submitProofsTx = logs.find(
+    (log) => log.status === "submit-proofs" && log.payload.data.hash !== undefined
+  );
   return (
     <Box>
       <Alert severity="success" sx={{ mb: 3 }}>

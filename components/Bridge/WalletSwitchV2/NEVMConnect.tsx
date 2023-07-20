@@ -12,8 +12,9 @@ type NEVMConnectProps = {
 };
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
-  const { account, connect, switchToMainnet } = useNEVM();
-  const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
+  const { account, connect } = useNEVM();
+  const { isBitcoinBased, switchTo, changeAccount, isEVMInjected } =
+    usePaliWalletV2();
   const balance = useNevmBalance(transfer.nevmAddress);
 
   const setTransferNevm = () => {
@@ -61,7 +62,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
     );
   }
 
-  if (isBitcoinBased) {
+  if (isBitcoinBased && isEVMInjected) {
     return (
       <Button variant="contained" onClick={() => switchTo("ethereum")}>
         Set NEVM Account

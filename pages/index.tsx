@@ -26,13 +26,13 @@ const PaliAndMetamaskBridge = () => {
       <WalletList />
       {isReady && (
         <Box display="flex" justifyContent="space-between">
-          <Link href={`/bridge/${Date.now()}`}>
+          <Link href={`/bridge/v3/sys-to-nevm`}>
             <Button variant="contained">
               Continue
               <ArrowForwardIcon />
             </Button>
           </Link>
-          <Link href={`/transfers`}>
+          <Link href={`/transfers/v2`}>
             <Button variant="text" color="secondary">
               View My Transfers
             </Button>

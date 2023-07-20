@@ -1,13 +1,12 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { Alert, Box, Button, Container, Typography } from "@mui/material";
-import AddIcon from "@mui/icons-material/Add";
+import { Alert, Box, Container, Typography } from "@mui/material";
 import TransferDataGrid from "components/Transfer/DataGrid";
 import WalletList from "components/WalletList";
 import { useConnectedWallet } from "contexts/ConnectedWallet/useConnectedWallet";
 import { ITransfer } from "contexts/Transfer/types";
 import { NextPage } from "next";
-import NextLink from "next/link";
 import { useEffect, useState } from "react";
+import BridgeV3NewTransferButton from "components/Bridge/v3/NewTransferButton";
 
 const TransfersPage: NextPage = () => {
   const [items, setItems] = useState<ITransfer[]>([]);
@@ -36,13 +35,7 @@ const TransfersPage: NextPage = () => {
     <Container sx={{ py: 10 }}>
       <Box display="flex" marginBottom={"1rem"}>
         <Typography variant="h5">Transfers</Typography>
-        <Button
-          LinkComponent={NextLink}
-          href="/bridge/v3/sys-to-nevm"
-          sx={{ ml: "auto" }}
-        >
-          <AddIcon /> New Transfer
-        </Button>
+        <BridgeV3NewTransferButton sx={{ ml: "auto" }} />
       </Box>
       <TransferDataGrid
         account={nevm.account}

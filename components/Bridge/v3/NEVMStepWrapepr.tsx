@@ -25,7 +25,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   }
 
   if (!account) {
-    return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
+    return <Button onClick={connectWallet}>Connect NEVM Wallet</Button>;
   }
 
   if (!isValidEthereumAddress(account)) {

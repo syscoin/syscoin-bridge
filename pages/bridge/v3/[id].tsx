@@ -17,7 +17,10 @@ import BridgeV3SavingIndicator from "components/Bridge/v3/SavingIndicator";
 import BridgeV3StepSwitch from "components/Bridge/v3/StepSwitch";
 import BridgeV3Stepper from "components/Bridge/v3/Stepper";
 import { SyscoinProvider } from "components/Bridge/v3/context/Syscoin";
-import { TransferContextProvider } from "components/Bridge/v3/context/TransferContext";
+import {
+  TransferContextProvider,
+  useTransfer,
+} from "components/Bridge/v3/context/TransferContext";
 import { Web3Provider } from "components/Bridge/v3/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
@@ -26,6 +29,17 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
 import BridgeV3TransferSwitchTypeCard from "components/Bridge/v3/TransferSwitchTypeCard";
+import BridgeV3NewTransferButton from "components/Bridge/v3/NewTransferButton";
+
+const NewTransferButton = () => {
+  const { transfer } = useTransfer();
+
+  if (transfer.status !== "completed") {
+    return null;
+  }
+
+  return <BridgeV3NewTransferButton />;
+};
 
 const createTransfer = (type: TransferType): ITransfer => ({
   amount: "0",
@@ -76,6 +90,7 @@ const BridgeV3Page: NextPage = () => {
                           <TableRowsIcon />
                           View All Transfers
                         </Button>
+                        <NewTransferButton />
                       </Box>
                       <BridgeV3Stepper />
                       <Box sx={{ mt: 3, mb: 2, width: "50%" }}>
