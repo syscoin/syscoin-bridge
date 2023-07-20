@@ -1,5 +1,6 @@
-import { Alert, Box, Button, Link, Typography, useTheme } from "@mui/material";
-import Check from "@mui/icons-material/Check";
+import { Box, Button, Typography, useTheme } from "@mui/material";
+
+import ChangeCirlce from "@mui/icons-material/ChangeCircle";
 
 type WalletSwitchCardProps = {
   address: string;
@@ -32,15 +33,19 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
           {address}
         </Typography>
         <Typography variant="body2" color={success.main}>
-          Confirmed
-          <Check color="success" />
+          CONFIRMED
         </Typography>
       </Box>
       <Box display="flex" sx={{ alignItems: "center" }}>
         <Typography marginRight="auto">Balance: {balance}</Typography>
         {allowChange && (
-          <Button onClick={onChange} color="primary">
-            Change
+          <Button
+            onClick={onChange}
+            color="secondary"
+            variant="contained"
+            size="small"
+          >
+            Change <ChangeCirlce />
           </Button>
         )}
       </Box>
