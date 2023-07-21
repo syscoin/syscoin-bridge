@@ -39,13 +39,8 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
       <Box display="flex" sx={{ alignItems: "center" }}>
         <Typography marginRight="auto">Balance: {balance}</Typography>
         {allowChange && (
-          <Button
-            onClick={onChange}
-            color="secondary"
-            variant="contained"
-            size="small"
-          >
-            Change <ChangeCirlce />
+          <Button onClick={onChange} size="small">
+            Change
           </Button>
         )}
       </Box>
