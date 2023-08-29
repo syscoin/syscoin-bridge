@@ -21,6 +21,7 @@ import { ITransfer, TransferStatus } from "@contexts/Transfer/types";
 import { useRouter } from "next/router";
 import NextLink from "next/link";
 import CompareArrows from "@mui/icons-material/CompareArrows";
+import { MIN_AMOUNT } from "@constants";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -67,7 +68,7 @@ const BridgeV3ConnectValidateStep: React.FC<
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
   const nevmAddress = watch("nevmAddress");
-  const minAmount = 0.01;
+  const minAmount = MIN_AMOUNT;
 
   const utxoBalance = useUtxoBalance(utxoXpub);
   const nevmBalance = useNevmBalance(nevmAddress);

@@ -15,6 +15,7 @@ import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { MIN_AMOUNT } from "@constants";
 
 const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -84,7 +85,7 @@ const InitializeChecks: React.FC<{ children: React.ReactNode }> = ({
   return <>{children}</>;
 };
 
-const minAmount = 0.01;
+const minAmount = MIN_AMOUNT;
 
 const BridgeTransferForm: React.FC = () => {
   const { startTransfer, transfer } = useTransfer();
@@ -123,7 +124,7 @@ const BridgeTransferForm: React.FC = () => {
           Balance:{" "}
           {balance === undefined
             ? "--"
-            : parseFloat(`${balance ?? 0}`).toFixed(4)}
+            : parseFloat(`${balance ?? 0}`).toFixed(6)}
         </Typography>
         <TextField
           label="Amount"

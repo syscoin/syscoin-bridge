@@ -4,11 +4,14 @@ import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
 import { ITransfer } from "@contexts/Transfer/types";
 import { useUtxoBalance } from "utils/balance-hooks";
+import { MIN_AMOUNT } from "@constants";
 
 type UTXOConnectProps = {
   transfer: ITransfer;
   setUtxo: (utxo: { xpub: string; address: string }) => void;
 };
+
+const minAmount = MIN_AMOUNT;
 
 const UTXOConnect: React.FC<UTXOConnectProps> = ({ setUtxo, transfer }) => {
   const balance = useUtxoBalance(transfer.utxoXpub);
@@ -44,10 +47,10 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({ setUtxo, transfer }) => {
     }
 
     const faucetLink =
-      balance.isFetched && balanceNum < 0.01 ? (
+      balance.isFetched && balanceNum < minAmount ? (
         <Alert severity="warning">
           <Typography variant="body2">
-            Please send at least 0.01 SYS into your Pali wallet to continue the
+            Please send at least {minAmount} SYS into your Pali wallet to continue the
             transaction
           </Typography>
         </Alert>

@@ -5,11 +5,14 @@ import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
 import { ITransfer } from "@contexts/Transfer/types";
 import { useNevmBalance } from "utils/balance-hooks";
+import { MIN_AMOUNT } from "@constants";
 
 type NEVMConnectProps = {
   transfer: ITransfer;
   setNevm: (nevm: { address: string }) => void;
 };
+
+const minAmount = MIN_AMOUNT;
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const { account, connect } = useNEVM();
@@ -39,7 +42,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
       balanceNum = 0;
     }
     const faucetLink =
-      balance.isFetched && balanceNum < 0.01 ? (
+      balance.isFetched && balanceNum < minAmount ? (
         <Alert severity="warning">
           <Typography variant="body2">
             You don&apos;t have enough balance. Please go to&nbsp;
