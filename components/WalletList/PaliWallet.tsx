@@ -18,10 +18,16 @@ const InstallPaliWallet = () => {
         alt="PaliWallet logo"
       />
       <Typography variant="body1">PaliWallet</Typography>
-      <Link href="https://paliwallet.com/" title="Go to PaliWallet">
-        <Launch />
+      <Link
+        href="https://paliwallet.com/"
+        title="Go to PaliWallet"
+        sx={{ ml: "auto" }}
+        target="_blank"
+      >
+        <Button variant="contained">
+          Install <Launch />
+        </Button>
       </Link>
-      <ConnectToPaliWallet />
     </Box>
   );
 };

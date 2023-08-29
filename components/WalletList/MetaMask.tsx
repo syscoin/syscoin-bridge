@@ -29,17 +29,26 @@ const WalletListMetamask = () => {
       ) : (
         <>
           <Typography variant="body1">Metamask</Typography>
-          <Link href="https://metamask.io/" title="Go to Metamask">
-            <Launch />
-          </Link>
-          <Button
-            sx={{ ml: "auto" }}
-            variant="contained"
-            onClick={() => connectNEVM("metamask")}
-            disabled={!availableWallets.metamask}
-          >
-            {availableWallets.metamask ? "Connect" : "Not installed"}
-          </Button>
+          {availableWallets.metamask ? (
+            <Button
+              sx={{ ml: "auto" }}
+              variant="contained"
+              onClick={() => connectNEVM("metamask")}
+            >
+              Connect
+            </Button>
+          ) : (
+            <Link
+              href="https://metamask.io/"
+              title="Go to Metamask"
+              sx={{ ml: "auto" }}
+              target="_blank"
+            >
+              <Button variant="contained">
+                Install <Launch />
+              </Button>
+            </Link>
+          )}
         </>
       )}
     </Box>
