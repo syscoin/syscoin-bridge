@@ -1,82 +1,18 @@
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Button,
-  Container,
-  Grid,
-  List,
-  ListItem,
-  Typography,
-} from "@mui/material";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import { Box, Container, Grid, Typography } from "@mui/material";
 
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import type { NextPage } from "next";
 import Head from "next/head";
-import Link from "next/link";
 
-import WalletList from "../components/WalletList";
-import { useConnectedWallet } from "../contexts/ConnectedWallet/useConnectedWallet";
 import HomeHowItWorks from "components/Home/HowItWorks";
 import ContactUs from "components/Home/ContactUs";
 import FAQ from "components/Home/FAQ";
 import Footer from "components/Footer";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import NextImage from "next/image";
-import { useEffect, useState } from "react";
-import Image from "next/image";
 import BridgeMetamaskNevmInstructions from "components/Bridge/MetamaskNevmInstructions";
 
-const PaliAndMetamaskBridge = () => {
-  const [isReady, setIsReady] = useState(false);
-  const { nevm, utxo } = useConnectedWallet();
-
-  useEffect(() => {
-    setIsReady(Boolean(nevm.account) && Boolean(utxo.account));
-  }, [nevm.account, utxo.account]);
-  return (
-    <>
-      <WalletList />
-      {isReady && (
-        <Box display="flex" justifyContent="space-between">
-          <Link href={`/bridge/v3/sys-to-nevm`}>
-            <Button variant="contained">
-              Continue
-              <ArrowForwardIcon />
-            </Button>
-          </Link>
-          <Link href={`/transfers/v2`}>
-            <Button variant="text" color="secondary">
-              View My Transfers
-            </Button>
-          </Link>
-        </Box>
-      )}
-    </>
-  );
-};
-
-const PaliV2Bridge = () => {
-  return (
-    <>
-      <Box display="flex" justifyContent="space-between">
-        <Link href={`/bridge/v3/sys-to-nevm`}>
-          <Button variant="contained">
-            Go to PaliV2 Bridge
-            <ArrowForwardIcon />
-          </Button>
-        </Link>
-        <Link href={`/transfers/v2`}>
-          <Button variant="text" color="secondary">
-            View My Transfers
-          </Button>
-        </Link>
-      </Box>
-    </>
-  );
-};
+import PaliAndMetamaskBridge from "components/Home/PaliMetamaskBridge";
+import PaliV2Bridge from "components/Home/PaliV2Bridge";
 
 const Home: NextPage = () => {
   const { isInstalled, version, isEVMInjected } = usePaliWalletV2();

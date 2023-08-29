@@ -6,6 +6,7 @@ import {
   usePaliWallet,
   usePaliWalletV2,
 } from "@contexts/PaliWallet/usePaliWallet";
+import Web3 from "web3";
 
 const InstallPaliWallet = () => {
   return (
@@ -50,38 +51,61 @@ const PaliWalletV2 = () => {
   const { utxo, nevm } = useConnectedWallet();
   const { isBitcoinBased, switchTo, isInstalled, isEVMInjected } =
     usePaliWalletV2();
-  const isConnected = isBitcoinBased
-    ? Boolean(utxo.account)
-    : Boolean(nevm.account);
+  const connectedAccount = isBitcoinBased ? utxo.account : nevm.account;
+  const isConnected = Boolean(connectedAccount);
 
   if (utxo.type !== "pali-wallet" || !isInstalled || !isConnected) {
     return <InstallPaliWallet />;
   }
 
-  const connectedAccount = isBitcoinBased ? utxo.account : nevm.account;
+  const isInvalidSyscoinAddress =
+    !isEVMInjected && Web3.utils.isAddress(connectedAccount!);
+
+  const isValidAddress = !isInvalidSyscoinAddress;
 
   return (
-    <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-      <Image
-        src="/pali-wallet-logo.svg"
-        height={32}
-        width={32}
-        alt="PaliWallet logo"
-      />
-      <Typography variant="body1" color="secondary" noWrap maxWidth={"70%"}>
-        {connectedAccount}
-      </Typography>
-      <Typography variant="body1" color="success.main" sx={{ ml: "auto" }}>
-        CONNECTED
-      </Typography>
-      {isEVMInjected && (
-        <Button
-          variant="contained"
-          onClick={() => switchTo(isBitcoinBased ? "ethereum" : "bitcoin")}
-          sx={{ ml: 2 }}
+    <Box sx={{ mb: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Image
+          src="/pali-wallet-logo.svg"
+          height={32}
+          width={32}
+          alt="PaliWallet logo"
+        />
+        <Typography variant="body1" color="secondary" noWrap maxWidth={"70%"}>
+          {connectedAccount}
+        </Typography>
+
+        {isValidAddress && (
+          <>
+            <Typography
+              variant="body1"
+              color="success.main"
+              sx={{ ml: "auto" }}
+            >
+              CONNECTED
+            </Typography>
+          </>
+        )}
+
+        {isEVMInjected && (
+          <Button
+            variant="contained"
+            onClick={() => switchTo(isBitcoinBased ? "ethereum" : "bitcoin")}
+            sx={{ ml: 2 }}
+          >
+            Switch
+          </Button>
+        )}
+      </Box>
+      {isInvalidSyscoinAddress && (
+        <Typography
+          variant="caption"
+          color="error"
+          sx={{ ml: "auto", display: "block" }}
         >
-          Switch
-        </Button>
+          Invalid Address. Please switch to UTXO Network
+        </Typography>
       )}
     </Box>
   );
