@@ -34,7 +34,7 @@ export const PaliAndMetamaskBridge = () => {
                 color="error"
                 sx={{ ml: "auto", display: "block" }}
               >
-                Invalid Address. Please switch to UTXO Network
+                Invalid network selected. Please switch to UTXO Network.
               </Typography>
             )}
           </Link>
