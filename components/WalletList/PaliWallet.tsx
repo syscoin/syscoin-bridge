@@ -17,7 +17,7 @@ const InstallPaliWallet = () => {
         width={32}
         alt="PaliWallet logo"
       />
-      <Typography variant="body1">PaliWallet</Typography>
+      <Typography variant="body1">Pali Wallet</Typography>
       <Link
         href="https://paliwallet.com/"
         title="Go to PaliWallet"
