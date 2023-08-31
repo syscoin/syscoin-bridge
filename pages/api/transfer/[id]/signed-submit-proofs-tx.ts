@@ -19,6 +19,9 @@ const handler: NextApiHandler = async (
   const { id } = req.query;
 
   try {
+    if (process.env.FOUNDATION_FUNDED !== "true") {
+      throw new Error("Foundation funding is not available");
+    }
     const transfer = await transferService.getTransfer(id as string);
     const generatedProofLog = transfer.logs.find(
       (a) => a.status === "generate-proofs"
