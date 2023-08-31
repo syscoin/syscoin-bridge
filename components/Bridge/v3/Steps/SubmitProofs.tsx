@@ -1,8 +1,9 @@
 import { Alert, Box, Button, Typography } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
-import { isSpvProof, useSubmitProof } from "../hooks/useSubmitProof";
+import { isSpvProof } from "../hooks/useSubmitProof";
 import NEVMStepWrapper from "../NEVMStepWrapepr";
+import useSyscoinSubmitProofs from "../hooks/useSyscoinSubmitProofs";
 
 type Props = {
   successStatus: TransferStatus;
@@ -10,19 +11,17 @@ type Props = {
 
 const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
-
-  const burnSysLog = transfer.logs.find(
-    (log) => log.status === "generate-proofs" && Boolean(log.payload?.data)
-  );
-
-  const spvProof = burnSysLog?.payload?.data;
-
   const {
     mutate: submitProofs,
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
-  } = useSubmitProof(transfer, spvProof);
+  } = useSyscoinSubmitProofs(transfer);
+  const burnSysLog = transfer.logs.find(
+    (log) => log.status === "generate-proofs" && Boolean(log.payload?.data)
+  );
+
+  const spvProof = burnSysLog?.payload?.data;
 
   const onSuccess = (data: unknown) => {
     const updatedLogs: ITransferLog[] = [
