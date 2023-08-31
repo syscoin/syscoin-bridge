@@ -7,6 +7,7 @@ declare global {
     ethereum: {
       isMetaMask: boolean;
       request: (params: { method: string; params?: any }) => Promise<any>;
+      send: (params: { method: string; params?: any }) => Promise<any>;
       isConnected: boolean;
       selectedAddress: string;
       on: (event: string, callback: (...args: any[]) => void) => void;

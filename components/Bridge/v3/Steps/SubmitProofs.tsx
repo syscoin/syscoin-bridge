@@ -1,8 +1,10 @@
-import { Alert, Box, Button, Typography } from "@mui/material";
+import { Alert, Box, Button, Divider, Typography } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
 import { isSpvProof, useSubmitProof } from "../hooks/useSubmitProof";
 import NEVMStepWrapper from "../NEVMStepWrapepr";
+import useSyscoinSubmitProofs from "../hooks/useSyscoinSubmitProofs";
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 
 type Props = {
   successStatus: TransferStatus;
@@ -10,19 +12,12 @@ type Props = {
 
 const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
-
+  const { isEnabled } = useFeatureFlags();
   const burnSysLog = transfer.logs.find(
     (log) => log.status === "generate-proofs" && Boolean(log.payload?.data)
   );
 
   const spvProof = burnSysLog?.payload?.data;
-
-  const {
-    mutate: submitProofs,
-    isLoading: isSigning,
-    isError: isSignError,
-    error: signError,
-  } = useSubmitProof(transfer, spvProof);
 
   const onSuccess = (data: unknown) => {
     const updatedLogs: ITransferLog[] = [
@@ -46,6 +41,16 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
       status: successStatus,
     });
   };
+
+  const foundation = useSyscoinSubmitProofs(transfer, onSuccess);
+  const self = useSubmitProof(transfer, spvProof);
+
+  const {
+    mutate: submitProofs,
+    isLoading: isSigning,
+    isError: isSignError,
+    error: signError,
+  } = isEnabled("foundationFundingAvailable") ? foundation : self;
 
   const sign = () => {
     submitProofs(undefined, { onSuccess });
