@@ -6,17 +6,13 @@ const nextConfig = {
 
     return config;
   },
-  env: {
-    MONGODB_URI: "mongodb://admin:admin@localhost:27017/syscoin-bridge",
-  },
-  output: 'standalone',
+  output: "standalone",
   images: {
-    domains: ['syscoin.github.io']
-  }
+    domains: ["syscoin.github.io"],
+  },
 };
 
 module.exports = nextConfig;
-
 
 // Injected content via Sentry wizard below
 
