@@ -72,7 +72,7 @@ const handler: NextApiHandler = async (
       process.env.BRIDGE_WALLET_PRIVATE_KEY
     );
 
-    const nonce = await web3.eth.getTransactionCount(sender.address, "latest");
+    const nonce = await web3.eth.getTransactionCount(sender.address, "pending");
 
     const gasPrice = await web3.eth.getGasPrice();
     const gas = await method.estimateGas();

@@ -1,8 +1,9 @@
-import { Alert, Box, CircularProgress } from "@mui/material";
+import { Alert, Box, CircularProgress, Link } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
 import { useEffect } from "react";
+import { SYSCOIN_TX_BLOCKCHAIN_URL } from "@constants";
 
 type Props = {
   invalidStateMessage: string;
@@ -67,6 +68,10 @@ const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
     >
       {loadingMessage} &nbsp;
       <CircularProgress size={"1rem"} />
+      <br />
+      <Link href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${txId}`} target="_blank">
+        View on Explorer
+      </Link>
     </Alert>
   );
 };
