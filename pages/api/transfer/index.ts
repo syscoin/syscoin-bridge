@@ -11,6 +11,10 @@ import {
   QueryFilterConstraint,
 } from "firebase/firestore";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { TransferService } from "api/services/transfer";
+import dbConnect from "lib/mongodb";
+
+const transferService = new TransferService();
 
 const getAll: NextApiHandler = async (req, res) => {
   const { nevm, utxo, version } = req.query;
@@ -45,6 +49,13 @@ const getAll: NextApiHandler = async (req, res) => {
 
   const { docs } = await getDocs(transferQuery);
   let transfers = docs.map((doc) => doc.data());
+  await dbConnect();
+  let dbTransfer = await transferService.getAll({
+    nevmAddress: nevm as string,
+    utxoAddress: utxo as string,
+    utxoXpub: utxo as string,
+  });
+  transfers = [...transfers, ...dbTransfer];
   if (version) {
     transfers = transfers.filter((transfer) => transfer.version === version);
   }

@@ -1,9 +1,10 @@
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
 import { useTransfer } from "../context/TransferContext";
 import { useWeb3 } from "../context/Web";
-import { Alert, CircularProgress, Typography } from "@mui/material";
+import { Alert, CircularProgress, Link, Typography } from "@mui/material";
 import { useNevmTransaction } from "../hooks/useNevmTransaction";
 import { useEffect } from "react";
+import { NEVM_TX_BLOCKCHAIN_URL } from "@constants";
 
 type Props = {
   successStatus: TransferStatus;
@@ -61,6 +62,10 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
     >
       {loadingMessage}
       <CircularProgress size={"1rem"} />
+      <br />
+      <Link href={`${NEVM_TX_BLOCKCHAIN_URL}${sourceTxHash}`} target="_blank">
+        View on Explorer
+      </Link>
     </Alert>
   );
 };

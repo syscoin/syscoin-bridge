@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - mongodb-migrate
 
 env:
   AWS_REGION: us-east-1                   # set this to your preferred AWS region, e.g. us-west-1
@@ -35,7 +36,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: Build, tag, and push release image to Amazon ECR
       id: build-image
       if: github.ref_type == 'tag'
       env:
@@ -46,7 +47,18 @@ jobs:
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: Build, tag, and push branch image to Amazon ECR
+      id: build-image-branch
+      if: github.ref_type == 'branch'
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.ref_name }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+    
+    - name: Build, tag, and push latest image to Amazon ECR
       id: build-image-main
       if: github.ref_type == 'branch' && github.ref_name == 'main'
       env:
