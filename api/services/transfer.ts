@@ -2,11 +2,12 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { UserCredential, signInWithEmailAndPassword } from "firebase/auth";
 import firebase from "firebase-setup";
 import { doc, getDoc } from "firebase/firestore";
-import dbConnect from "lib/mongodb";
 import TransferModel from "models/transfer";
+import { SponsorWalletService } from "./sponsor-wallet";
 
 export class TransferService {
   private isAuthenticated = false;
+  private sponsorWalletService = new SponsorWalletService();
   constructor() {
     this.authenticate();
   }
@@ -68,6 +69,17 @@ export class TransferService {
   }
 
   async upsertTransfer(transfer: ITransfer): Promise<ITransfer> {
+    const submitProofsTxLog = transfer.logs.find(
+      (log) => log.status === "submit-proofs"
+    );
+    if (submitProofsTxLog) {
+      const { hash } = submitProofsTxLog.payload.data;
+      if (hash) {
+        await this.sponsorWalletService.updateSponsorWalletTransactionStatus(
+          hash
+        );
+      }
+    }
     const results = await TransferModel.updateOne(
       { id: transfer.id },
       { ...transfer, updatedAt: Date.now() },
