@@ -45,12 +45,14 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   const foundation = useSyscoinSubmitProofs(transfer, onSuccess);
   const self = useSubmitProof(transfer, spvProof);
 
+  const foundationFundingAvailable = isEnabled("foundationFundingAvailable");
+
   const {
     mutate: submitProofs,
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
-  } = isEnabled("foundationFundingAvailable") ? foundation : self;
+  } = foundationFundingAvailable ? foundation : self;
 
   const sign = () => {
     submitProofs(undefined, { onSuccess });
@@ -65,7 +67,13 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   }
 
   if (isSigning) {
-    return <Alert severity="info">Check NEVM Wallet for signing</Alert>;
+    return (
+      <Alert severity="info">
+        {foundationFundingAvailable
+          ? "Submitting proofs..."
+          : "Check NEVM Wallet for signing"}
+      </Alert>
+    );
   }
 
   if (isSignError) {
