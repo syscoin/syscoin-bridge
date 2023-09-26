@@ -6,6 +6,7 @@ import WalletSwitchConfirmCard from "./ConfirmCard";
 import { ITransfer } from "@contexts/Transfer/types";
 import { useNevmBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
+import { useFeatureFlags } from "../v3/hooks/useFeatureFlags";
 
 type NEVMConnectProps = {
   transfer: ITransfer;
@@ -16,6 +17,7 @@ const minAmount = MIN_AMOUNT;
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const { account, connect } = useNEVM();
+  const { isEnabled } = useFeatureFlags();
   const { isBitcoinBased, switchTo, changeAccount, isEVMInjected } =
     usePaliWalletV2();
   const balance = useNevmBalance(transfer.nevmAddress);
@@ -41,8 +43,13 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
     if (isNaN(balanceNum)) {
       balanceNum = 0;
     }
+    const foundationFundingAvailable =
+      isEnabled("foundationFundingAvailable") &&
+      transfer.type === "sys-to-nevm";
     const faucetLink =
-      balance.isFetched && balanceNum < minAmount ? (
+      balance.isFetched &&
+      balanceNum < minAmount &&
+      !foundationFundingAvailable ? (
         <Alert severity="warning">
           <Typography variant="body2">
             You don&apos;t have enough balance. Please go to&nbsp;
