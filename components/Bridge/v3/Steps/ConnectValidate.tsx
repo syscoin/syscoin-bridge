@@ -19,9 +19,8 @@ import NEVMConnect from "components/Bridge/WalletSwitchV2/NEVMConnect";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { ITransfer, TransferStatus } from "@contexts/Transfer/types";
 import { useRouter } from "next/router";
-import NextLink from "next/link";
-import CompareArrows from "@mui/icons-material/CompareArrows";
 import { MIN_AMOUNT } from "@constants";
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -49,6 +48,7 @@ const BridgeV3ConnectValidateStep: React.FC<
   const { replace } = useRouter();
   const { transfer, isSaving, saveTransfer } = useTransfer();
   const { isLoading } = usePaliWalletV2();
+  const { isEnabled } = useFeatureFlags();
   const {
     register,
     setValue,
@@ -79,7 +79,11 @@ const BridgeV3ConnectValidateStep: React.FC<
     utxoBalance.data !== undefined &&
     utxoBalance.data < minAmount;
 
+  const foundationFundingAvailable =
+    isEnabled("foundationFundingAvailable") && transfer.type === "sys-to-nevm";
+
   const isNevmNotEnoughGas =
+    !foundationFundingAvailable &&
     Boolean(nevmAddress) &&
     nevmBalance.isFetched &&
     nevmBalance.data !== undefined &&
@@ -98,7 +102,8 @@ const BridgeV3ConnectValidateStep: React.FC<
 
   const isUtxoValid = isValidSYSAddress(utxoAddress, 57) && !isUtxoNotEnoughGas;
   const isNevmValid =
-    isValidEthereumAddress(nevmAddress) && !isNevmNotEnoughGas;
+    isValidEthereumAddress(nevmAddress) &&
+    (!isNevmNotEnoughGas || foundationFundingAvailable);
   const isAmountValid = errors.amount === undefined;
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
   const isReady = isUtxoValid && isNevmValid && isAmountValid && balanceFetched;
