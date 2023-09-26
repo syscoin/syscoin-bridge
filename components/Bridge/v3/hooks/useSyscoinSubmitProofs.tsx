@@ -26,6 +26,7 @@ const useSyscoinSubmitProofs = (
       onSuccess: (data) => {
         onSuccess(data);
       },
+      retry: 3
     }
   );
 };
