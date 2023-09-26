@@ -1,5 +1,6 @@
 import { RELAY_CONTRACT_ADDRESS } from "@constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
+import SponsorWalletService from "api/services/sponsor-wallet";
 import { TransferService } from "api/services/transfer";
 import { getProof } from "bitcoin-proof";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
@@ -50,44 +51,24 @@ const handler: NextApiHandler = async (
 
     const encoded = method.encodeABI();
 
-    if (!process.env.BRIDGE_WALLET_PRIVATE_KEY) {
-      throw new Error("BRIDGE_WALLET_PRIVATE_KEY not set");
-    }
-
-    const bridgeWallet = web3.eth.accounts.privateKeyToAccount(
-      process.env.BRIDGE_WALLET_PRIVATE_KEY
-    );
-
-    const walletBalanceInString = await web3.eth.getBalance(
-      bridgeWallet.address
-    );
-
-    const balanceInEth = web3.utils.fromWei(walletBalanceInString, "ether");
-
-    if (Number(balanceInEth) < 0.01) {
-      throw new Error("Bridge wallet balance is less than 0.01");
-    }
-
-    const sender = web3.eth.accounts.privateKeyToAccount(
-      process.env.BRIDGE_WALLET_PRIVATE_KEY
-    );
-
-    const nonce = await web3.eth.getTransactionCount(sender.address, "pending");
-
     const gasPrice = await web3.eth.getGasPrice();
     const gas = await method.estimateGas();
     const gasLimit = gas ?? 400_000;
 
-    const signedTransaction = await sender.signTransaction({
-      nonce,
-      to: RELAY_CONTRACT_ADDRESS,
-      gasPrice: web3.utils.toHex(gasPrice),
-      gas: web3.utils.toHex(gasLimit),
-      data: encoded,
-      value: 0,
-    });
+    const sponsorWalletService = new SponsorWalletService();
 
-    res.status(200).json({ signedTx: signedTransaction.rawTransaction });
+    const sponsoredTransaction = await sponsorWalletService.sponsorTransaction(
+      transfer.id,
+      {
+        to: RELAY_CONTRACT_ADDRESS,
+        gasPrice: web3.utils.toHex(gasPrice),
+        gas: web3.utils.toHex(gasLimit),
+        data: encoded,
+        value: 0,
+      }
+    );
+
+    res.status(200).json(sponsoredTransaction.toJSON({ versionKey: false }));
   } catch (e) {
     let message = "Unknown error";
     if (e instanceof Error) {
