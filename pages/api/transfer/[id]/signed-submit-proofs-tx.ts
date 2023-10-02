@@ -51,18 +51,12 @@ const handler: NextApiHandler = async (
 
     const encoded = method.encodeABI();
 
-    const gasPrice = await web3.eth.getGasPrice();
-    const gas = await method.estimateGas();
-    const gasLimit = gas ?? 400_000;
-
     const sponsorWalletService = new SponsorWalletService();
 
     const sponsoredTransaction = await sponsorWalletService.sponsorTransaction(
       transfer.id,
       {
         to: RELAY_CONTRACT_ADDRESS,
-        gasPrice: web3.utils.toHex(gasPrice),
-        gas: web3.utils.toHex(gasLimit),
         data: encoded,
         value: 0,
       }

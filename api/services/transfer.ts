@@ -40,7 +40,7 @@ export class TransferService {
     }, [] as Record<string, string>[]);
     return TransferModel.find({
       $or: queryConstraints,
-    });
+    }).sort({ createdAt: -1 }) as unknown as ITransfer[];
   }
 
   async getTransfer(id: string): Promise<ITransfer> {
