@@ -2,8 +2,9 @@ import { Alert, Box, CircularProgress, Link } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { SYSCOIN_TX_BLOCKCHAIN_URL } from "@constants";
+import UTXOStepWrapper from "../UTXOStepWrapper";
 
 type Props = {
   invalidStateMessage: string;
@@ -76,4 +77,10 @@ const BridgeV3StepConfirmUTXOTransaction: React.FC<Props> = ({
   );
 };
 
-export default BridgeV3StepConfirmUTXOTransaction;
+const Wrapped: React.FC<Props> = (props) => (
+  <UTXOStepWrapper>
+    <BridgeV3StepConfirmUTXOTransaction {...props} />
+  </UTXOStepWrapper>
+);
+
+export default Wrapped;

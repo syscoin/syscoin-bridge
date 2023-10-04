@@ -1,10 +1,10 @@
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
 import { useTransfer } from "../context/TransferContext";
-import { useWeb3 } from "../context/Web";
 import { Alert, CircularProgress, Link, Typography } from "@mui/material";
 import { useNevmTransaction } from "../hooks/useNevmTransaction";
 import { useEffect } from "react";
 import { NEVM_TX_BLOCKCHAIN_URL } from "@constants";
+import NEVMStepWrapper from "../NEVMStepWrapepr";
 
 type Props = {
   successStatus: TransferStatus;
@@ -70,4 +70,10 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
   );
 };
 
-export default BridgeV3ConfirmNEVMTransaction;
+const Wrapped: React.FC<Props> = (props) => (
+  <NEVMStepWrapper>
+    <BridgeV3ConfirmNEVMTransaction {...props} />
+  </NEVMStepWrapper>
+);
+
+export default Wrapped;
