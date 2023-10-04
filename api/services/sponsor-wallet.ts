@@ -1,7 +1,8 @@
+import { DEFAULT_GAS_LIMIT } from "@constants";
 import SponsorWallet, { ISponsorWallet } from "models/sponsor-wallet";
 import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
-  SponsorWalletTransactionStatus,
+  SponsorWalletTransactionCollectionName,
 } from "models/sponsor-wallet-transactions";
 import web3 from "utils/get-web3";
 import { TransactionConfig } from "web3-core";
@@ -44,12 +45,20 @@ export class SponsorWalletService {
       return existingTransaction;
     }
 
-    const nonce = await this.getWalletNextNonce(wallet.id);
+    const nonce = await this.getWalletNextNonce(wallet._id);
 
     const sender = web3.eth.accounts.privateKeyToAccount(wallet.privateKey);
 
+    const gasPrice = await web3.eth.getGasPrice();
+    const gas = await web3.eth.estimateGas(transactionConfig).catch((e) => {
+      console.error("estimateGas error", e);
+      return DEFAULT_GAS_LIMIT;
+    });
+
     const signedTransaction = await sender.signTransaction({
       ...transactionConfig,
+      gasPrice: web3.utils.toHex(gasPrice),
+      gas: web3.utils.toHex(gas),
       nonce,
     });
 
@@ -62,26 +71,14 @@ export class SponsorWalletService {
 
     let walletTransaction = new SponsorWalletTransactions({
       transferId: transferId,
-      walletId: wallet.id,
-      transactionHash: signedTransaction.transactionHash,
+      walletId: wallet._id,
+      transaction: {
+        hash: signedTransaction.transactionHash,
+        rawData: signedTransaction.rawTransaction,
+        nonce: nonce,
+      },
       status: "pending",
     });
-
-    walletTransaction = await walletTransaction.save();
-
-    let receipt = await web3.eth
-      .getTransactionReceipt(signedTransaction.transactionHash)
-      .catch(() => undefined);
-    let status: SponsorWalletTransactionStatus = "success";
-
-    if (!receipt) {
-      receipt = await web3.eth.sendSignedTransaction(
-        signedTransaction.rawTransaction
-      );
-      status = "pending";
-    }
-
-    walletTransaction.status = status;
 
     return walletTransaction.save();
   }
@@ -101,31 +98,32 @@ export class SponsorWalletService {
     }
 
     transaction.status = receipt.status ? "success" : "failed";
+    transaction.transaction.confirmedHash = receipt.transactionHash;
     await transaction.save();
   }
 
   private async getWalletNextNonce(walletId: string): Promise<number> {
-    const wallet = await SponsorWallet.findOne({ id: walletId });
+    const wallet = await SponsorWallet.findById(walletId);
     if (!wallet) {
       throw new Error("Wallet not found");
     }
-    const lastTransaction = await SponsorWalletTransactions.findOne({
+    const [lastTransaction] = await SponsorWalletTransactions.find({
       walletId: wallet?.id,
-    }).sort({ createdAt: -1 });
+    }).sort({ "transaction.nonce": -1 }).limit(1);
 
-    if (!lastTransaction) {
-      const nonce = await web3.eth.getTransactionCount(
-        wallet.address,
-        "pending"
-      );
-      return nonce;
-    }
-
-    const transaction = await web3.eth.getTransaction(
-      lastTransaction.transactionHash
+    const pendingNonce = await web3.eth.getTransactionCount(
+      wallet.address,
+      "pending"
     );
 
-    return transaction.nonce + 1;
+    console.log("pendingNonce", pendingNonce);
+    console.log("lastTransaction nonce", lastTransaction?.transaction.nonce);
+
+    const internalNonce = lastTransaction
+      ? lastTransaction.transaction.nonce
+      : -1;
+
+    return pendingNonce > internalNonce ? pendingNonce : internalNonce + 1;
   }
 
   private async getAvailableWalletForSigning(): Promise<ISponsorWallet> {
@@ -146,7 +144,7 @@ export class SponsorWalletService {
     return SponsorWallet.aggregate([
       {
         $lookup: {
-          from: "sponsorwallettransactions",
+          from: SponsorWalletTransactionCollectionName,
           localField: "_id",
           foreignField: "walletId",
           as: "transactions",
@@ -166,7 +164,7 @@ export class SponsorWalletService {
     return SponsorWallet.aggregate([
       {
         $lookup: {
-          from: "sponsorwallettransactions",
+          from: SponsorWalletTransactionCollectionName,
           localField: "_id",
           foreignField: "walletId",
           as: "transactions",

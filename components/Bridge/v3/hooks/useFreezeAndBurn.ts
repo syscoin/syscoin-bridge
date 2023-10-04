@@ -4,6 +4,7 @@ import { useMutation } from "react-query";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { toWei } from "web3-utils";
 import { useErc20ManagerContract } from "./useErc20ManagerContract";
+import { DEFAULT_GAS_LIMIT } from "@constants";
 
 export const useFreezeAndBurn = (transfer: ITransfer) => {
   const erc20ManagerContract = useErc20ManagerContract();
@@ -21,6 +22,7 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
 
       const gas = await method.estimateGas().catch((error: Error) => {
         console.error("Estimate gas error", error);
+        return DEFAULT_GAS_LIMIT
       });
 
       return new Promise<string>((resolve, reject) => {
