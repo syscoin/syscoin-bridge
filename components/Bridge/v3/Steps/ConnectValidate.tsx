@@ -3,6 +3,8 @@ import { CheckCircleOutline, CloseOutlined } from "@mui/icons-material";
 import {
   Box,
   Button,
+  Checkbox,
+  FormControlLabel,
   InputAdornment,
   TextField,
   Typography,
@@ -21,6 +23,7 @@ import { ITransfer, TransferStatus } from "@contexts/Transfer/types";
 import { useRouter } from "next/router";
 import { MIN_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
+import Link from "next/link";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -36,6 +39,7 @@ type ConnectValidateFormData = {
   nevmAddress: string;
   utxoAddress: string;
   utxoXpub: string;
+  agreeTermsAndConditions: boolean;
 };
 
 type BridgeV3ConnectValidateStepProps = {
@@ -52,7 +56,7 @@ const BridgeV3ConnectValidateStep: React.FC<
   const {
     register,
     setValue,
-    formState: { errors },
+    formState: { errors, isValid },
     handleSubmit,
     watch,
   } = useForm<ConnectValidateFormData>({
@@ -62,6 +66,7 @@ const BridgeV3ConnectValidateStep: React.FC<
       nevmAddress: "",
       utxoAddress: "",
       utxoXpub: "",
+      agreeTermsAndConditions: false,
     },
   });
 
@@ -106,7 +111,8 @@ const BridgeV3ConnectValidateStep: React.FC<
     (!isNevmNotEnoughGas || foundationFundingAvailable);
   const isAmountValid = errors.amount === undefined;
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
-  const isReady = isUtxoValid && isNevmValid && isAmountValid && balanceFetched;
+  const isReady =
+    isUtxoValid && isNevmValid && isAmountValid && balanceFetched && isValid;
 
   const onSubmit: SubmitHandler<ConnectValidateFormData> = (data) => {
     const { amount, ...rest } = data;
@@ -204,6 +210,29 @@ const BridgeV3ConnectValidateStep: React.FC<
         helperText={<>{errors.amount && errors.amount.message}</>}
         sx={{ mb: 2 }}
       />
+      <Box>
+        <FormControlLabel
+          control={
+            <Checkbox
+              {...register("agreeTermsAndConditions", { required: true })}
+              color="primary"
+            ></Checkbox>
+          }
+          label={
+            <Typography variant="body1">
+              I agree the{" "}
+              <Typography
+                component={Link}
+                color="primary"
+                target="_blank"
+                href="/Syscoin Terms and Conditions.pdf"
+              >
+                terms and conditions.
+              </Typography>
+            </Typography>
+          }
+        />
+      </Box>
       {isReady && (
         <Box sx={{ display: "flex", mb: 2 }}>
           <Typography variant="body1">
