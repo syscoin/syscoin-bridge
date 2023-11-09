@@ -220,7 +220,7 @@ const BridgeV3ConnectValidateStep: React.FC<
           }
           label={
             <Typography variant="body1">
-              I agree the{" "}
+              I agree to the{" "}
               <Typography
                 component={Link}
                 color="primary"

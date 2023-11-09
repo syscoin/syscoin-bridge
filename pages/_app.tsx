@@ -7,6 +7,7 @@ import ConnectedWalletProvider from "../contexts/ConnectedWallet/Provider";
 import MetamaskProvider from "../contexts/Metamask/Provider";
 import "../styles/globals.css";
 import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
+import WelcomeModal from "components/WelcomeModal";
 
 const queryClient = new QueryClient();
 
@@ -14,6 +15,7 @@ function MyApp({ Component, pageProps, router }: AppProps) {
   if (router.pathname.includes("/bridge/v3/")) {
     return (
       <ThemeProvider theme={theme}>
+        <WelcomeModal />
         <Component {...pageProps} />
       </ThemeProvider>
     );
@@ -25,6 +27,7 @@ function MyApp({ Component, pageProps, router }: AppProps) {
           <NEVMProvider>
             <ConnectedWalletProvider>
               <ThemeProvider theme={theme}>
+                <WelcomeModal />
                 <Component {...pageProps} />
               </ThemeProvider>
             </ConnectedWalletProvider>
