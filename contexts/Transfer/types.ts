@@ -50,4 +50,5 @@ export interface ITransfer {
   utxoXpub?: string;
   nevmAddress?: string;
   version: "v1" | "v2";
+  agreedToTerms: boolean;
 }

@@ -39,7 +39,7 @@ type ConnectValidateFormData = {
   nevmAddress: string;
   utxoAddress: string;
   utxoXpub: string;
-  agreeTermsAndConditions: boolean;
+  agreedToTerms: boolean;
 };
 
 type BridgeV3ConnectValidateStepProps = {
@@ -66,7 +66,7 @@ const BridgeV3ConnectValidateStep: React.FC<
       nevmAddress: "",
       utxoAddress: "",
       utxoXpub: "",
-      agreeTermsAndConditions: false,
+      agreedToTerms: false,
     },
   });
 
@@ -214,7 +214,7 @@ const BridgeV3ConnectValidateStep: React.FC<
         <FormControlLabel
           control={
             <Checkbox
-              {...register("agreeTermsAndConditions", { required: true })}
+              {...register("agreedToTerms", { required: true })}
               color="primary"
             ></Checkbox>
           }
