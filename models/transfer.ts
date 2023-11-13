@@ -47,6 +47,9 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   amount: {
     type: String,
   },
+  agreedToTerms: {
+    type: Boolean,
+  },
 });
 
 export default mongoose.models.Transfer ||

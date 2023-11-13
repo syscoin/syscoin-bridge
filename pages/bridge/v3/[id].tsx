@@ -49,6 +49,7 @@ const createTransfer = (type: TransferType): ITransfer => ({
   logs: [],
   createdAt: Date.now(),
   version: "v2",
+  agreedToTerms: false
 });
 
 const BridgeV3Page: NextPage = () => {
