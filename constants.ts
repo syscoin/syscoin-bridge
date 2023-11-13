@@ -1,4 +1,4 @@
-export const MIN_AMOUNT = 0.01;
+export const MIN_AMOUNT = 0.001;
 export const DEFAULT_GAS_LIMIT = 120_000
 
 export const RELAY_CONTRACT_ADDRESS =
