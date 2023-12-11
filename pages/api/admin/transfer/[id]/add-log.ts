@@ -12,18 +12,33 @@ import {
   ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
+import { verifySignature } from "utils/api/verify-signature";
 
 const handleBurnSys = async (
   transferId: string,
-  data: AddBurnSysLogRequestPayload,
+  payload: AddBurnSysLogRequestPayload,
+  req: NextApiRequest,
   res: NextApiResponse
 ) => {
   await dbConnect();
+  const { address } = req.session.user!;
   const transfer = await TransferModel.findOne({ id: transferId });
   if (!transfer) {
     return res.status(404).json({ message: "Transfer not found" });
   }
-  const { txId, clearAll } = data;
+  const { txId, clearAll, operation, signedMessage } = payload;
+  const data = {
+    operation,
+    txId,
+    clearAll,
+  };
+  const message = `0x${Buffer.from(JSON.stringify(data), "utf8").toString(
+    "hex"
+  )}`;
+
+  if (!verifySignature(message, signedMessage, address)) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
   const rawTransaction = await syscoinUtils.fetchBackendRawTx(
     BlockbookAPIURL,
@@ -66,7 +81,7 @@ const AdminTransferAddLog: NextApiHandler = adminSessionGuard(
     const body = req.body as AddLogRequestPayload;
     const { id } = req.query;
     if (body.operation === "burn-sys") {
-      return handleBurnSys(id as string, body, res);
+      return handleBurnSys(id as string, body, req, res);
     }
     // Unsupported operation
     return res.status(400).json({ message: "Bad request" });

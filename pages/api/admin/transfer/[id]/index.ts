@@ -51,7 +51,7 @@ const AdminTransfer: NextApiHandler = adminSessionGuard(
       user.address
     );
 
-    if (isVerified) {
+    if (!isVerified) {
       return res.status(401).json({ success: false });
     }
 

@@ -5,12 +5,14 @@ import {
   TextField,
   Typography,
   Checkbox,
+  Alert,
 } from "@mui/material";
 import AddLogModalContainer from "./ModalContainer";
 import { useForm } from "react-hook-form";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { AddBurnSysLogRequestPayload } from "api/types/admin/transfer/add-log";
+import { useState } from "react";
 
 type Props = {
   onClose: (refetch?: boolean) => void;
@@ -29,6 +31,8 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
       clearAll: true,
     },
   });
+
+  const [submitError, setSubmitError] = useState<string>();
 
   const { signMessage } = useNEVM();
 
@@ -63,6 +67,7 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
           txId: values.txId,
           signedMessage,
         };
+        setSubmitError(undefined);
         return fetch(`/api/admin/transfer/${transferId}/add-log`, {
           body: JSON.stringify(payload),
           headers: {
@@ -74,7 +79,9 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
       .then((res) => {
         if (res.ok) {
           onClose(true);
+          return;
         }
+        return res.json().then(({ message }) => setSubmitError(message));
       });
   };
 
@@ -95,6 +102,7 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
           label="Clear all other burn-sys logs"
         />
       </Box>
+      {submitError && <Alert severity="error">{submitError}</Alert>}
       <Box display="flex">
         <Button color="secondary" onClick={() => onClose()}>
           Cancel

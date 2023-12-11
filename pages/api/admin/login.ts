@@ -23,7 +23,7 @@ const AdminLoginApiRoute: NextApiHandler = withSessionRoute(
       address
     );
 
-    if (isVerified) {
+    if (!isVerified) {
       return res.status(401).json({ success: false });
     }
 

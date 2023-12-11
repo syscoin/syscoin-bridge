@@ -21,5 +21,5 @@ export const verifySignature = (
   const publicKey = ecrecover(msgHash, sigParams.v, sigParams.r, sigParams.s);
   const recoveredAddress = bufferToHex(pubToAddress(publicKey));
 
-  return recoveredAddress.toLowerCase() !== address.toLowerCase();
+  return recoveredAddress.toLowerCase() === address.toLowerCase();
 };
