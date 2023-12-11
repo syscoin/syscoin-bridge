@@ -5,6 +5,7 @@ import {
   ETH_TO_SYS_TRANSFER_STATUS,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
+import { Close } from "@mui/icons-material";
 
 const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
   <Stepper activeStep={activeStep}>
@@ -26,25 +27,28 @@ const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
   </Stepper>
 );
 
-const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
-  <Stepper activeStep={activeStep}>
-    <Step key="connect-and-validate">
-      <StepLabel>Connect and Validated</StepLabel>
-    </Step>
-    <Step key="burn-sys">
-      <StepLabel>Burn SYS</StepLabel>
-    </Step>
-    <Step key="burn-sysx">
-      <StepLabel>Burn SYSX</StepLabel>
-    </Step>
-    <Step key="validate-proofs">
-      <StepLabel>Validate Proofs</StepLabel>
-    </Step>
-    <Step key="Completed">
-      <StepLabel>Completed</StepLabel>
-    </Step>
-  </Stepper>
-);
+const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
+  const { transfer } = useTransfer();
+  return (
+    <Stepper activeStep={activeStep}>
+      <Step key="connect-and-validate">
+        <StepLabel>Connect and Validated</StepLabel>
+      </Step>
+      <Step key="burn-sys">
+        <StepLabel>Burn SYS {transfer.useSysx ? "(Skipped)" : ""}</StepLabel>
+      </Step>
+      <Step key="burn-sysx">
+        <StepLabel>Burn SYSX</StepLabel>
+      </Step>
+      <Step key="validate-proofs">
+        <StepLabel>Validate Proofs</StepLabel>
+      </Step>
+      <Step key="Completed">
+        <StepLabel>Completed</StepLabel>
+      </Step>
+    </Stepper>
+  );
+};
 
 const BridgeV3Stepper: React.FC = () => {
   const {

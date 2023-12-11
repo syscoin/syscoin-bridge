@@ -77,4 +77,5 @@ export interface ITransfer {
   nevmAddress?: string;
   version: "v1" | "v2";
   agreedToTerms: boolean;
+  useSysx?: boolean;
 }

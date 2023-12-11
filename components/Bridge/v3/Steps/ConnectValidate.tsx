@@ -19,11 +19,16 @@ import {
 import UTXOConnect from "components/Bridge/WalletSwitchV2/UTXOConnect";
 import NEVMConnect from "components/Bridge/WalletSwitchV2/NEVMConnect";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
-import { ITransfer, TransferStatus } from "@contexts/Transfer/types";
+import {
+  ITransfer,
+  SYS_TO_ETH_TRANSFER_STATUS,
+  TransferStatus,
+} from "@contexts/Transfer/types";
 import { useRouter } from "next/router";
 import { MIN_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import Link from "next/link";
+import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -68,15 +73,18 @@ const BridgeV3ConnectValidateStep: React.FC<
       utxoAddress: "",
       utxoXpub: "",
       agreedToTerms: false,
+      useSysx: false,
     },
   });
 
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
   const nevmAddress = watch("nevmAddress");
+  const useSysx = watch("useSysx");
   const minAmount = MIN_AMOUNT;
 
   const utxoBalance = useUtxoBalance(utxoXpub);
+  const sysxBalance = useUtxoBalance(utxoXpub, utxoAddress, SYSX_ASSET_GUID);
   const nevmBalance = useNevmBalance(nevmAddress);
 
   const isUtxoNotEnoughGas =
@@ -121,7 +129,10 @@ const BridgeV3ConnectValidateStep: React.FC<
       ...transfer,
       amount: amount.toString(),
       ...rest,
-      status: successStatus,
+      status:
+        data.useSysx && transfer.type === "sys-to-nevm"
+          ? SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX
+          : successStatus,
     };
     saveTransfer(modifiedTransfer, {
       onSuccess: (transfer) => {
@@ -149,14 +160,12 @@ const BridgeV3ConnectValidateStep: React.FC<
                 setValue("utxoAddress", address);
                 setValue("utxoXpub", xpub);
               }}
+              showSysxBalance={useSysx}
             />
             <Box>
               <FormControlLabel
                 control={
-                  <Checkbox
-                    {...register("useSysx", { required: true })}
-                    color="primary"
-                  ></Checkbox>
+                  <Checkbox {...register("useSysx")} color="secondary" />
                 }
                 label={<Typography variant="body1">Use SYSX</Typography>}
               />

@@ -81,6 +81,7 @@ const BridgeV3StepSwitch = () => {
       return <BridgeV3CompleteNevmToSys transfer={transfer} />;
     }
   }
+
   if (transfer.status === COMMON_STATUS.INITIALIZE) {
     return (
       <BridgeV3ConnectValidateStep

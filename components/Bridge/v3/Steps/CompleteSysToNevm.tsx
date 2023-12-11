@@ -12,29 +12,40 @@ type Props = {
 
 const BridgeV3CompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
-  const burnSysTx = logs.find(
-    (log) => log.status === "burn-sys" && log.payload.data.tx !== undefined
-  );
+  const burnSysTx = transfer.useSysx
+    ? undefined
+    : logs.find(
+        (log) => log.status === "burn-sys" && log.payload.data.tx !== undefined
+      );
   const burnSysxTx = logs.find(
     (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
   );
   const submitProofsTx = logs.find(
-    (log) => log.status === "submit-proofs" && log.payload.data.hash !== undefined
+    (log) =>
+      log.status === "submit-proofs" && log.payload.data.hash !== undefined
   );
   return (
     <Box>
       <Alert severity="success" sx={{ mb: 3 }}>
         Transfer complete!
       </Alert>
+
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2">Burn Sys tx:</Typography>
-        <Link
-          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysTx?.payload.data.tx}`}
-          target="_blank"
-        >
-          {burnSysTx?.payload.data.tx}
-        </Link>
+        {burnSysTx ? (
+          <Link
+            href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysTx?.payload.data.tx}`}
+            target="_blank"
+          >
+            {burnSysTx?.payload.data.tx}
+          </Link>
+        ) : (
+          <Typography variant="body2" color="secondary.main">
+            Skipped
+          </Typography>
+        )}
       </Box>
+
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2">Burn Sysx tx:</Typography>
         <Link
