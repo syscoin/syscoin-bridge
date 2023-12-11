@@ -1,14 +1,6 @@
 import { ADMIN_LOGIN_MESSAGE } from "@constants";
-import { sessionOptions, withSessionRoute } from "lib/session";
+import { withSessionRoute } from "lib/session";
 import { NextApiHandler } from "next";
-import {
-  fromRpcSig,
-  hashPersonalMessage,
-  toBuffer,
-  ecrecover,
-  bufferToHex,
-  pubToAddress,
-} from "ethereumjs-util";
 import dbConnect from "lib/mongodb";
 import AdminModel from "models/admin";
 import { verifySignature } from "utils/api/verify-signature";
