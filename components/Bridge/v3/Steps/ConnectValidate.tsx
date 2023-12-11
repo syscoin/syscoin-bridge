@@ -40,6 +40,7 @@ type ConnectValidateFormData = {
   utxoAddress: string;
   utxoXpub: string;
   agreedToTerms: boolean;
+  useSysx?: boolean;
 };
 
 type BridgeV3ConnectValidateStepProps = {
@@ -141,13 +142,26 @@ const BridgeV3ConnectValidateStep: React.FC<
           {transfer.type === "sys-to-nevm" ? "UTXO" : "NEVM"}:
         </Typography>
         {transfer.type === "sys-to-nevm" ? (
-          <UTXOConnect
-            transfer={modifiedTransfer}
-            setUtxo={({ address, xpub }) => {
-              setValue("utxoAddress", address);
-              setValue("utxoXpub", xpub);
-            }}
-          />
+          <>
+            <UTXOConnect
+              transfer={modifiedTransfer}
+              setUtxo={({ address, xpub }) => {
+                setValue("utxoAddress", address);
+                setValue("utxoXpub", xpub);
+              }}
+            />
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    {...register("useSysx", { required: true })}
+                    color="primary"
+                  ></Checkbox>
+                }
+                label={<Typography variant="body1">Use SYSX</Typography>}
+              />
+            </Box>
+          </>
         ) : (
           <NEVMConnect
             transfer={modifiedTransfer}

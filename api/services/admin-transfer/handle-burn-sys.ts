@@ -9,7 +9,7 @@ import {
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import { verifySignature } from "utils/api/verify-signature";
-import { verifyTxTokenTransfer } from "./constants";
+import { CONFIRM_UTXO_TRANSACTION, verifyTxTokenTransfer } from "./constants";
 
 export const handleBurnSys = async (
   transferId: string,
@@ -45,26 +45,34 @@ export const handleBurnSys = async (
   }
 
   if (clearAll) {
-    transfer.logs = transfer.logs.filter(
-      (log) =>
-        !(
-          log.payload.message.includes("Confirm UTXO Transaction") &&
-          log.status === "burn-sys"
-        )
-    );
+    transfer.logs = transfer.logs.filter((log) => !(log.status === "burn-sys"));
   }
 
-  const newLog: ITransferLog = {
+  const burnSysLog: ITransferLog = {
     status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
     payload: {
-      data: verifiedTransaction,
-      message: "Confirm UTXO Transaction",
+      data: {
+        tx: txId,
+      },
+      message: "Burning SYS to SYSX",
       previousStatus: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
     },
     date: Date.now(),
   };
 
-  transfer.logs.push(newLog);
+  transfer.logs.push(burnSysLog);
+
+  const confirmLog: ITransferLog = {
+    status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+    payload: {
+      data: verifiedTransaction,
+      message: CONFIRM_UTXO_TRANSACTION,
+      previousStatus: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+    },
+    date: Date.now(),
+  };
+
+  transfer.logs.push(confirmLog);
 
   await transfer.save();
 

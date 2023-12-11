@@ -48,15 +48,25 @@ export const handleBurnSysx = async (
 
   if (clearAll) {
     transfer.logs = transfer.logs.filter(
-      (log) =>
-        !(
-          log.payload.message.includes(CONFIRM_UTXO_TRANSACTION) &&
-          log.status === SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX
-        )
+      (log) => !(log.status === SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX)
     );
   }
 
-  const newLog: ITransferLog = {
+  const burnSysxLog: ITransferLog = {
+    status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
+    payload: {
+      data: {
+        tx: txId,
+      },
+      message: "Burning SYSX to NEVM",
+      previousStatus: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+    },
+    date: Date.now(),
+  };
+
+  transfer.logs.push(burnSysxLog);
+
+  const confirmLog: ITransferLog = {
     status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
     payload: {
       data: verifiedTransaction,
@@ -66,7 +76,7 @@ export const handleBurnSysx = async (
     date: Date.now(),
   };
 
-  transfer.logs.push(newLog);
+  transfer.logs.push(confirmLog);
 
   await transfer.save();
 
