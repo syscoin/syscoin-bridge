@@ -168,6 +168,7 @@ const BridgeV3ConnectValidateStep: React.FC<
           maxAmountCalculated={maxAmountCalculated}
           minAmount={MIN_AMOUNT}
           balance={maxAmmount}
+          transfer={modifiedTransfer}
         />
         <ConnectValidateAgreeToTermsCheckbox />
         <ConnectValidateStartTransferButton

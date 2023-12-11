@@ -13,6 +13,7 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { useUtxoBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
+import { useEffect } from "react";
 
 type AssetType = "sys" | "sysx" | "none";
 
@@ -60,6 +61,12 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
 
   const allowChange = transfer.status === "initialize";
 
+  useEffect(() => {
+    if (sysxBalance.isError && setSelectedAsset) {
+      setSelectedAsset("sys");
+    }
+  }, [sysxBalance.isError, setSelectedAsset]);
+
   if (
     isBitcoinBased && allowChange
       ? transfer.utxoAddress === connectedAccount
@@ -92,25 +99,27 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
         address={transfer.utxoAddress ?? ""}
         allowChange={allowChange}
         balance={
-          <Select
-            value={selectedAsset}
-            onChange={handleChange}
-            disabled={Boolean(faucetLink)}
-          >
-            <MenuItem value="none" disabled>
-              Please select token
-            </MenuItem>
-            <MenuItem value="sys">
-              {balance.isLoading
-                ? "Loading..."
-                : `${balance.data?.toFixed(4)} SYS`}
-            </MenuItem>
-            <MenuItem value="sysx" disabled={!sysxBalance.data}>
-              {sysxBalance.isLoading
-                ? "Loading..."
-                : `${(sysxBalance.data ?? 0).toFixed(4)} SYSX`}
-            </MenuItem>
-          </Select>
+          sysxBalance.data && (
+            <Select
+              value={selectedAsset}
+              onChange={handleChange}
+              disabled={Boolean(faucetLink)}
+            >
+              <MenuItem value="none" disabled>
+                Please select token
+              </MenuItem>
+              <MenuItem value="sys">
+                {balance.isLoading
+                  ? "Loading..."
+                  : `${balance.data?.toFixed(4)} SYS`}
+              </MenuItem>
+              <MenuItem value="sysx" disabled={!sysxBalance.data}>
+                {sysxBalance.isLoading
+                  ? "Loading..."
+                  : `${(sysxBalance.data ?? 0).toFixed(4)} SYSX`}
+              </MenuItem>
+            </Select>
+          )
         }
         onChange={change}
         faucetLink={faucetLink}
