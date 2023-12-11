@@ -23,9 +23,12 @@ import { formatRelative } from "date-fns";
 import { Change, OverrideTransferRequestBody } from "api/types/admin";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState } from "react";
-import AddLogMenu from "components/Admin/Transfer/AddLog";
+import AddLogMenu, {
+  SupportedOperations,
+} from "components/Admin/Transfer/AddLog";
 import AddBurnSysTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysTransaction";
 import { useQuery } from "react-query";
+import AddBurnSysxTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysxTransaction";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -35,7 +38,7 @@ type FormValues = Pick<ITransfer, "status">;
 
 const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { signMessage } = useNEVM();
-  const [addLogModal, setAddLogModal] = useState<string>();
+  const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
   const transferUrl = `/api/admin/transfer/${initialTransfer.id}`;
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
@@ -203,6 +206,12 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
         <>
           {addLogModal === "burn-sys" && (
             <AddBurnSysTransaction
+              onClose={closeAddLogModal}
+              transferId={transfer.id}
+            />
+          )}
+          {addLogModal === "burn-sysx" && (
+            <AddBurnSysxTransaction
               onClose={closeAddLogModal}
               transferId={transfer.id}
             />

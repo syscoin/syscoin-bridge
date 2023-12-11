@@ -10,15 +10,15 @@ type FormValues = {
   clearAll: boolean;
 };
 
-const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
+const AddBurnSysxTransaction: React.FC<Props> = ({ onClose, transferId }) => {
   return (
     <AddUTXOTransactionModal
       onClose={onClose}
-      operation="burn-sys"
-      tokenType="SPTSyscoinBurnToAssetAllocation"
+      operation="burn-sysx"
+      tokenType="SPTAssetAllocationBurnToNEVM"
       transferId={transferId}
     />
   );
 };
 
-export default AddBurnSysTransaction;
+export default AddBurnSysxTransaction;

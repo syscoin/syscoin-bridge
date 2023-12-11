@@ -1,8 +1,9 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import { Box, Button, Menu, MenuItem } from "@mui/material";
+import { AddLogRequestPayload } from "api/types/admin/transfer/add-log";
 import { useState } from "react";
 
-export type SupportedOperations = "burn-sys";
+export type SupportedOperations = AddLogRequestPayload["operation"];
 
 type Props = {
   transfer: ITransfer;
@@ -33,6 +34,9 @@ const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
       >
         <MenuItem onClick={() => handleClose("burn-sys")}>
           Add Burn Sys Transaction
+        </MenuItem>
+        <MenuItem onClick={() => handleClose("burn-sysx")}>
+          Add Burn Sysx Transaction
         </MenuItem>
       </Menu>
     </Box>
