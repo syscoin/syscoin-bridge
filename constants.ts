@@ -6,3 +6,5 @@ export const RELAY_CONTRACT_ADDRESS =
 
 export const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.elint.services/tx/";
 export const NEVM_TX_BLOCKCHAIN_URL = "https://explorer.syscoin.org/tx/";
+
+export const ADMIN_LOGIN_MESSAGE = "Login to Syscoin Bridge Admin";
