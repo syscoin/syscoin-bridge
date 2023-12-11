@@ -1,10 +1,8 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
 
-import ChangeCirlce from "@mui/icons-material/ChangeCircle";
-
 type WalletSwitchCardProps = {
   address: string;
-  balance: string;
+  balance: string | React.ReactNode;
   allowChange: boolean;
   onChange: () => void;
   faucetLink?: React.ReactNode;
@@ -35,13 +33,23 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
         <Typography variant="body2" color={success.main}>
           CONFIRMED
         </Typography>
-      </Box>
-      <Box display="flex" sx={{ alignItems: "center" }}>
-        <Typography marginRight="auto">Balance: {balance}</Typography>
         {allowChange && (
-          <Button onClick={onChange} size="small">
+          <Button
+            onClick={onChange}
+            size="small"
+            variant="outlined"
+            sx={{ ml: 2 }}
+            color="secondary"
+          >
             Change
           </Button>
+        )}
+      </Box>
+      <Box display="flex" sx={{ alignItems: "center" }}>
+        {typeof balance === "string" ? (
+          <Typography marginRight="auto">Balance: {balance}</Typography>
+        ) : (
+          balance
         )}
       </Box>
       {faucetLink}

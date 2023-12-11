@@ -50,7 +50,20 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   agreedToTerms: {
     type: Boolean,
   },
+  useSysx: {
+    type: Boolean,
+  },
+  utxoAssetType: {
+    type: String,
+  },
 });
 
-export default mongoose.models.Transfer ||
-  mongoose.model("Transfer", TransferSchema);
+const generateModel = () => mongoose.model("Transfer", TransferSchema);
+
+let model: ReturnType<typeof generateModel> = mongoose.models.Transfer;
+
+if (!model) {
+  model = generateModel();
+}
+
+export default model;
