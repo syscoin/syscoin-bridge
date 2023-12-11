@@ -53,6 +53,9 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   useSysx: {
     type: Boolean,
   },
+  utxoAssetType: {
+    type: String,
+  },
 });
 
 const generateModel = () => mongoose.model("Transfer", TransferSchema);

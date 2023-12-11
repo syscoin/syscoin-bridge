@@ -29,13 +29,14 @@ const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
 
 const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
   const { transfer } = useTransfer();
+  const useSysx = transfer.useSysx || transfer.utxoAssetType === "sysx";
   return (
     <Stepper activeStep={activeStep}>
       <Step key="connect-and-validate">
         <StepLabel>Connect and Validated</StepLabel>
       </Step>
       <Step key="burn-sys">
-        <StepLabel>Burn SYS {transfer.useSysx ? "(Skipped)" : ""}</StepLabel>
+        <StepLabel>Burn SYS {useSysx ? "(Skipped)" : ""}</StepLabel>
       </Step>
       <Step key="burn-sysx">
         <StepLabel>Burn SYSX</StepLabel>

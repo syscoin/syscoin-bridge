@@ -29,7 +29,8 @@ import { ConnectValidateStartTransferButton } from "./ConnectValidate/StartTrans
 const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
   const { setValue, watch } = useFormContext();
 
-  const utxoAsset = watch("useSysx") ? "sysx" : "sys";
+  const utxoAssetType = watch("utxoAssetType");
+
   return (
     <UTXOConnect
       transfer={transfer}
@@ -37,8 +38,8 @@ const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
         setValue("utxoAddress", address);
         setValue("utxoXpub", xpub);
       }}
-      selectedAsset={utxoAsset}
-      setSelectedAsset={(asset) => setValue("useSysx", asset === "sysx")}
+      selectedAsset={utxoAssetType}
+      setSelectedAsset={(asset) => setValue("utxoAssetType", asset)}
     />
   );
 };
@@ -61,7 +62,7 @@ type ConnectValidateFormData = {
   utxoAddress: string;
   utxoXpub: string;
   agreedToTerms: boolean;
-  useSysx?: boolean;
+  utxoAssetType?: "sys" | "sysx";
 };
 
 type BridgeV3ConnectValidateStepProps = {
@@ -82,7 +83,7 @@ const BridgeV3ConnectValidateStep: React.FC<
       utxoAddress: "",
       utxoXpub: "",
       agreedToTerms: false,
-      useSysx: false,
+      utxoAssetType: undefined,
     },
   });
 
@@ -90,12 +91,15 @@ const BridgeV3ConnectValidateStep: React.FC<
 
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
+  const utxoAssetType = watch("utxoAssetType");
+
   const nevmAddress = watch("nevmAddress");
-  const useSysx = watch("useSysx");
 
   const utxoBalance = useUtxoBalance(utxoXpub);
   const sysxBalance = useUtxoBalance(utxoXpub, utxoAddress, SYSX_ASSET_GUID);
   const nevmBalance = useNevmBalance(nevmAddress);
+
+  const useSysx = utxoAssetType === "sysx";
 
   const maxUtxoAmount = useSysx ? sysxBalance.data : utxoBalance.data;
 
@@ -116,8 +120,9 @@ const BridgeV3ConnectValidateStep: React.FC<
       ...transfer,
       amount: amount.toString(),
       ...rest,
+      useSysx,
       status:
-        data.useSysx && transfer.type === "sys-to-nevm"
+        useSysx && transfer.type === "sys-to-nevm"
           ? SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX
           : successStatus,
     };

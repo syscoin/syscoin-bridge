@@ -12,11 +12,13 @@ type Props = {
 
 const BridgeV3CompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
-  const burnSysTx = transfer.useSysx
-    ? undefined
-    : logs.find(
-        (log) => log.status === "burn-sys" && log.payload.data.tx !== undefined
-      );
+  const burnSysTx =
+    transfer.useSysx || transfer.utxoAssetType === "sysx"
+      ? undefined
+      : logs.find(
+          (log) =>
+            log.status === "burn-sys" && log.payload.data.tx !== undefined
+        );
   const burnSysxTx = logs.find(
     (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
   );

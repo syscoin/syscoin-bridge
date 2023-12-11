@@ -32,7 +32,8 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const utxoAddress = watch("utxoAddress");
   const nevmAddress = watch("nevmAddress");
   const utxoXpub = watch("utxoXpub");
-  const useSysx = watch("useSysx");
+  const utxoAssetType = watch("utxoAssetType");
+  const useSysx = utxoAssetType === "sysx";
   const amount = watch("amount");
   const utxoBalance = useUtxoBalance(utxoXpub);
   const sysxBalance = useUtxoBalance(utxoXpub, utxoAddress, SYSX_ASSET_GUID);
@@ -61,7 +62,8 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const isUtxoValid =
     isValidSYSAddress(utxoAddress, 57) &&
     !isUtxoNotEnoughGas &&
-    !isSysxNotEnoughBalance;
+    !isSysxNotEnoughBalance &&
+    utxoAssetType !== undefined;
 
   const isNevmValid =
     isValidEthereumAddress(nevmAddress) &&

@@ -14,7 +14,7 @@ import { useUtxoBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 
-type AssetType = "sys" | "sysx";
+type AssetType = "sys" | "sysx" | "none";
 
 type UTXOConnectProps = {
   transfer: ITransfer;
@@ -28,7 +28,7 @@ const minAmount = MIN_AMOUNT;
 const UTXOConnect: React.FC<UTXOConnectProps> = ({
   setUtxo,
   transfer,
-  selectedAsset = "sys",
+  selectedAsset = "none",
   setSelectedAsset,
 }) => {
   const balance = useUtxoBalance(transfer.utxoXpub!);
@@ -97,6 +97,9 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
             onChange={handleChange}
             disabled={Boolean(faucetLink)}
           >
+            <MenuItem value="none" disabled>
+              Please select token
+            </MenuItem>
             <MenuItem value="sys">
               {balance.isLoading
                 ? "Loading..."

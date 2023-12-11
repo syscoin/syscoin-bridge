@@ -78,4 +78,5 @@ export interface ITransfer {
   version: "v1" | "v2";
   agreedToTerms: boolean;
   useSysx?: boolean;
+  utxoAssetType?: "sys" | "sysx";
 }
