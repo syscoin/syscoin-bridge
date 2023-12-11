@@ -67,7 +67,13 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
     }
     const emptySysxBalance =
       sysxBalance.data === undefined || sysxBalance.data === 0;
-    if ((sysxBalance.isError || emptySysxBalance) && setSelectedAsset) {
+
+    const sysxIsInvalid = sysxBalance.isError || emptySysxBalance;
+
+    if (
+      (sysxIsInvalid || transfer.type === "nevm-to-sys") &&
+      setSelectedAsset
+    ) {
       setSelectedAsset("sys");
     }
   }, [
@@ -76,6 +82,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
     sysxBalance.data,
     sysxBalance.isFetched,
     transfer.utxoAddress,
+    transfer.type,
     isBitcoinBased,
   ]);
 
