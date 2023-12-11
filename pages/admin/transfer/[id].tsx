@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   Container,
+  IconButton,
   Modal,
   Typography,
 } from "@mui/material";
@@ -13,7 +14,7 @@ import { AdminLayoutContainer } from "components/Admin/LayoutContainer";
 import dbConnect from "lib/mongodb";
 import { GetServerSideProps, NextPage } from "next";
 import TransferModel from "models/transfer";
-import { ArrowCircleLeft } from "@mui/icons-material";
+import { ArrowCircleLeft, Delete } from "@mui/icons-material";
 import Link from "next/link";
 import MuiLink from "@mui/material/Link";
 import { FormProvider, useForm } from "react-hook-form";
@@ -27,8 +28,9 @@ import AddLogMenu, {
   SupportedOperations,
 } from "components/Admin/Transfer/AddLog";
 import AddBurnSysTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysTransaction";
-import { useQuery } from "react-query";
+import { useMutation, useQuery } from "react-query";
 import AddBurnSysxTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysxTransaction";
+import AdminTransferLogAccordion from "components/Admin/Transfer/LogAccordion";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -176,30 +178,12 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
           <AddLogMenu transfer={transfer} onSelect={setAddLogModal} />
         </Box>
         {transfer.logs.map((log) => (
-          <Accordion key={log.date}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-              <Typography variant="body1">
-                {log.payload.message} - ({log.status})
-                {new Date(log.date).toLocaleString()}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box
-                component="pre"
-                sx={{
-                  overflow: "auto",
-                  border: "1px solid #aaaa",
-                  borderRadius: "1rem",
-                  padding: "1rem",
-                  backgroundColor: "#202020",
-                  color: " #0ee40e",
-                  maxHeight: "20rem",
-                }}
-              >
-                {JSON.stringify(log.payload, null, 2)}
-              </Box>
-            </AccordionDetails>
-          </Accordion>
+          <AdminTransferLogAccordion
+            key={log.date}
+            transferId={transfer.id}
+            log={log}
+            onDelete={refetch}
+          />
         ))}
       </Container>
       <Modal open={Boolean(addLogModal)}>
