@@ -38,6 +38,9 @@ const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
         <MenuItem onClick={() => handleClose("burn-sysx")}>
           Add Burn Sysx Transaction
         </MenuItem>
+        <MenuItem onClick={() => handleClose("submit-proofs")}>
+          Add Submit Proofs Transaction
+        </MenuItem>
       </Menu>
     </Box>
   );

@@ -27,7 +27,7 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
 
   const sourceTxHash = sourceLog?.payload.data.hash;
 
-  const { data, isFetched } = useNevmTransaction(sourceTxHash);
+  const { data, isFetched } = useNevmTransaction(sourceTxHash, { refetch: true });
 
   useEffect(() => {
     if (!isFetched || !data) {

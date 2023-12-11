@@ -1,20 +1,10 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Button,
-  Container,
-  IconButton,
-  Modal,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Container, Modal, Typography } from "@mui/material";
 import { AdminLayoutContainer } from "components/Admin/LayoutContainer";
 import dbConnect from "lib/mongodb";
 import { GetServerSideProps, NextPage } from "next";
 import TransferModel from "models/transfer";
-import { ArrowCircleLeft, Delete } from "@mui/icons-material";
+import { ArrowCircleLeft } from "@mui/icons-material";
 import Link from "next/link";
 import MuiLink from "@mui/material/Link";
 import { FormProvider, useForm } from "react-hook-form";
@@ -22,15 +12,16 @@ import AdminTransferStatusSelect from "components/Admin/Transfer/StatusField";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { formatRelative } from "date-fns";
 import { Change, OverrideTransferRequestBody } from "api/types/admin";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState } from "react";
 import AddLogMenu, {
   SupportedOperations,
 } from "components/Admin/Transfer/AddLog";
 import AddBurnSysTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysTransaction";
-import { useMutation, useQuery } from "react-query";
+import { useQuery } from "react-query";
 import AddBurnSysxTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysxTransaction";
 import AdminTransferLogAccordion from "components/Admin/Transfer/LogAccordion";
+import AddSubmitProofsTransaction from "components/Admin/Transfer/AddLogModals/AddSubmitProofsTransaction";
+import { Web3Provider } from "components/Bridge/v3/context/Web";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -128,81 +119,89 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   };
 
   return (
-    <AdminLayoutContainer>
-      <Container sx={{ mb: 2 }}>
-        <Button LinkComponent={Link} href="/admin">
-          <ArrowCircleLeft />
-          Back to Transfer List
-        </Button>
-        <Typography variant="h6">#{transfer.id}</Typography>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          NEVM Address:
-          <MuiLink
-            href={`https://explorer.syscoin.org/address/${transfer.nevmAddress}`}
-            target="_blank"
-            sx={{ ml: 2 }}
-          >
-            {transfer.nevmAddress}
-          </MuiLink>
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          UTXO Address:
-          <MuiLink
-            href={`https://blockbook.elint.services/address/${transfer.utxoAddress}`}
-            target="_blank"
-            sx={{ ml: 2 }}
-          >
-            {transfer.utxoAddress}
-          </MuiLink>
-        </Typography>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          Created: {formatRelative(new Date(transfer.createdAt), new Date())}
-        </Typography>
-        <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-          <FormProvider {...form}>
-            <AdminTransferStatusSelect transfer={transfer} />
-          </FormProvider>
-          <Button
-            sx={{ display: "block" }}
-            variant="contained"
-            type="submit"
-            disabled={!isDirty || !isValid}
-          >
-            Update
+    <Web3Provider>
+      <AdminLayoutContainer>
+        <Container sx={{ mb: 2 }}>
+          <Button LinkComponent={Link} href="/admin">
+            <ArrowCircleLeft />
+            Back to Transfer List
           </Button>
-        </Box>
-      </Container>
-      <Container sx={{ py: 2, mb: 2 }}>
-        <Box display="flex" justifyContent="space-between">
-          <Typography variant="h6">Transfer Logs</Typography>
-          <AddLogMenu transfer={transfer} onSelect={setAddLogModal} />
-        </Box>
-        {transfer.logs.map((log) => (
-          <AdminTransferLogAccordion
-            key={log.date}
-            transferId={transfer.id}
-            log={log}
-            onDelete={refetch}
-          />
-        ))}
-      </Container>
-      <Modal open={Boolean(addLogModal)}>
-        <>
-          {addLogModal === "burn-sys" && (
-            <AddBurnSysTransaction
-              onClose={closeAddLogModal}
+          <Typography variant="h6">#{transfer.id}</Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            NEVM Address:
+            <MuiLink
+              href={`https://explorer.syscoin.org/address/${transfer.nevmAddress}`}
+              target="_blank"
+              sx={{ ml: 2 }}
+            >
+              {transfer.nevmAddress}
+            </MuiLink>
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            UTXO Address:
+            <MuiLink
+              href={`https://blockbook.elint.services/address/${transfer.utxoAddress}`}
+              target="_blank"
+              sx={{ ml: 2 }}
+            >
+              {transfer.utxoAddress}
+            </MuiLink>
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Created: {formatRelative(new Date(transfer.createdAt), new Date())}
+          </Typography>
+          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
+            <FormProvider {...form}>
+              <AdminTransferStatusSelect transfer={transfer} />
+            </FormProvider>
+            <Button
+              sx={{ display: "block" }}
+              variant="contained"
+              type="submit"
+              disabled={!isDirty || !isValid}
+            >
+              Update
+            </Button>
+          </Box>
+        </Container>
+        <Container sx={{ py: 2, mb: 2 }}>
+          <Box display="flex" justifyContent="space-between">
+            <Typography variant="h6">Transfer Logs</Typography>
+            <AddLogMenu transfer={transfer} onSelect={setAddLogModal} />
+          </Box>
+          {transfer.logs.map((log) => (
+            <AdminTransferLogAccordion
+              key={log.date}
               transferId={transfer.id}
+              log={log}
+              onDelete={refetch}
             />
-          )}
-          {addLogModal === "burn-sysx" && (
-            <AddBurnSysxTransaction
-              onClose={closeAddLogModal}
-              transferId={transfer.id}
-            />
-          )}
-        </>
-      </Modal>
-    </AdminLayoutContainer>
+          ))}
+        </Container>
+        <Modal open={Boolean(addLogModal)}>
+          <>
+            {addLogModal === "burn-sys" && (
+              <AddBurnSysTransaction
+                onClose={closeAddLogModal}
+                transferId={transfer.id}
+              />
+            )}
+            {addLogModal === "burn-sysx" && (
+              <AddBurnSysxTransaction
+                onClose={closeAddLogModal}
+                transferId={transfer.id}
+              />
+            )}
+            {addLogModal === "submit-proofs" && (
+              <AddSubmitProofsTransaction
+                onClose={closeAddLogModal}
+                transferId={transfer.id}
+              />
+            )}
+          </>
+        </Modal>
+      </AdminLayoutContainer>
+    </Web3Provider>
   );
 };
 

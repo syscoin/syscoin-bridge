@@ -1,7 +1,14 @@
 import { useQuery } from "react-query";
 import { useWeb3 } from "../context/Web";
 
-export const useNevmTransaction = (transactionHash?: string) => {
+type Options = {
+  refetch?: boolean;
+};
+
+export const useNevmTransaction = (
+  transactionHash?: string,
+  options: Options = {}
+) => {
   const web3 = useWeb3();
   return useQuery(["nevm", "transaction", transactionHash], {
     queryFn: async () => {
@@ -12,7 +19,11 @@ export const useNevmTransaction = (transactionHash?: string) => {
       }
       throw new Error("Transaction not confirmed");
     },
-    refetchInterval: 1000,
+    refetchInterval: options.refetch ? 1000 : undefined,
+    refetchOnMount: options.refetch,
+    refetchOnReconnect: options.refetch,
+    refetchOnWindowFocus: options.refetch,
+    refetchIntervalInBackground: options.refetch,
     retry: true,
     enabled: Boolean(transactionHash),
   });

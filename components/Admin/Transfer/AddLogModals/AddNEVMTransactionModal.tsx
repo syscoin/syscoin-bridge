@@ -11,30 +11,32 @@ import AddLogModalContainer from "./ModalContainer";
 import { useForm } from "react-hook-form";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
-import { AddUTXOLogRequestPayload } from "api/types/admin/transfer/add-log";
+import {
+  AddNEVMLogRequestPayload,
+  AddUTXOLogRequestPayload,
+} from "api/types/admin/transfer/add-log";
 import { useState } from "react";
+import { useNevmTransaction } from "components/Bridge/v3/hooks/useNevmTransaction";
 
 type Props = {
   onClose: (refetch?: boolean) => void;
   transferId: string;
-  tokenType: string;
-  operation: AddUTXOLogRequestPayload["operation"];
+  operation: AddNEVMLogRequestPayload["operation"];
 };
 
 type FormValues = {
-  txId: string;
+  txHash: string;
   clearAll: boolean;
 };
 
-const AddUTXOTransactionModal: React.FC<Props> = ({
+const AddNEVMTransactionModal: React.FC<Props> = ({
   onClose,
   transferId,
-  tokenType,
   operation,
 }) => {
   const { handleSubmit, register, watch } = useForm<FormValues>({
     defaultValues: {
-      txId: "",
+      txHash: "",
       clearAll: true,
     },
   });
@@ -43,12 +45,12 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
 
   const { signMessage } = useNEVM();
 
-  const txId = watch("txId");
+  const txHash = watch("txHash");
 
   const { isFetching, isFetched, isSuccess, data, isError } =
-    useUtxoTransaction(txId, 1, 10_000, 1);
+    useNevmTransaction(txHash, { refetch: false });
 
-  const isValidTx = isFetched && data && data.tokenType === tokenType;
+  const isValidTx = isFetched;
 
   let helperText =
     isFetched && !isValidTx ? `Not a valid ${operation} transaction` : "";
@@ -67,10 +69,10 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
     )}`;
     signMessage(message)
       .then((signedMessage) => {
-        const payload: AddUTXOLogRequestPayload = {
+        const payload: AddNEVMLogRequestPayload = {
           operation,
           clearAll: values.clearAll,
-          txId: values.txId,
+          txHash: values.txHash,
           signedMessage,
         };
         setSubmitError(undefined);
@@ -98,10 +100,10 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
       </Typography>
       <Box sx={{ my: 2 }} width="100%">
         <TextField
-          label="Transaction ID"
+          label="Transaction Hash"
           fullWidth
           sx={{ mb: 2 }}
-          {...register("txId")}
+          {...register("txHash")}
           error={Boolean(helperText)}
           helperText={helperText}
         />
@@ -128,4 +130,4 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
   );
 };
 
-export default AddUTXOTransactionModal;
+export default AddNEVMTransactionModal;
