@@ -29,9 +29,7 @@ export const handleBurnSys = async (
     txId,
     clearAll,
   };
-  const message = `0x${Buffer.from(JSON.stringify(data), "utf8").toString(
-    "hex"
-  )}`;
+  const message = JSON.stringify(data);
 
   if (!verifySignature(message, signedMessage, address)) {
     return res.status(401).json({ message: "Unauthorized" });
