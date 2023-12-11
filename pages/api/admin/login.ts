@@ -24,7 +24,9 @@ const AdminLoginApiRoute: NextApiHandler = withSessionRoute(
     );
 
     if (!isVerified) {
-      return res.status(401).json({ success: false });
+      return res
+        .status(401)
+        .json({ success: false, message: "signature invalid" });
     }
 
     await dbConnect();
@@ -32,7 +34,10 @@ const AdminLoginApiRoute: NextApiHandler = withSessionRoute(
     const adminUser = await AdminModel.findOne({ address });
 
     if (!adminUser) {
-      return res.status(401).json({ success: false });
+      return res.status(401).json({
+        success: false,
+        message: `address ${address} is not registered as admin`,
+      });
     }
 
     req.session.user = {
