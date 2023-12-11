@@ -94,32 +94,34 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
       setSelectedAsset(event.target.value as AssetType);
     };
 
+    const sysBalanceText = balance.isLoading
+      ? "Loading..."
+      : `${balance.data?.toFixed(4)} SYS`;
+
     return (
       <WalletSwitchCard
         address={transfer.utxoAddress ?? ""}
         allowChange={allowChange}
         balance={
-          sysxBalance.data && (
-            <Select
-              value={selectedAsset}
-              onChange={handleChange}
-              disabled={Boolean(faucetLink)}
-            >
-              <MenuItem value="none" disabled>
-                Please select token
-              </MenuItem>
-              <MenuItem value="sys">
-                {balance.isLoading
-                  ? "Loading..."
-                  : `${balance.data?.toFixed(4)} SYS`}
-              </MenuItem>
-              <MenuItem value="sysx" disabled={!sysxBalance.data}>
-                {sysxBalance.isLoading
-                  ? "Loading..."
-                  : `${(sysxBalance.data ?? 0).toFixed(4)} SYSX`}
-              </MenuItem>
-            </Select>
-          )
+          transfer.type === "nevm-to-sys"
+            ? sysBalanceText
+            : sysxBalance.data && (
+                <Select
+                  value={selectedAsset}
+                  onChange={handleChange}
+                  disabled={Boolean(faucetLink)}
+                >
+                  <MenuItem value="none" disabled>
+                    Please select token
+                  </MenuItem>
+                  <MenuItem value="sys">sysBalanceText</MenuItem>
+                  <MenuItem value="sysx" disabled={!sysxBalance.data}>
+                    {sysxBalance.isLoading
+                      ? "Loading..."
+                      : `${(sysxBalance.data ?? 0).toFixed(4)} SYSX`}
+                  </MenuItem>
+                </Select>
+              )
         }
         onChange={change}
         faucetLink={faucetLink}
