@@ -1,5 +1,14 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { Box, Button, Container, Typography } from "@mui/material";
+import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
+  Box,
+  Button,
+  Container,
+  Modal,
+  Typography,
+} from "@mui/material";
 import { AdminLayoutContainer } from "components/Admin/LayoutContainer";
 import dbConnect from "lib/mongodb";
 import { GetServerSideProps, NextPage } from "next";
@@ -12,8 +21,10 @@ import AdminTransferStatusSelect from "components/Admin/Transfer/StatusField";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { formatRelative } from "date-fns";
 import { Change, OverrideTransferRequestBody } from "api/types/admin";
-import { useRouter } from "next/navigation";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState } from "react";
+import AddLogMenu from "components/Admin/Transfer/AddLog";
+import AddBurnSysTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysTransaction";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -24,6 +35,7 @@ type FormValues = Pick<ITransfer, "status">;
 const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { signMessage } = useNEVM();
   const [transfer, setTransfer] = useState(initialTransfer);
+  const [addLogModal, setAddLogModal] = useState<string>();
 
   const form = useForm<FormValues>({
     mode: "all",
@@ -82,9 +94,14 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       return onUpdate(signedMessage, changes);
     });
   };
+
+  const closeAddLogModal = () => {
+    setAddLogModal(undefined);
+  };
+
   return (
     <AdminLayoutContainer>
-      <Container>
+      <Container sx={{ mb: 2 }}>
         <Button LinkComponent={Link} href="/admin">
           <ArrowCircleLeft />
           Back to Transfer List
@@ -127,6 +144,45 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
           </Button>
         </Box>
       </Container>
+      <Container sx={{ py: 2, mb: 2 }}>
+        <Box display="flex" justifyContent="space-between">
+          <Typography variant="h6">Transfer Logs</Typography>
+          <AddLogMenu transfer={transfer} onSelect={setAddLogModal} />
+        </Box>
+        {transfer.logs.map((log) => (
+          <Accordion key={log.date}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="body1">
+                {log.payload.message} - ({log.status})
+                {new Date(log.date).toLocaleString()}
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Box
+                component="pre"
+                sx={{
+                  overflow: "auto",
+                  border: "1px solid #aaaa",
+                  borderRadius: "1rem",
+                  padding: "1rem",
+                  backgroundColor: "#202020",
+                  color: " #0ee40e",
+                  maxHeight: "20rem",
+                }}
+              >
+                {JSON.stringify(log.payload, null, 2)}
+              </Box>
+            </AccordionDetails>
+          </Accordion>
+        ))}
+      </Container>
+      <Modal open={Boolean(addLogModal)}>
+        <>
+          {addLogModal === "burn-sys" && (
+            <AddBurnSysTransaction onClose={closeAddLogModal} />
+          )}
+        </>
+      </Modal>
     </AdminLayoutContainer>
   );
 };
@@ -150,7 +206,15 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
 
   const transfer = await TransferModel.findOne(
     { id },
-    { id: 1, nevmAddress: 1, utxoAddress: 1, status: 1, type: 1, createdAt: 1 }
+    {
+      id: 1,
+      nevmAddress: 1,
+      utxoAddress: 1,
+      status: 1,
+      type: 1,
+      createdAt: 1,
+      logs: 1,
+    }
   );
 
   if (!transfer) {
