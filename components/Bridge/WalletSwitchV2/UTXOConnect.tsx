@@ -14,11 +14,13 @@ import { useUtxoBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 
+type AssetType = "sys" | "sysx";
+
 type UTXOConnectProps = {
   transfer: ITransfer;
   setUtxo: (utxo: { xpub: string; address: string }) => void;
-  selectedAsset: "sys" | "sysx";
-  setSelectedAsset: (asset: "sys" | "sysx") => void;
+  selectedAsset?: AssetType;
+  setSelectedAsset?: (asset: AssetType) => void;
 };
 
 const minAmount = MIN_AMOUNT;
@@ -26,7 +28,7 @@ const minAmount = MIN_AMOUNT;
 const UTXOConnect: React.FC<UTXOConnectProps> = ({
   setUtxo,
   transfer,
-  selectedAsset,
+  selectedAsset = "sys",
   setSelectedAsset,
 }) => {
   const balance = useUtxoBalance(transfer.utxoXpub!);
@@ -79,7 +81,10 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
       ) : undefined;
 
     const handleChange = (event: SelectChangeEvent) => {
-      setSelectedAsset(event.target.value as UTXOConnectProps["selectedAsset"]);
+      if (!setSelectedAsset) {
+        return;
+      }
+      setSelectedAsset(event.target.value as AssetType);
     };
 
     return (
