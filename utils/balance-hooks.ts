@@ -17,30 +17,42 @@ interface BalanceResp {
   tokensAsset: TokenAsset[];
 }
 
+type Options = {
+  address?: string;
+  assetGuid?: string;
+  retry?: boolean;
+};
+
 export const useUtxoBalance = (
   xpub: string,
-  address?: string,
-  assetGuid?: string
+  options: Options = { retry: true }
 ) => {
-  return useQuery(["utxo", "balance", xpub, address, assetGuid], async () => {
-    if (!xpub || isValidEthereumAddress(xpub)) return Promise.resolve(0);
-    const url = BlockbookAPIURL + "/api/v2/xpub/" + xpub;
-    const balanceInText = await fetch(url)
-      .then((res) => res.json())
-      .then((res: BalanceResp) => {
-        if (assetGuid && address) {
-          const total = res.tokensAsset.reduce((acc, asset) => {
-            if (asset.assetGuid === assetGuid) {
-              return acc + parseInt(asset.balance);
-            }
-            return acc;
-          }, 0);
-          return total.toString();
-        }
-        return res.balance;
-      });
-    return parseInt(balanceInText) / Math.pow(10, 8);
-  });
+  const { address, assetGuid, retry } = options;
+  return useQuery(
+    ["utxo", "balance", xpub, address, assetGuid],
+    async () => {
+      if (!xpub || isValidEthereumAddress(xpub)) return Promise.resolve(0);
+      const url = BlockbookAPIURL + "/api/v2/xpub/" + xpub;
+      const balanceInText = await fetch(url)
+        .then((res) => res.json())
+        .then((res: BalanceResp) => {
+          if (assetGuid && address) {
+            const total = res.tokensAsset.reduce((acc, asset) => {
+              if (asset.assetGuid === assetGuid) {
+                return acc + parseInt(asset.balance);
+              }
+              return acc;
+            }, 0);
+            return total.toString();
+          }
+          return res.balance;
+        });
+      return parseInt(balanceInText) / Math.pow(10, 8);
+    },
+    {
+      retry,
+    }
+  );
 };
 
 export const useNevmBalance = (address?: string) => {

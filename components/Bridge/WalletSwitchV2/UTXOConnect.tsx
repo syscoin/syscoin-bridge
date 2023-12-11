@@ -42,11 +42,11 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
     changeAccount,
   } = usePaliWalletV2();
 
-  const sysxBalance = useUtxoBalance(
-    transfer.utxoXpub!,
-    transfer.utxoAddress,
-    SYSX_ASSET_GUID
-  );
+  const sysxBalance = useUtxoBalance(transfer.utxoXpub!, {
+    address: transfer.utxoAddress,
+    assetGuid: SYSX_ASSET_GUID,
+    retry: false,
+  });
 
   const setTransferUtxo = () => {
     if (!connectedAccount || !xpubAddress) return;
@@ -62,10 +62,22 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
   const allowChange = transfer.status === "initialize";
 
   useEffect(() => {
-    if (sysxBalance.isError && setSelectedAsset) {
+    if (!sysxBalance.isFetched || !transfer.utxoAddress || !isBitcoinBased) {
+      return;
+    }
+    const emptySysxBalance =
+      sysxBalance.data === undefined || sysxBalance.data === 0;
+    if ((sysxBalance.isError || emptySysxBalance) && setSelectedAsset) {
       setSelectedAsset("sys");
     }
-  }, [sysxBalance.isError, setSelectedAsset]);
+  }, [
+    sysxBalance.isError,
+    setSelectedAsset,
+    sysxBalance.data,
+    sysxBalance.isFetched,
+    transfer.utxoAddress,
+    isBitcoinBased,
+  ]);
 
   if (
     isBitcoinBased && allowChange

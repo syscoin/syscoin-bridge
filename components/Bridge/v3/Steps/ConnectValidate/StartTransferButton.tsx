@@ -35,7 +35,10 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const useSysx = utxoAssetType === "sysx";
   const amount = watch("amount");
   const utxoBalance = useUtxoBalance(utxoXpub);
-  const sysxBalance = useUtxoBalance(utxoXpub, utxoAddress, SYSX_ASSET_GUID);
+  const sysxBalance = useUtxoBalance(utxoXpub, {
+    address: utxoAddress,
+    assetGuid: SYSX_ASSET_GUID,
+  });
   const nevmBalance = useNevmBalance(nevmAddress);
 
   const foundationFundingAvailable =
