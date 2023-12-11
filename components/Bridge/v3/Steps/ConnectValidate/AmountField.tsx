@@ -70,7 +70,9 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
       {showSysx && (
         <Alert severity="info">
           <Typography variant="body2">
-            <Typography variant="body2">What is SYSX?</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+              What is SYSX?
+            </Typography>
             <Typography variant="body2">
               SYSX serves as a bridge token between the Syscoin UTXO and Syscoin
               NEVM chains, with a 1:1 ratio to SYS. Users can convert SYS into
