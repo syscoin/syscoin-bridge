@@ -2,7 +2,11 @@ import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
 import ConnectedWalletProvider from "@contexts/ConnectedWallet/Provider";
 import MetamaskProvider from "@contexts/Metamask/Provider";
 import { PaliWalletV2Provider } from "@contexts/PaliWallet/V2Provider";
-import { COMMON_STATUS, ITransfer, TransferType } from "@contexts/Transfer/types";
+import {
+  COMMON_STATUS,
+  ITransfer,
+  TransferType,
+} from "@contexts/Transfer/types";
 import {
   Box,
   Button,
@@ -49,7 +53,7 @@ const createTransfer = (type: TransferType): ITransfer => ({
   logs: [],
   createdAt: Date.now(),
   version: "v2",
-  agreedToTerms: false
+  agreedToTerms: false,
 });
 
 const BridgeV3Page: NextPage = () => {
@@ -75,7 +79,7 @@ const BridgeV3Page: NextPage = () => {
               <NEVMProvider>
                 <ConnectedWalletProvider>
                   <TransferContextProvider transfer={initialTransfer}>
-                    <Container sx={{ mt: 10 }}>
+                    <Container sx={{ mt: 10, mb: 15 }}>
                       <BlocktimeDisclaimer />
                       <Typography variant="h5" fontWeight="bold">
                         Bridge Your SYS
