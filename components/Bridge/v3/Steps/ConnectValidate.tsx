@@ -106,7 +106,9 @@ const BridgeV3ConnectValidateStep: React.FC<
   const maxAmmount =
     transfer.type === "sys-to-nevm" ? maxUtxoAmount : nevmBalance.data;
 
-  let maxAmountCalculated = parseFloat(`${maxAmmount ?? "0"}`) - MIN_AMOUNT;
+  let maxAmountCalculated =
+    parseFloat(`${maxAmmount ?? "0"}`) -
+    (transfer.type === "sys-to-nevm" && useSysx ? 0 : MIN_AMOUNT);
 
   if (maxAmountCalculated < 0) {
     maxAmountCalculated = 0;

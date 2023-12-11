@@ -16,7 +16,6 @@ const ErrorMessage = ({ message }: { message: string }) => (
     <Typography variant="body1" color="error">
       {message}
     </Typography>
-    <CloseOutlined color="error" />
   </Box>
 );
 
@@ -54,8 +53,10 @@ export const ConnectValidateStartTransferButton: React.FC<{
     utxoBalance.isFetched &&
     utxoBalance.data !== undefined &&
     utxoBalance.data < MIN_AMOUNT;
+
   const isSysxNotEnoughBalance =
     useSysx &&
+    transfer.type === "sys-to-nevm" &&
     sysxBalance.data !== undefined &&
     (sysxBalance.data < MIN_AMOUNT || sysxBalance.data < amount);
 

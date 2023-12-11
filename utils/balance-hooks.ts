@@ -29,12 +29,13 @@ export const useUtxoBalance = (
       .then((res) => res.json())
       .then((res: BalanceResp) => {
         if (assetGuid && address) {
-          const foundAsset = res.tokensAsset.find(
-            (asset) => asset.assetGuid === assetGuid
-          );
-          if (foundAsset) {
-            return foundAsset.balance;
-          }
+          const total = res.tokensAsset.reduce((acc, asset) => {
+            if (asset.assetGuid === assetGuid) {
+              return acc + parseInt(asset.balance);
+            }
+            return acc;
+          }, 0);
+          return total.toString();
         }
         return res.balance;
       });
