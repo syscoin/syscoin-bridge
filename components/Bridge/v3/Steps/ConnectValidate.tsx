@@ -87,6 +87,10 @@ const BridgeV3ConnectValidateStep: React.FC<
   const sysxBalance = useUtxoBalance(utxoXpub, utxoAddress, SYSX_ASSET_GUID);
   const nevmBalance = useNevmBalance(nevmAddress);
 
+  const enableUseSysx = Boolean(
+    sysxBalance.isFetched && sysxBalance.data && sysxBalance.data > 0
+  );
+
   const isUtxoNotEnoughGas =
     Boolean(utxoXpub) &&
     utxoBalance.isFetched &&
@@ -162,14 +166,16 @@ const BridgeV3ConnectValidateStep: React.FC<
               }}
               showSysxBalance={useSysx}
             />
-            <Box>
-              <FormControlLabel
-                control={
-                  <Checkbox {...register("useSysx")} color="secondary" />
-                }
-                label={<Typography variant="body1">Use SYSX</Typography>}
-              />
-            </Box>
+            {enableUseSysx && (
+              <Box>
+                <FormControlLabel
+                  control={
+                    <Checkbox {...register("useSysx")} color="secondary" />
+                  }
+                  label={<Typography variant="body1">Use SYSX</Typography>}
+                />
+              </Box>
+            )}
           </>
         ) : (
           <NEVMConnect

@@ -69,6 +69,8 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
         </Alert>
       ) : undefined;
 
+    const balanceCurrency = showSysxBalance ? "SYSX" : "SYS";
+
     return (
       <WalletSwitchCard
         address={transfer.utxoAddress ?? ""}
@@ -76,7 +78,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
         balance={
           balance.isLoading
             ? "Loading..."
-            : `${balanceNum?.toFixed(4)} ${showSysxBalance ? "SYSX" : "SYS"}`
+            : `${balanceNum?.toFixed(4)} ${balanceCurrency}`
         }
         onChange={change}
         faucetLink={faucetLink}
