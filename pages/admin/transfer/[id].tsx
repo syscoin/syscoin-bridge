@@ -25,6 +25,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState } from "react";
 import AddLogMenu from "components/Admin/Transfer/AddLog";
 import AddBurnSysTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysTransaction";
+import { useQuery } from "react-query";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -34,15 +35,34 @@ type FormValues = Pick<ITransfer, "status">;
 
 const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { signMessage } = useNEVM();
-  const [transfer, setTransfer] = useState(initialTransfer);
   const [addLogModal, setAddLogModal] = useState<string>();
+  const transferUrl = `/api/admin/transfer/${initialTransfer.id}`;
+  const { data: transfer, refetch } = useQuery<ITransfer>(
+    ["transfer", initialTransfer.id],
+    {
+      queryFn: async () => {
+        const resp = await fetch(transferUrl, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        return resp.json();
+      },
+      initialData: initialTransfer,
+    }
+  );
 
   const form = useForm<FormValues>({
     mode: "all",
     defaultValues: {
-      status: transfer.status,
+      status: transfer?.status ?? initialTransfer.status,
     },
   });
+
+  if (!transfer) {
+    return null;
+  }
 
   const {
     handleSubmit,
@@ -67,7 +87,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
         }
       })
       .then((updatedTransfer) => {
-        setTransfer(updatedTransfer);
+        refetch();
         form.reset({
           status: updatedTransfer.status,
         });
@@ -95,7 +115,10 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
     });
   };
 
-  const closeAddLogModal = () => {
+  const closeAddLogModal = (isSuccess?: boolean) => {
+    if (isSuccess) {
+      refetch();
+    }
     setAddLogModal(undefined);
   };
 
@@ -179,7 +202,10 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       <Modal open={Boolean(addLogModal)}>
         <>
           {addLogModal === "burn-sys" && (
-            <AddBurnSysTransaction onClose={closeAddLogModal} />
+            <AddBurnSysTransaction
+              onClose={closeAddLogModal}
+              transferId={transfer.id}
+            />
           )}
         </>
       </Modal>

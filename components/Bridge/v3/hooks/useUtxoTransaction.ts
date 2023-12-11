@@ -5,7 +5,8 @@ import { utils as syscoinUtils } from "syscoinjs-lib";
 export const useUtxoTransaction = (
   transactionId?: string,
   confirmations = 1,
-  refetchInterval = 1000
+  refetchInterval = 1000,
+  retry: boolean | number = true
 ) =>
   useQuery(["utxo", "transaction", transactionId], {
     queryFn: async () => {
@@ -19,6 +20,6 @@ export const useUtxoTransaction = (
       throw new Error("Transaction not confirmed");
     },
     refetchInterval,
-    retry: true,
+    retry,
     enabled: Boolean(transactionId),
   });

@@ -10,9 +10,11 @@ import AddLogModalContainer from "./ModalContainer";
 import { useForm } from "react-hook-form";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { AddBurnSysLogRequestPayload } from "api/types/admin/transfer/add-log";
 
 type Props = {
-  onClose: () => void;
+  onClose: (refetch?: boolean) => void;
+  transferId: string;
 };
 
 type FormValues = {
@@ -20,7 +22,7 @@ type FormValues = {
   clearAll: boolean;
 };
 
-const AddBurnSysTransaction: React.FC<Props> = ({ onClose }) => {
+const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
   const { handleSubmit, register, watch } = useForm<FormValues>({
     defaultValues: {
       txId: "",
@@ -32,11 +34,18 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose }) => {
 
   const txId = watch("txId");
 
-  const { isFetching, isFetched, isSuccess } = useUtxoTransaction(
-    txId,
-    1,
-    10_000
-  );
+  const { isFetching, isFetched, isSuccess, data, isError } =
+    useUtxoTransaction(txId, 1, 10_000, 1);
+
+  const isBurnSysTx =
+    isFetched && data && data.tokenType === "SPTSyscoinBurnToAssetAllocation";
+
+  let helperText =
+    isFetched && !isBurnSysTx ? "Not a valid burn sys transaction" : "";
+
+  if (isError) {
+    helperText = "Error fetching transaction";
+  }
 
   const onSubmit = (values: FormValues) => {
     const data = {
@@ -46,11 +55,27 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose }) => {
     const message = `0x${Buffer.from(JSON.stringify(data), "utf8").toString(
       "hex"
     )}`;
-    signMessage(message).then((signedMessage) => {
-      const payload = { ...data, signedMessage };
-      console.log(payload);
-      onClose();
-    });
+    signMessage(message)
+      .then((signedMessage) => {
+        const payload: AddBurnSysLogRequestPayload = {
+          operation: "burn-sys",
+          clearAll: values.clearAll,
+          txId: values.txId,
+          signedMessage,
+        };
+        return fetch(`/api/admin/transfer/${transferId}/add-log`, {
+          body: JSON.stringify(payload),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          method: "POST",
+        });
+      })
+      .then((res) => {
+        if (res.ok) {
+          onClose(true);
+        }
+      });
   };
 
   return (
@@ -62,6 +87,8 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose }) => {
           fullWidth
           sx={{ mb: 2 }}
           {...register("txId")}
+          error={Boolean(helperText)}
+          helperText={helperText}
         />
         <FormControlLabel
           control={<Checkbox defaultChecked {...register("clearAll")} />}
@@ -69,14 +96,14 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose }) => {
         />
       </Box>
       <Box display="flex">
-        <Button color="secondary" onClick={onClose}>
+        <Button color="secondary" onClick={() => onClose()}>
           Cancel
         </Button>
         <Button
           variant="contained"
           sx={{ ml: "auto" }}
           type="submit"
-          disabled={!(isSuccess && isFetched)}
+          disabled={!(isSuccess && isBurnSysTx) || isFetching}
         >
           {isFetching ? "Checking" : "Add"}
         </Button>

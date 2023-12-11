@@ -11,8 +11,23 @@ interface OverrideTransferRequestBody {
   signedMessage: string;
 }
 
+const fetchTransfer = async (id: string, res: NextApiResponse) => {
+  await dbConnect();
+
+  const transfer = (await TransferModel.findOne({ id })) as ITransfer;
+
+  if (!transfer) {
+    return res.status(404).json({ message: "Transfer not found" });
+  }
+
+  return res.status(200).json(transfer);
+};
+
 const AdminTransfer: NextApiHandler = adminSessionGuard(
   async (req: NextApiRequest, res: NextApiResponse) => {
+    if (req.method === "GET") {
+      return fetchTransfer(req.query.id as string, res);
+    }
     if (req.method !== "POST") {
       return res.status(405).json({ message: "Method not allowed" });
     }
@@ -60,8 +75,6 @@ const AdminTransfer: NextApiHandler = adminSessionGuard(
     });
 
     const updatedTransfer = await transfer.save();
-
-    console.log({ updatedTransfer })
 
     return res.status(200).json(updatedTransfer);
   }

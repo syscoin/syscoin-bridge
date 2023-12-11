@@ -80,7 +80,7 @@ declare module "syscoinjs-lib" {
     export function fetchBackendRawTx(
       backendUrl: string,
       txid: string
-    ): Promise<BlockbookTransactionBTC>;
+    ): Promise<BlockbookTransactionBTC & { tokenType: string }>;
 
     export const syscoinNetworks: {
       mainnet: Network;
