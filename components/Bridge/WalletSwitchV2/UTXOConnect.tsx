@@ -108,7 +108,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = ({
             <MenuItem value="sysx">
               {sysxBalance.isLoading
                 ? "Loading..."
-                : `${sysxBalance.data?.toFixed(4)} SYSX`}
+                : `${(sysxBalance.data ?? 0).toFixed(4)} SYSX`}
             </MenuItem>
           </Select>
         }
