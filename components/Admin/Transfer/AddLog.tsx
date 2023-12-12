@@ -7,7 +7,7 @@ export type SupportedOperations = AddLogRequestPayload["operation"];
 
 type Props = {
   transfer: ITransfer;
-  onSelect: (item: SupportedOperations) => void;
+  onSelect: (item?: SupportedOperations) => void;
 };
 
 const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
