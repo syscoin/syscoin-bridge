@@ -16,7 +16,7 @@ const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAnchorEl(event.currentTarget);
   };
-  const handleClose = (operation: SupportedOperations) => {
+  const handleClose = (operation?: SupportedOperations) => {
     onSelect(operation);
     setAnchorEl(null);
   };
@@ -27,7 +27,7 @@ const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
         id="add-log-menu"
         anchorEl={anchorEl}
         open={open}
-        onClose={handleClose}
+        onClose={() => handleClose()}
         MenuListProps={{
           "aria-labelledby": "basic-button",
         }}
