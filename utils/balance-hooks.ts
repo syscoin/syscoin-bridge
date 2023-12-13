@@ -36,7 +36,10 @@ export const useUtxoBalance = (
       const balanceInText = await fetch(url)
         .then((res) => res.json())
         .then((res: BalanceResp) => {
-          if (assetGuid && address && res.tokensAsset) {
+          if (assetGuid && address) {
+            if (!res.tokensAsset) {
+              return "0";
+            }
             const total = res.tokensAsset.reduce((acc, asset) => {
               if (asset.assetGuid === assetGuid) {
                 return acc + parseInt(asset.balance);
