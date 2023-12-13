@@ -4,6 +4,7 @@ import adminSessionGuard from "utils/api/admin-session-guard";
 import { handleBurnSys } from "api/services/admin-transfer/handle-burn-sys";
 import { handleBurnSysx } from "api/services/admin-transfer/handle-burn-sysx";
 import { handleSubmitProofs } from "api/services/admin-transfer/handle-submit-proofs";
+import { handleFreezeBurn } from "api/services/admin-transfer/handle-freeze-burn";
 
 const AdminTransferAddLog: NextApiHandler = adminSessionGuard(
   async (req: NextApiRequest, res: NextApiResponse) => {
@@ -15,6 +16,8 @@ const AdminTransferAddLog: NextApiHandler = adminSessionGuard(
       return handleBurnSysx(transferId, body, req, res);
     } else if (body.operation === "submit-proofs") {
       return handleSubmitProofs(transferId, body, req, res);
+    } else if (body.operation === "freeze-burn-sys") {
+      return handleFreezeBurn(transferId, body, req, res);
     }
     // Unsupported operation
     return res.status(400).json({ message: "Bad request" });
