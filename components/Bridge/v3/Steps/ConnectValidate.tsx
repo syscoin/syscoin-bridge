@@ -1,5 +1,5 @@
 import NEVMConnect from "components/Bridge/WalletSwitchV2/NEVMConnect";
-import UTXOConnect from "components/Bridge/WalletSwitchV2/UTXOConnect";
+import UTXOConnect, { AssetType } from "components/Bridge/WalletSwitchV2/UTXOConnect";
 import { useRouter } from "next/router";
 import {
   FormProvider,
@@ -25,11 +25,17 @@ import BridgeV3Loading from "../Loading";
 import { ConnectValidateAgreeToTermsCheckbox } from "./ConnectValidate/AgreeToTermsCheckbox";
 import { ConnectValidateAmountField } from "./ConnectValidate/AmountField";
 import { ConnectValidateStartTransferButton } from "./ConnectValidate/StartTransferButton";
+import { useCallback } from "react";
 
 const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
   const { setValue, watch } = useFormContext();
 
   const utxoAssetType = watch("utxoAssetType");
+
+  const setSelectedAsset = useCallback(
+    (asset: AssetType) => setValue("utxoAssetType", asset),
+    [setValue]
+  );
 
   return (
     <UTXOConnect
@@ -39,7 +45,7 @@ const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
         setValue("utxoXpub", xpub);
       }}
       selectedAsset={utxoAssetType}
-      setSelectedAsset={(asset) => setValue("utxoAssetType", asset)}
+      setSelectedAsset={setSelectedAsset}
     />
   );
 };

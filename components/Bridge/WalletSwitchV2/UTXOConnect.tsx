@@ -15,7 +15,7 @@ import { MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { useEffect } from "react";
 
-type AssetType = "sys" | "sysx" | "none";
+export type AssetType = "sys" | "sysx" | "none";
 
 type UTXOConnectProps = {
   transfer: ITransfer;
