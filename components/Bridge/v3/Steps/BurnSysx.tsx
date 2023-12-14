@@ -35,7 +35,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
           data: {
             tx,
           },
-          message: "Burning SYSX to NEVM",
+          message: toNevm ? "Burning SYSX to NEVM" : "Burning SYSX to SYS",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
       },
