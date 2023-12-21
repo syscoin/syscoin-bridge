@@ -1,5 +1,7 @@
-import NEVMConnect from "components/Bridge/WalletSwitchV2/NEVMConnect";
-import UTXOConnect, { AssetType } from "components/Bridge/WalletSwitchV2/UTXOConnect";
+import NEVMConnect from "components/Bridge/WalletSwitch/NEVMConnect";
+import UTXOConnect, {
+  AssetType,
+} from "components/Bridge/WalletSwitch/UTXOConnect";
 import { useRouter } from "next/router";
 import {
   FormProvider,
