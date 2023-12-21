@@ -50,7 +50,7 @@ const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
   );
 };
 
-const BridgeV3Stepper: React.FC = () => {
+const BridgeStepper: React.FC = () => {
   const {
     transfer: { type, status },
   } = useTransfer();
@@ -86,4 +86,4 @@ const BridgeV3Stepper: React.FC = () => {
   return <SYSToNEVMStepper activeStep={activeStep} />;
 };
 
-export default BridgeV3Stepper;
+export default BridgeStepper;

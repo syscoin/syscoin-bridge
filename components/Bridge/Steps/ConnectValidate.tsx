@@ -22,7 +22,7 @@ import {
 import { Box, Typography } from "@mui/material";
 
 import { useTransfer } from "../context/TransferContext";
-import BridgeV3Loading from "../Loading";
+import BridgeLoading from "../Loading";
 import { ConnectValidateAgreeToTermsCheckbox } from "./ConnectValidate/AgreeToTermsCheckbox";
 import { ConnectValidateAmountField } from "./ConnectValidate/AmountField";
 import { ConnectValidateStartTransferButton } from "./ConnectValidate/StartTransferButton";
@@ -72,12 +72,12 @@ type ConnectValidateFormData = {
   utxoAssetType?: "sys" | "sysx";
 };
 
-type BridgeV3ConnectValidateStepProps = {
+type BridgeConnectValidateStepProps = {
   successStatus: TransferStatus;
 };
 
-const BridgeV3ConnectValidateStep: React.FC<
-  BridgeV3ConnectValidateStepProps
+const BridgeConnectValidateStep: React.FC<
+  BridgeConnectValidateStepProps
 > = ({ successStatus }) => {
   const { replace } = useRouter();
   const { transfer, isSaving, saveTransfer } = useTransfer();
@@ -140,13 +140,13 @@ const BridgeV3ConnectValidateStep: React.FC<
     };
     saveTransfer(modifiedTransfer, {
       onSuccess: (transfer) => {
-        replace(`/bridge/v3/${transfer.id}`);
+        replace(`/bridge/${transfer.id}`);
       },
     });
   };
 
   if (isLoading) {
-    return <BridgeV3Loading />;
+    return <BridgeLoading />;
   }
 
   return (
@@ -190,4 +190,4 @@ const BridgeV3ConnectValidateStep: React.FC<
   );
 };
 
-export default BridgeV3ConnectValidateStep;
+export default BridgeConnectValidateStep;

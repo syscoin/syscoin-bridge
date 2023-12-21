@@ -127,10 +127,10 @@ const MintSysx: React.FC<Props> = ({ successStatus }) => {
   );
 };
 
-const BridgeV3StepMintSysx: React.FC<Props> = (props) => (
+const BridgeStepMintSysx: React.FC<Props> = (props) => (
   <UTXOStepWrapper>
     <MintSysx {...props} />
   </UTXOStepWrapper>
 );
 
-export default BridgeV3StepMintSysx;
+export default BridgeStepMintSysx;

@@ -21,7 +21,7 @@ import { useQuery } from "react-query";
 import AddBurnSysxTransaction from "components/Admin/Transfer/AddLogModals/AddBurnSysxTransaction";
 import AdminTransferLogAccordion from "components/Admin/Transfer/LogAccordion";
 import AddSubmitProofsTransaction from "components/Admin/Transfer/AddLogModals/AddSubmitProofsTransaction";
-import { Web3Provider } from "components/Bridge/v3/context/Web";
+import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 
 type Props = {

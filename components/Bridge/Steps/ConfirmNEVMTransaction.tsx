@@ -13,7 +13,7 @@ type Props = {
   loadingMessage: string;
 };
 
-const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
+const BridgeConfirmNEVMTransaction: React.FC<Props> = ({
   sourceStatus,
   successStatus,
   invalidStateMessage,
@@ -72,7 +72,7 @@ const BridgeV3ConfirmNEVMTransaction: React.FC<Props> = ({
 
 const Wrapped: React.FC<Props> = (props) => (
   <NEVMStepWrapper>
-    <BridgeV3ConfirmNEVMTransaction {...props} />
+    <BridgeConfirmNEVMTransaction {...props} />
   </NEVMStepWrapper>
 );
 
