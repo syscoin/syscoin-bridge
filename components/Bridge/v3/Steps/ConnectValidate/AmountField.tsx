@@ -1,11 +1,9 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { QuestionMarkOutlined } from "@mui/icons-material";
 import {
   Alert,
   Box,
   InputAdornment,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import { useFormContext } from "react-hook-form";

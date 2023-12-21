@@ -1,7 +1,6 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { Button, Typography } from "@mui/material";
-import { useAdmin } from "./Provider";
+import { Button } from "@mui/material";
 
 const ConnectAdmin = () => {
   const { account, connect } = useNEVM();

@@ -1,8 +1,5 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
-import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { Button, Container, Typography } from "@mui/material";
 import { IAdmin } from "models/admin";
-import { NextPage } from "next";
 import { createContext, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 

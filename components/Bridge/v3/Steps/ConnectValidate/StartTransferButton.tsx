@@ -1,7 +1,7 @@
 import { MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { ITransfer } from "@contexts/Transfer/types";
-import { CheckCircleOutline, CloseOutlined } from "@mui/icons-material";
+import { CheckCircleOutline } from "@mui/icons-material";
 import { Box, Button, Typography } from "@mui/material";
 import {
   isValidEthereumAddress,

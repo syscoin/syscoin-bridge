@@ -1,5 +1,4 @@
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
-import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
 import { Alert, AlertColor, Button } from "@mui/material";
 

@@ -9,11 +9,9 @@ import {
 } from "@mui/material";
 import AddLogModalContainer from "./ModalContainer";
 import { useForm } from "react-hook-form";
-import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import {
   AddNEVMLogRequestPayload,
-  AddUTXOLogRequestPayload,
 } from "api/types/admin/transfer/add-log";
 import { useState } from "react";
 import { useNevmTransaction } from "components/Bridge/v3/hooks/useNevmTransaction";

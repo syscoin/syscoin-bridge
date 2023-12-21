@@ -17,7 +17,6 @@ import {
   SYS_TO_ETH_TRANSFER_STATUS,
   TransferStatus,
 } from "@contexts/Transfer/types";
-import { CloseOutlined } from "@mui/icons-material";
 import { Box, Typography } from "@mui/material";
 
 import { useTransfer } from "../context/TransferContext";
