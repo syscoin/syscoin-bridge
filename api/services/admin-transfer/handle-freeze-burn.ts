@@ -1,20 +1,20 @@
-import { AddSubmitProofsLogRequestPayload } from "api/types/admin/transfer/add-log";
+import { AddFreezeAndBurnLogRequestPayload } from "api/types/admin/transfer/add-log";
 import dbConnect from "lib/mongodb";
 import { NextApiRequest, NextApiResponse } from "next";
 import { verifySignature } from "utils/api/verify-signature";
 import TransferModel from "models/transfer";
 import Web3 from "web3";
-import { RELAY_CONTRACT_ADDRESS } from "@constants";
 import {
   COMMON_STATUS,
+  ETH_TO_SYS_TRANSFER_STATUS,
   ITransferLog,
-  SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import { validateTransactionReceipt } from "./validate-relay-contract-receipt";
+import { ERC20_MANAGER_CONTRACT_ADDRESS } from "@constants";
 
-export const handleSubmitProofs = async (
+export const handleFreezeBurn = async (
   transferId: string,
-  payload: AddSubmitProofsLogRequestPayload,
+  payload: AddFreezeAndBurnLogRequestPayload,
   req: NextApiRequest,
   res: NextApiResponse
 ) => {
@@ -44,38 +44,39 @@ export const handleSubmitProofs = async (
     const receipt = await validateTransactionReceipt(
       web3,
       txHash,
-      RELAY_CONTRACT_ADDRESS
+      ERC20_MANAGER_CONTRACT_ADDRESS
     );
+
     if (clearAll) {
       transfer.logs = transfer.logs.filter(
         (log) =>
           !(
-            log.status === SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS ||
-            log.status === COMMON_STATUS.FINALIZING
+            log.status === ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS ||
+            log.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS
           )
       );
     }
 
-    const submitProofsLogs: ITransferLog = {
+    const freezeBurnLog: ITransferLog = {
       payload: {
         data: {
           hash: receipt.transactionHash,
         },
-        message: "submit-proofs",
-        previousStatus: SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS,
+        message: "Freeze and Burn SYS",
+        previousStatus: COMMON_STATUS.INITIALIZE,
       },
-      status: SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS,
+      status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
       date: Date.now(),
     };
 
-    transfer.logs.push(submitProofsLogs);
+    transfer.logs.push(freezeBurnLog);
 
     const confirmLog: ITransferLog = {
-      status: COMMON_STATUS.FINALIZING,
+      status: ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
       payload: {
         data: receipt,
         message: "Confirm NEVM Transaction",
-        previousStatus: SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS,
+        previousStatus: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
       },
       date: Date.now(),
     };

@@ -5,12 +5,17 @@ import { useState } from "react";
 
 export type SupportedOperations = AddLogRequestPayload["operation"];
 
+type MenuItemEntry = {
+  label: string;
+  operation: SupportedOperations;
+};
+
 type Props = {
   transfer: ITransfer;
   onSelect: (item?: SupportedOperations) => void;
 };
 
-const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
+const AddLogMenu: React.FC<Props> = ({ transfer, onSelect }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -20,6 +25,38 @@ const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
     onSelect(operation);
     setAnchorEl(null);
   };
+
+  const logMenuItems: MenuItemEntry[] =
+    transfer.type === "sys-to-nevm"
+      ? [
+          {
+            label: "Add Burn Sys Transaction",
+            operation: "burn-sys",
+          },
+          {
+            label: "Add Burn Sysx Transaction",
+            operation: "burn-sysx",
+          },
+          {
+            label: "Add Submit Proofs Transaction",
+            operation: "submit-proofs",
+          },
+        ]
+      : [
+          {
+            label: "Add Freeze and Burn Transaction",
+            operation: "freeze-burn-sys",
+          },
+          {
+            label: "Add Mint Sysx Transaction",
+            operation: "mint-sysx",
+          },
+          {
+            label: "Add Burn Sysx Transaction",
+            operation: "burn-sysx",
+          },
+        ];
+
   return (
     <Box>
       <Button onClick={handleClick}>Add Log</Button>
@@ -32,15 +69,14 @@ const AddLogMenu: React.FC<Props> = ({ onSelect }) => {
           "aria-labelledby": "basic-button",
         }}
       >
-        <MenuItem onClick={() => handleClose("burn-sys")}>
-          Add Burn Sys Transaction
-        </MenuItem>
-        <MenuItem onClick={() => handleClose("burn-sysx")}>
-          Add Burn Sysx Transaction
-        </MenuItem>
-        <MenuItem onClick={() => handleClose("submit-proofs")}>
-          Add Submit Proofs Transaction
-        </MenuItem>
+        {logMenuItems.map((item) => (
+          <MenuItem
+            key={item.operation}
+            onClick={() => handleClose(item.operation)}
+          >
+            {item.label}
+          </MenuItem>
+        ))}
       </Menu>
     </Box>
   );

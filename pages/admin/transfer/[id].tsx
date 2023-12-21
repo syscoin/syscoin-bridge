@@ -22,6 +22,7 @@ import AddBurnSysxTransaction from "components/Admin/Transfer/AddLogModals/AddBu
 import AdminTransferLogAccordion from "components/Admin/Transfer/LogAccordion";
 import AddSubmitProofsTransaction from "components/Admin/Transfer/AddLogModals/AddSubmitProofsTransaction";
 import { Web3Provider } from "components/Bridge/v3/context/Web";
+import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -194,6 +195,12 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
             )}
             {addLogModal === "submit-proofs" && (
               <AddSubmitProofsTransaction
+                onClose={closeAddLogModal}
+                transferId={transfer.id}
+              />
+            )}
+            {addLogModal === "freeze-burn-sys" && (
+              <AddFreezeBurnTransactionModal
                 onClose={closeAddLogModal}
                 transferId={transfer.id}
               />

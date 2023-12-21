@@ -19,15 +19,26 @@ export type AddBurnSysxLogRequestPayload = {
   operation: "burn-sysx";
 } & BaseUtxoTransaction;
 
+export type AddMintSysxLogRequestPayload = {
+  operation: "mint-sysx";
+} & BaseUtxoTransaction;
+
 export type AddSubmitProofsLogRequestPayload = {
   operation: "submit-proofs";
 } & BaseEVMTransaction;
 
+export type AddFreezeAndBurnLogRequestPayload = {
+  operation: "freeze-burn-sys";
+} & BaseEVMTransaction;
+
 export type AddUTXOLogRequestPayload =
   | AddBurnSysLogRequestPayload
-  | AddBurnSysxLogRequestPayload;
+  | AddBurnSysxLogRequestPayload
+  | AddMintSysxLogRequestPayload;
 
-export type AddNEVMLogRequestPayload = AddSubmitProofsLogRequestPayload;
+export type AddNEVMLogRequestPayload =
+  | AddSubmitProofsLogRequestPayload
+  | AddFreezeAndBurnLogRequestPayload;
 
 export type AddLogRequestPayload =
   | AddUTXOLogRequestPayload
