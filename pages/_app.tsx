@@ -13,7 +13,7 @@ const queryClient = new QueryClient();
 
 function MyApp({ Component, pageProps, router }: AppProps) {
   const isAdmin = router.pathname.includes("/admin");
-  if (router.pathname.includes("/bridge/v3/")) {
+  if (router.pathname.includes("/bridge")) {
     return (
       <ThemeProvider theme={theme}>
         <WelcomeModal />

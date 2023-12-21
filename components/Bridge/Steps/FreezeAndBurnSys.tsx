@@ -103,7 +103,7 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
   );
 };
 
-const BridgeV3StepFreezeAndBurnSys: React.FC<Props> = (props) => {
+const BridgeStepFreezeAndBurnSys: React.FC<Props> = (props) => {
   return (
     <NEVMStepWrapper>
       <FreezeAndBurn {...props} />
@@ -111,4 +111,4 @@ const BridgeV3StepFreezeAndBurnSys: React.FC<Props> = (props) => {
   );
 };
 
-export default BridgeV3StepFreezeAndBurnSys;
+export default BridgeStepFreezeAndBurnSys;

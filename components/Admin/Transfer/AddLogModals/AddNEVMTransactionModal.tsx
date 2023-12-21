@@ -14,7 +14,7 @@ import {
   AddNEVMLogRequestPayload,
 } from "api/types/admin/transfer/add-log";
 import { useState } from "react";
-import { useNevmTransaction } from "components/Bridge/v3/hooks/useNevmTransaction";
+import { useNevmTransaction } from "components/Bridge/hooks/useNevmTransaction";
 
 type Props = {
   onClose: (refetch?: boolean) => void;

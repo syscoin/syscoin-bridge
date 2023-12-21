@@ -7,7 +7,14 @@ import {
   useState,
 } from "react";
 import reducer from "./store/reducer";
-import { COMMON_STATUS, ETH_TO_SYS_TRANSFER_STATUS, ITransfer, SYS_TO_ETH_TRANSFER_STATUS, TransferStatus, TransferType } from "./types";
+import {
+  COMMON_STATUS,
+  ETH_TO_SYS_TRANSFER_STATUS,
+  ITransfer,
+  SYS_TO_ETH_TRANSFER_STATUS,
+  TransferStatus,
+  TransferType,
+} from "./types";
 
 import { useConnectedWallet } from "../ConnectedWallet/useConnectedWallet";
 import {
@@ -23,7 +30,6 @@ import relayAbi from "./relay-abi";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
-import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { captureException } from "@sentry/nextjs";
 
 interface ITransferContext {
@@ -134,7 +140,13 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     updateAmount(`${amount}`);
     dispatch(setVersion(utxo.type === nevm.type ? "v2" : "v1"));
     dispatch(setStatus(COMMON_STATUS.INITIALIZE));
-    dispatch(addLog(COMMON_STATUS.INITIALIZE, "Starting Sys to NEVM transfer", transfer));
+    dispatch(
+      addLog(
+        COMMON_STATUS.INITIALIZE,
+        "Starting Sys to NEVM transfer",
+        transfer
+      )
+    );
     if (transfer.type === "sys-to-nevm") {
       dispatch(setStatus(SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS));
     } else if (transfer.type === "nevm-to-sys") {

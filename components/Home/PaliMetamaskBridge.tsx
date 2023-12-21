@@ -23,7 +23,7 @@ export const PaliAndMetamaskBridge = () => {
       <WalletList />
       {isReady && (
         <Box display="flex" justifyContent="space-between">
-          <Link href={`/bridge/v3/sys-to-nevm`}>
+          <Link href={`/bridge/sys-to-nevm`}>
             <Button variant="contained" disabled={isInvalidSyscoinAddress}>
               Continue
               <ArrowForwardIcon />
@@ -38,7 +38,7 @@ export const PaliAndMetamaskBridge = () => {
               </Typography>
             )}
           </Link>
-          <Link href={`/transfers/v2`}>
+          <Link href={`/transfers`}>
             <Button variant="text" color="secondary">
               View My Transfers
             </Button>

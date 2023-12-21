@@ -11,7 +11,7 @@ type Props = {
   successStatus: TransferStatus;
 };
 
-const BridgeV3StepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
+const BridgeStepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
 
   const burnSysLog = transfer.logs.find(
@@ -65,4 +65,4 @@ const BridgeV3StepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
   );
 };
 
-export default BridgeV3StepGenerateProofs;
+export default BridgeStepGenerateProofs;
