@@ -2,7 +2,6 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { useMutation } from "react-query";
 import { useWeb3 } from "../context/Web";
 import { ISponsorWalletTransaction } from "models/sponsor-wallet-transactions";
-import { rejects } from "assert";
 
 const useSyscoinSubmitProofs = (
   transfer: ITransfer,

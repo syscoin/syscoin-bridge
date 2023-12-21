@@ -5,7 +5,6 @@ import {
   ETH_TO_SYS_TRANSFER_STATUS,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
-import { Close } from "@mui/icons-material";
 
 const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
   <Stepper activeStep={activeStep}>

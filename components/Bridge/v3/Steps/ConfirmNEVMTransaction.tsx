@@ -1,6 +1,6 @@
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
 import { useTransfer } from "../context/TransferContext";
-import { Alert, CircularProgress, Link, Typography } from "@mui/material";
+import { Alert, CircularProgress, Link } from "@mui/material";
 import { useNevmTransaction } from "../hooks/useNevmTransaction";
 import { useEffect } from "react";
 import { NEVM_TX_BLOCKCHAIN_URL } from "@constants";

@@ -1,4 +1,4 @@
-import { Alert, Box, CircularProgress, Link } from "@mui/material";
+import { Alert, CircularProgress, Link } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import { useUtxoTransaction } from "components/Bridge/v3/hooks/useUtxoTransaction";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";

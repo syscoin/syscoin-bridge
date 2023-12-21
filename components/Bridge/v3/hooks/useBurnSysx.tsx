@@ -1,4 +1,3 @@
-import burnSysToSysx from "@contexts/Transfer/functions/burnSysToSysx";
 import { ITransfer } from "@contexts/Transfer/types";
 import { useMutation } from "react-query";
 import { useSyscoin } from "../context/Syscoin";

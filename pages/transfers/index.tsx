@@ -1,5 +1,5 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { Alert, Box, Button, Container, Typography } from "@mui/material";
+import { Alert, Container, Typography } from "@mui/material";
 import DrawerPage from "components/DrawerPage";
 import { INavigationItem } from "components/Navigation/Item";
 import TransferDataGrid from "components/Transfer/DataGrid";
@@ -7,7 +7,6 @@ import WalletList from "components/WalletList";
 import { useConnectedWallet } from "contexts/ConnectedWallet/useConnectedWallet";
 import { ITransfer } from "contexts/Transfer/types";
 import { NextPage } from "next";
-import NextLink from "next/link";
 import { useEffect, useState } from "react";
 
 const TransfersPage: NextPage = () => {
@@ -44,7 +43,7 @@ const TransfersPage: NextPage = () => {
     setItems(
       Object.entries(localStorage)
         .filter(([key]) => key.startsWith("transfer-"))
-        .map(([key, value]) => JSON.parse(value))
+        .map(([_, value]) => JSON.parse(value))
     );
   }, []);
 

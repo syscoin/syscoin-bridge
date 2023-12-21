@@ -5,11 +5,6 @@ type Props = {
   transferId: string;
 };
 
-type FormValues = {
-  txId: string;
-  clearAll: boolean;
-};
-
 const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
   return (
     <AddUTXOTransactionModal

@@ -1,6 +1,6 @@
 import { ADMIN_LOGIN_MESSAGE } from "@constants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
-import { Button, Container, Typography } from "@mui/material";
+import { Button, Container } from "@mui/material";
 import ConnectAdmin from "components/Admin/ConnectAdmin";
 import { GetServerSideProps, NextPage } from "next";
 import { useRouter } from "next/router";

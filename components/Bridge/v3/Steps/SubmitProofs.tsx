@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Divider, Typography } from "@mui/material";
+import { Alert, Box, Button, Typography } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import {
   ITransferLog,

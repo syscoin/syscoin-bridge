@@ -1,7 +1,5 @@
 import { Alert, Step, StepLabel, Stepper } from "@mui/material";
-import { TransferStatus } from "contexts/Transfer/types";
 import { useTransfer } from "contexts/Transfer/useTransfer";
-import { useMemo } from "react";
 
 const BridgeTransferStepper: React.FC = () => {
   const {

@@ -1,4 +1,3 @@
-import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import { List } from "@mui/material";
 import NavigationItem, { INavigationItem } from "./Item";
 

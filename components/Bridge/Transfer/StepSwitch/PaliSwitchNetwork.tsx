@@ -1,7 +1,5 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
-import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import {
-  usePaliWallet,
   usePaliWalletV2,
 } from "@contexts/PaliWallet/usePaliWallet";
 import { useTransfer } from "@contexts/Transfer/useTransfer";
