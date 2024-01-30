@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 
-const BridgeV3Loading = () => {
+const BridgeLoading = () => {
   return (
     <Box
       sx={{
@@ -16,4 +16,4 @@ const BridgeV3Loading = () => {
   );
 };
 
-export default BridgeV3Loading;
+export default BridgeLoading;

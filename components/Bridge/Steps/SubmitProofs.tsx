@@ -115,7 +115,7 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   );
 };
 
-const BridgeV3StepSubmitProofs: React.FC<Props> = (props) => {
+const BridgeStepSubmitProofs: React.FC<Props> = (props) => {
   return (
     <NEVMStepWrapper>
       <SubmitProofs {...props} />
@@ -123,4 +123,4 @@ const BridgeV3StepSubmitProofs: React.FC<Props> = (props) => {
   );
 };
 
-export default BridgeV3StepSubmitProofs;
+export default BridgeStepSubmitProofs;

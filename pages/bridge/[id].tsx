@@ -17,23 +17,23 @@ import {
 } from "@mui/material";
 import BlocktimeDisclaimer from "components/BlocktimeDisclaimer";
 import TransferTitle from "components/Bridge/Transfer/Title";
-import BridgeV3SavingIndicator from "components/Bridge/v3/SavingIndicator";
-import BridgeV3StepSwitch from "components/Bridge/v3/StepSwitch";
-import BridgeV3Stepper from "components/Bridge/v3/Stepper";
-import { SyscoinProvider } from "components/Bridge/v3/context/Syscoin";
+import BridgeSavingIndicator from "components/Bridge/SavingIndicator";
+import BridgeStepSwitch from "components/Bridge/StepSwitch";
+import BridgeStepper from "components/Bridge/Stepper";
+import { SyscoinProvider } from "components/Bridge/context/Syscoin";
 import {
   TransferContextProvider,
   useTransfer,
-} from "components/Bridge/v3/context/TransferContext";
-import { Web3Provider } from "components/Bridge/v3/context/Web";
+} from "components/Bridge/context/TransferContext";
+import { Web3Provider } from "components/Bridge/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
-import BridgeV3TransferSwitchTypeCard from "components/Bridge/v3/TransferSwitchTypeCard";
-import BridgeV3NewTransferButton from "components/Bridge/v3/NewTransferButton";
+import BridgeTransferSwitchTypeCard from "components/Bridge/TransferSwitchTypeCard";
+import BridgeNewTransferButton from "components/Bridge/NewTransferButton";
 
 const NewTransferButton = () => {
   const { transfer } = useTransfer();
@@ -42,7 +42,7 @@ const NewTransferButton = () => {
     return null;
   }
 
-  return <BridgeV3NewTransferButton />;
+  return <BridgeNewTransferButton />;
 };
 
 const createTransfer = (type: TransferType): ITransfer => ({
@@ -56,7 +56,7 @@ const createTransfer = (type: TransferType): ITransfer => ({
   agreedToTerms: false,
 });
 
-const BridgeV3Page: NextPage = () => {
+const BridgePage: NextPage = () => {
   const { query } = useRouter();
   const queryClient = useMemo(() => new QueryClient(), []);
 
@@ -91,15 +91,15 @@ const BridgeV3Page: NextPage = () => {
                       </Typography>
                       <Box sx={{ my: 3 }}>
                         <TransferTitle />
-                        <Button LinkComponent={NextLink} href="/transfers/v2">
+                        <Button LinkComponent={NextLink} href="/transfers">
                           <TableRowsIcon />
                           View All Transfers
                         </Button>
                         <NewTransferButton />
                       </Box>
-                      <BridgeV3Stepper />
+                      <BridgeStepper />
                       <Box sx={{ mt: 3, mb: 2, width: "50%" }}>
-                        <BridgeV3TransferSwitchTypeCard />
+                        <BridgeTransferSwitchTypeCard />
                       </Box>
                       <Card
                         sx={{
@@ -111,8 +111,8 @@ const BridgeV3Page: NextPage = () => {
                         }}
                       >
                         <CardContent>
-                          <BridgeV3StepSwitch />
-                          <BridgeV3SavingIndicator />
+                          <BridgeStepSwitch />
+                          <BridgeSavingIndicator />
                         </CardContent>
                       </Card>
                     </Container>
@@ -127,4 +127,4 @@ const BridgeV3Page: NextPage = () => {
   );
 };
 
-export default BridgeV3Page;
+export default BridgePage;

@@ -10,7 +10,7 @@ type Props = {
   transfer: ITransfer;
 };
 
-const BridgeV3CompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
+const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
   const mintSysTx = logs.find(
     (log) => log.status === "mint-sysx" && log.payload.data.tx !== undefined
@@ -58,4 +58,4 @@ const BridgeV3CompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
   );
 };
 
-export default BridgeV3CompleteNevmToSys;
+export default BridgeCompleteNevmToSys;

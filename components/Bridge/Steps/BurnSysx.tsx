@@ -1,12 +1,12 @@
 import { Alert, Box, Button, Typography } from "@mui/material";
 import UTXOStepWrapper from "../UTXOStepWrapper";
 import { useTransfer } from "../context/TransferContext";
-import { useBurnSys } from "../hooks/useBurnSys";
 import {
   ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
   TransferStatus,
 } from "@contexts/Transfer/types";
+import { useBurnSysx } from "../hooks/useBurnSysx";
 
 const isError = (error: unknown): error is Error => {
   return error instanceof Error;
@@ -14,16 +14,17 @@ const isError = (error: unknown): error is Error => {
 
 type BurnSysProps = {
   successStatus: TransferStatus;
+  toNevm?: boolean;
 };
 
-const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
+const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
   const { transfer, saveTransfer } = useTransfer();
   const {
     mutate: signBurnSys,
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
-  } = useBurnSys(transfer);
+  } = useBurnSysx(transfer, toNevm);
 
   const onSignatureSuccess = (tx: string) => {
     const updatedLogs: ITransferLog[] = [
@@ -34,9 +35,9 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
           data: {
             tx,
           },
-          message: "Burning SYS to SYSX",
+          message: "Burning SYSX to NEVM",
         },
-        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
       },
     ];
     saveTransfer({
@@ -55,9 +56,9 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
           data: {
             error,
           },
-          message: "Burning SYS to SYSX Error",
+          message: "Burning SYSX to NEVM",
         },
-        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
       },
     ];
     saveTransfer({
@@ -94,10 +95,10 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
   return (
     <Box>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Confirm Burning of SYS:
+        Confirm Burning of SYSX:
       </Typography>
       <Typography variant="h6" sx={{ mb: 2 }}>
-        {transfer.amount} SYS
+        {transfer.amount} SYSX
       </Typography>
       <Button color="primary" variant="contained" onClick={sign}>
         Confirm
@@ -106,10 +107,10 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
   );
 };
 
-const BridgeV3StepBurnSys: React.FC<BurnSysProps> = (props) => (
+const BridgeStepBurnSysx: React.FC<BurnSysProps> = (props) => (
   <UTXOStepWrapper>
-    <BurnSys {...props} />
+    <BurnSysx {...props} />
   </UTXOStepWrapper>
 );
 
-export default BridgeV3StepBurnSys;
+export default BridgeStepBurnSysx;

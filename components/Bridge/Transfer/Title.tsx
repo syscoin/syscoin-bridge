@@ -1,5 +1,5 @@
 import { Typography, TypographyProps } from "@mui/material";
-import { useTransfer } from "../v3/context/TransferContext";
+import { useTransfer } from "../context/TransferContext";
 
 const TransferTitle: React.FC<TypographyProps> = (props) => {
   const { transfer } = useTransfer();

@@ -1,7 +1,7 @@
 import { CircularProgress, Typography } from "@mui/material";
 import { useTransfer } from "./context/TransferContext";
 
-const BridgeV3SavingIndicator = () => {
+const BridgeSavingIndicator = () => {
   const { isSaving } = useTransfer();
   if (!isSaving) return null;
   return (
@@ -12,4 +12,4 @@ const BridgeV3SavingIndicator = () => {
   );
 };
 
-export default BridgeV3SavingIndicator;
+export default BridgeSavingIndicator;

@@ -10,7 +10,7 @@ type Props = {
   transfer: ITransfer;
 };
 
-const BridgeV3CompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
+const BridgeCompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
   const burnSysTx =
     transfer.useSysx || transfer.utxoAssetType === "sysx"
@@ -70,4 +70,4 @@ const BridgeV3CompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
   );
 };
 
-export default BridgeV3CompleteSysToNevm;
+export default BridgeCompleteSysToNevm;

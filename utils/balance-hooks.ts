@@ -1,6 +1,6 @@
 import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
-import { useWeb3 } from "components/Bridge/v3/context/Web";
+import { useWeb3 } from "components/Bridge/context/Web";
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import { useQuery } from "react-query";
 

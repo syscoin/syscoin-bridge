@@ -3,7 +3,7 @@ import { useTransfer } from "./context/TransferContext";
 import NextLink from "next/link";
 import { ChangeCircle } from "@mui/icons-material";
 
-const BridgeV3TransferSwitchTypeCard = () => {
+const BridgeTransferSwitchTypeCard = () => {
   const { transfer } = useTransfer();
   if (transfer.status !== "initialize") {
     return null;
@@ -33,4 +33,4 @@ const BridgeV3TransferSwitchTypeCard = () => {
   );
 };
 
-export default BridgeV3TransferSwitchTypeCard;
+export default BridgeTransferSwitchTypeCard;

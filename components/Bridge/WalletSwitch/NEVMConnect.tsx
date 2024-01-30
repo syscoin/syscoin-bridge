@@ -6,7 +6,7 @@ import WalletSwitchConfirmCard from "./ConfirmCard";
 import { ITransfer } from "@contexts/Transfer/types";
 import { useNevmBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
-import { useFeatureFlags } from "../v3/hooks/useFeatureFlags";
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 
 type NEVMConnectProps = {
   transfer: ITransfer;
