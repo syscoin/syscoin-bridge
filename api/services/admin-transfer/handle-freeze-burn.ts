@@ -10,7 +10,7 @@ import {
   ITransferLog,
 } from "@contexts/Transfer/types";
 import { validateTransactionReceipt } from "./validate-relay-contract-receipt";
-import { ERC20_MANAGER_CONTRACT_ADDRESS } from "@constants";
+import { ERC20_MANAGER_CONTRACT_ADDRESS, NEVM_RPC_URL } from "@constants";
 
 export const handleFreezeBurn = async (
   transferId: string,
@@ -19,7 +19,7 @@ export const handleFreezeBurn = async (
   res: NextApiResponse
 ) => {
   await dbConnect();
-  const web3 = new Web3("https://rpc.syscoin.org");
+  const web3 = new Web3(NEVM_RPC_URL);
 
   const { address } = req.session.user!;
 

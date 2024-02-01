@@ -3,6 +3,7 @@ import { useMutation } from "react-query";
 import { utils } from "syscoinjs-lib";
 import { useSyscoin } from "../context/Syscoin";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { NEVM_RPC_URL } from "@constants";
 
 // Component
 
@@ -23,7 +24,7 @@ export const useMintSysx = (transfer: ITransfer) => {
       const feeRate = new utils.BN(10);
       const txOpts = { rbf: true };
       const assetOpts = {
-        web3url: "https://rpc.syscoin.org",
+        web3url: NEVM_RPC_URL,
         ethtxid: transactionHash,
       };
       const assetMap = null;

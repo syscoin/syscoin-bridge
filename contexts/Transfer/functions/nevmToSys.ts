@@ -11,6 +11,7 @@ import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";
 import { captureException } from "@sentry/nextjs";
+import { NEVM_RPC_URL } from "@constants";
 
 const ERROR_MESSAGE_EVM_ONLY =
   "Method only available when connected on EVM chains";
@@ -28,7 +29,11 @@ const freezeAndBurn = (
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
-          addLog(ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS, "Freeze and Burn SYS", transactionHash)
+          addLog(
+            ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+            "Freeze and Burn SYS",
+            transactionHash
+          )
         );
         resolve(transactionHash);
       })
@@ -65,7 +70,11 @@ const confirmFreezeAndBurnSys = async (
       return;
     }
     dispatch(
-      addLog(ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, "Confirm Freeze and Burn SYS", receipt)
+      addLog(
+        ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
+        "Confirm Freeze and Burn SYS",
+        receipt
+      )
     );
   } catch (error: any) {
     captureException(error);
@@ -106,7 +115,7 @@ const mintSysx = async (
   const txOpts = { rbf: true };
   // web3 URL + ID and nevm burn txid
   const assetOpts = {
-    web3url: "https://rpc.syscoin.org",
+    web3url: NEVM_RPC_URL,
     ethtxid: receipt.transactionHash,
   };
   // will be auto filled based on ethtxid eth-proof
@@ -128,7 +137,13 @@ const mintSysx = async (
     transfer.utxoXpub
   );
   if (!res) {
-    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX, "Mint SYS error: Not enough funds", res));
+    dispatch(
+      addLog(
+        ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
+        "Mint SYS error: Not enough funds",
+        res
+      )
+    );
     return Promise.reject(new Error("Mint SYS error: Not enough funds"));
   }
   console.log("assetAllocationMint received", {
@@ -136,7 +151,13 @@ const mintSysx = async (
   });
   const transaction = utils.exportPsbtToJson(res.psbt, res.assets);
   const mintSysxTransactionReceipt = await sendUtxoTransaction(transaction);
-  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX, "Mint Sysx", mintSysxTransactionReceipt));
+  dispatch(
+    addLog(
+      ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
+      "Mint Sysx",
+      mintSysxTransactionReceipt
+    )
+  );
 };
 
 const burnSysxToSys = async (
@@ -159,12 +180,24 @@ const burnSysxToSys = async (
   } catch (e) {
     captureException(e);
     console.error("Burn SYSX error: Not enough funds", e);
-    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX, "Burn SYSX error: Not enough funds", e));
+    dispatch(
+      addLog(
+        ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
+        "Burn SYSX error: Not enough funds",
+        e
+      )
+    );
     return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
   }
 
   const burnSysxTransactionReceipt = await sendUtxoTransaction(transaction);
-  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX, "Burn Sysx", burnSysxTransactionReceipt));
+  dispatch(
+    addLog(
+      ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
+      "Burn Sysx",
+      burnSysxTransactionReceipt
+    )
+  );
 };
 
 const runWithNevmToSysStateMachine = async (

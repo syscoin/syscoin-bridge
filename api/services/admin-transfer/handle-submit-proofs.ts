@@ -4,7 +4,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { verifySignature } from "utils/api/verify-signature";
 import TransferModel from "models/transfer";
 import Web3 from "web3";
-import { RELAY_CONTRACT_ADDRESS } from "@constants";
+import { NEVM_RPC_URL, RELAY_CONTRACT_ADDRESS } from "@constants";
 import {
   COMMON_STATUS,
   ITransferLog,
@@ -19,7 +19,7 @@ export const handleSubmitProofs = async (
   res: NextApiResponse
 ) => {
   await dbConnect();
-  const web3 = new Web3("https://rpc.syscoin.org");
+  const web3 = new Web3(NEVM_RPC_URL);
 
   const { address } = req.session.user!;
 

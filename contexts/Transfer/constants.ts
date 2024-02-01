@@ -1,3 +1,5 @@
+import { NEVM_EXPLORER_URL, NEVM_RPC_URL } from "@constants";
+
 export const SYSX_ASSET_GUID = "123456";
 export const BlockbookAPIURL = "https://blockbook.elint.services/";
 
@@ -9,6 +11,6 @@ export const NEVMNetwork = {
     symbol: "SYS",
     decimals: 18,
   },
-  rpcUrls: ["https://rpc.syscoin.org"],
-  blockExplorerUrls: ["https://explorer.syscoin.org/"],
+  rpcUrls: [NEVM_RPC_URL],
+  blockExplorerUrls: [NEVM_EXPLORER_URL],
 };

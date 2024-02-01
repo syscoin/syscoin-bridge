@@ -1,4 +1,4 @@
-import { RELAY_CONTRACT_ADDRESS } from "@constants";
+import { NEVM_RPC_URL, RELAY_CONTRACT_ADDRESS } from "@constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
 import SponsorWalletService from "api/services/sponsor-wallet";
 import { TransferService } from "api/services/transfer";
@@ -7,7 +7,7 @@ import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import { SPVProof } from "syscoinjs-lib";
 import Web3 from "web3";
 
-const web3 = new Web3("https://rpc.syscoin.org");
+const web3 = new Web3(NEVM_RPC_URL);
 
 const relayContract = new web3.eth.Contract(relayAbi, RELAY_CONTRACT_ADDRESS);
 
