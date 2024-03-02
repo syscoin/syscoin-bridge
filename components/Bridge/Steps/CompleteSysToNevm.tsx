@@ -3,7 +3,7 @@ import { Alert, Box, Typography, Link } from "@mui/material";
 
 import React from "react";
 
-const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.elint.services/tx/";
+const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.syscoin.org/tx/";
 const NEVM_TX_BLOCKCHAIN_URL = "https://explorer.syscoin.org/tx/";
 
 type Props = {

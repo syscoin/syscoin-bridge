@@ -141,7 +141,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
           <Typography variant="body1" sx={{ mb: 2 }}>
             UTXO Address:
             <MuiLink
-              href={`https://blockbook.elint.services/address/${transfer.utxoAddress}`}
+              href={`https://blockbook.syscoin.org/address/${transfer.utxoAddress}`}
               target="_blank"
               sx={{ ml: 2 }}
             >
