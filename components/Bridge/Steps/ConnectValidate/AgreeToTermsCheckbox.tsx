@@ -1,4 +1,10 @@
-import { Box, Checkbox, FormControlLabel, Typography } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  Typography,
+  Link as MUILink,
+} from "@mui/material";
 import Link from "next/link";
 import { useFormContext } from "react-hook-form";
 
@@ -16,14 +22,14 @@ export const ConnectValidateAgreeToTermsCheckbox = () => {
         label={
           <Typography variant="body1">
             I agree to the{" "}
-            <Typography
+            <MUILink
               component={Link}
               color="primary"
               target="_blank"
               href="/Syscoin Terms and Conditions.pdf"
             >
               terms and conditions.
-            </Typography>
+            </MUILink>
           </Typography>
         }
       />
