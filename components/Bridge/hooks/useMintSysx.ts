@@ -4,16 +4,6 @@ import { utils } from "syscoinjs-lib";
 import { useSyscoin } from "../context/Syscoin";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 
-// Component
-
-// const freezeBurnConfirmationLog = transfer.logs.find(
-//     (log) => log.status === "confirm-freeze-burn-sys"
-//   );
-//   if (!freezeBurnConfirmationLog) {
-//     return;
-//   }
-//   const receipt = freezeBurnConfirmationLog.payload.data as TransactionReceipt;
-
 export const useMintSysx = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
   const { sendTransaction } = usePaliWalletV2();

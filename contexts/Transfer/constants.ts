@@ -9,6 +9,6 @@ export const NEVMNetwork = {
     symbol: "SYS",
     decimals: 18,
   },
-  rpcUrls: ["https://rpc.syscoin.org"],
+  rpcUrls: [process.env.NEVM_RPC_URL!],
   blockExplorerUrls: ["https://explorer.syscoin.org/"],
 };

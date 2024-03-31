@@ -19,7 +19,7 @@ export const handleSubmitProofs = async (
   res: NextApiResponse
 ) => {
   await dbConnect();
-  const web3 = new Web3("https://rpc.syscoin.org");
+  const web3 = new Web3(process.env.NEVM_RPC_URL!);
 
   const { address } = req.session.user!;
 
