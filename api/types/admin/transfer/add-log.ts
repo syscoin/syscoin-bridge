@@ -15,12 +15,8 @@ export type AddBurnSysLogRequestPayload = {
   operation: "burn-sys";
 } & BaseUtxoTransaction;
 
-export type AddBurnSysxLogRequestPayload = {
-  operation: "burn-sysx";
-} & BaseUtxoTransaction;
-
-export type AddMintSysxLogRequestPayload = {
-  operation: "mint-sysx";
+export type AddMintSysLogRequestPayload = {
+  operation: "mint-sys";
 } & BaseUtxoTransaction;
 
 export type AddSubmitProofsLogRequestPayload = {
@@ -33,8 +29,7 @@ export type AddFreezeAndBurnLogRequestPayload = {
 
 export type AddUTXOLogRequestPayload =
   | AddBurnSysLogRequestPayload
-  | AddBurnSysxLogRequestPayload
-  | AddMintSysxLogRequestPayload;
+  | AddMintSysLogRequestPayload;
 
 export type AddNEVMLogRequestPayload =
   | AddSubmitProofsLogRequestPayload

@@ -31,6 +31,7 @@ import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
 import { captureException } from "@sentry/nextjs";
+import {RELAY_CONTRACT_ADDRESS} from "../../constants"
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -70,7 +71,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
   const relayContract = useMemo(() => {
     return new web3.eth.Contract(
       relayAbi,
-      "0xD822557aC2F2b77A1988617308e4A29A89Cb95A6"
+      RELAY_CONTRACT_ADDRESS
     );
   }, [web3]);
 
@@ -115,7 +116,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       };
 
       const targetStepId =
-        transferType === "sys-to-nevm" ? "submit-proofs" : "mint-sysx";
+        transferType === "sys-to-nevm" ? "submit-proofs" : "mint-sys";
       const targetStepIndex = conditionalSteps.findIndex(
         (step) => step.id === targetStepId
       );

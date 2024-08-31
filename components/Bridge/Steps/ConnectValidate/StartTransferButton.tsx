@@ -1,5 +1,4 @@
 import { MIN_AMOUNT } from "@constants";
-import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { ITransfer } from "@contexts/Transfer/types";
 import { CheckCircleOutline } from "@mui/icons-material";
 import { Box, Button, Typography } from "@mui/material";
@@ -31,14 +30,8 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const utxoAddress = watch("utxoAddress");
   const nevmAddress = watch("nevmAddress");
   const utxoXpub = watch("utxoXpub");
-  const utxoAssetType = watch("utxoAssetType");
-  const useSysx = utxoAssetType === "sysx";
   const amount = watch("amount");
   const utxoBalance = useUtxoBalance(utxoXpub);
-  const sysxBalance = useUtxoBalance(utxoXpub, {
-    address: utxoAddress,
-    assetGuid: SYSX_ASSET_GUID,
-  });
   const nevmBalance = useNevmBalance(nevmAddress);
 
   const foundationFundingAvailable =
@@ -57,17 +50,9 @@ export const ConnectValidateStartTransferButton: React.FC<{
     utxoBalance.data !== undefined &&
     utxoBalance.data < MIN_AMOUNT;
 
-  const isSysxNotEnoughBalance =
-    useSysx &&
-    transfer.type === "sys-to-nevm" &&
-    sysxBalance.data !== undefined &&
-    (sysxBalance.data < MIN_AMOUNT || sysxBalance.data < amount);
-
   const isUtxoValid =
     isValidSYSAddress(utxoAddress, 57) &&
-    !isUtxoNotEnoughGas &&
-    !isSysxNotEnoughBalance &&
-    utxoAssetType !== undefined;
+    !isUtxoNotEnoughGas;
 
   const isNevmValid =
     isValidEthereumAddress(nevmAddress) &&
@@ -88,9 +73,6 @@ export const ConnectValidateStartTransferButton: React.FC<{
       )}
       {isUtxoNotEnoughGas && (
         <ErrorMessage message="UTXO: Not enough funds for gas" />
-      )}
-      {isSysxNotEnoughBalance && (
-        <ErrorMessage message="UTXO: Not enough SYSX" />
       )}
       {isNevmNotEnoughGas && (
         <ErrorMessage message="NEVM: Not enough funds for gas" />

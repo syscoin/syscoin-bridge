@@ -2,13 +2,12 @@ import { Dispatch } from "react";
 import Web3 from "web3";
 import { Contract } from "web3-eth-contract";
 import { TransactionReceipt } from "web3-core";
-import SyscoinERC20ManagerABI from "../abi/SyscoinERC20Manager";
-import { SYSX_ASSET_GUID } from "../constants";
+import VaultManagerABI from "../abi/VaultManager";
+import { VAULT_MANAGER_CONTRACT_ADDRESS } from "@constants";
 import { addLog, TransferActions } from "../store/actions";
 import { COMMON_STATUS, ETH_TO_SYS_TRANSFER_STATUS, ITransfer } from "../types";
 import { syscoin, utils } from "syscoinjs-lib";
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
-import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";
 import { captureException } from "@sentry/nextjs";
 
@@ -24,7 +23,7 @@ const freezeAndBurn = (
 
   return new Promise((resolve, reject) => {
     contract.methods
-      .freezeBurnERC20(amount, SYSX_ASSET_GUID, transfer.utxoAddress)
+      .freezeBurn(amount, transfer.utxoAddress)
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
@@ -65,7 +64,7 @@ const confirmFreezeAndBurnSys = async (
       return;
     }
     dispatch(
-      addLog(ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, "Confirm Freeze and Burn SYS", receipt)
+      addLog(ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, "Confirm Freeze SYS", receipt)
     );
   } catch (error: any) {
     captureException(error);
@@ -88,7 +87,7 @@ const confirmFreezeAndBurnSys = async (
   }
 };
 
-const mintSysx = async (
+const mintSys = async (
   transfer: ITransfer,
   syscoinInstance: syscoin,
   dispatch: Dispatch<TransferActions>,
@@ -103,68 +102,29 @@ const mintSysx = async (
   const receipt = freezeBurnConfirmationLog.payload.data as TransactionReceipt;
 
   const feeRate = new utils.BN(10);
-  const txOpts = { rbf: true };
-  // web3 URL + ID and nevm burn txid
-  const assetOpts = {
-    web3url: "https://rpc.syscoin.org",
-    ethtxid: receipt.transactionHash,
-  };
-  // will be auto filled based on ethtxid eth-proof
-  const assetMap = null;
-  console.log("assetAllocationMint", {
-    assetOpts,
+  const txOpts = { rbf: true, web3url: "https://rpc.syscoin.org", ethtxid: receipt.transactionHash};
+  console.log("sysMintFromNEVM", {
     txOpts,
-    assetMap,
     utxoAddress: transfer.utxoAddress,
     feeRate,
     xpub: transfer.utxoXpub,
   });
-  const res = await syscoinInstance.assetAllocationMint(
-    assetOpts,
+  const res = await syscoinInstance.sysMintFromNEVM(
     txOpts,
-    assetMap,
     transfer.utxoAddress,
     feeRate,
     transfer.utxoXpub
   );
   if (!res) {
-    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX, "Mint SYS error: Not enough funds", res));
+    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS, "Mint SYS error: Not enough funds", res));
     return Promise.reject(new Error("Mint SYS error: Not enough funds"));
   }
-  console.log("assetAllocationMint received", {
+  console.log("sysMintFromNEVM received", {
     res,
   });
-  const transaction = utils.exportPsbtToJson(res.psbt, res.assets);
-  const mintSysxTransactionReceipt = await sendUtxoTransaction(transaction);
-  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX, "Mint Sysx", mintSysxTransactionReceipt));
-};
-
-const burnSysxToSys = async (
-  transfer: ITransfer,
-  syscoinInstance: syscoin,
-  dispatch: Dispatch<TransferActions>,
-  sendUtxoTransaction: SendUtxoTransaction
-) => {
-  let transaction = null;
-
-  try {
-    transaction = await burnSysx(
-      syscoinInstance,
-      transfer.amount,
-      SYSX_ASSET_GUID,
-      transfer.utxoAddress!,
-      transfer.utxoXpub!,
-      ""
-    );
-  } catch (e) {
-    captureException(e);
-    console.error("Burn SYSX error: Not enough funds", e);
-    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX, "Burn SYSX error: Not enough funds", e));
-    return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
-  }
-
-  const burnSysxTransactionReceipt = await sendUtxoTransaction(transaction);
-  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX, "Burn Sysx", burnSysxTransactionReceipt));
+  const transaction = utils.exportPsbtToJson(res.psbt);
+  const mintSysTransactionReceipt = await sendUtxoTransaction(transaction);
+  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS, "Mint Sys", mintSysTransactionReceipt));
 };
 
 const runWithNevmToSysStateMachine = async (
@@ -181,43 +141,23 @@ const runWithNevmToSysStateMachine = async (
   ) => Promise<utils.BlockbookTransactionBTC | TransactionReceipt>,
   switchToUtxo?: () => Promise<string>
 ) => {
-  const erc20Manager = new web3.eth.Contract(
-    SyscoinERC20ManagerABI,
-    "0xA738a563F9ecb55e0b2245D1e9E380f0fE455ea1"
+  const vaultManager = new web3.eth.Contract(
+    VaultManagerABI,
+    VAULT_MANAGER_CONTRACT_ADDRESS
   );
   switch (transfer.status) {
     case "freeze-burn-sys": {
-      return freezeAndBurn(erc20Manager, transfer, dispatch);
+      return freezeAndBurn(vaultManager, transfer, dispatch);
     }
     case "confirm-freeze-burn-sys": {
       return confirmFreezeAndBurnSys(transfer, confirmTransaction, dispatch);
     }
-    case "mint-sysx": {
-      return mintSysx(transfer, syscoinInstance, dispatch, sendUtxoTransaction);
+    case "mint-sys": {
+      return mintSys(transfer, syscoinInstance, dispatch, sendUtxoTransaction);
     }
-
-    case "confirm-mint-sysx": {
-      const { tx } = transfer.logs.find((log) => log.status === "mint-sysx")
-        ?.payload.data;
-      const transactionRaw = await confirmTransaction("utxo", tx, 0, 0);
-      if (!transactionRaw) {
-        return;
-      }
-      break;
-    }
-
-    case "burn-sysx": {
-      return burnSysxToSys(
-        transfer,
-        syscoinInstance,
-        dispatch,
-        sendUtxoTransaction
-      );
-    }
-
     case "finalizing": {
       const transactionLog = transfer.logs.find(
-        (log) => log.status === "burn-sysx"
+        (log) => log.status === "mint-sys"
       );
       const txId = transactionLog?.payload.data.tx;
       const transaction = await confirmTransaction("utxo", txId);

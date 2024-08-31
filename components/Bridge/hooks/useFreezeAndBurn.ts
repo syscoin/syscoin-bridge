@@ -1,20 +1,18 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import { useWeb3 } from "../context/Web";
 import { useMutation } from "react-query";
-import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { toWei } from "web3-utils";
-import { useErc20ManagerContract } from "./useErc20ManagerContract";
+import { useVaultManagerContract } from "./useVaultManagerContract";
 import { DEFAULT_GAS_LIMIT } from "@constants";
 
 export const useFreezeAndBurn = (transfer: ITransfer) => {
-  const erc20ManagerContract = useErc20ManagerContract();
+  const vaultManagerContract = useVaultManagerContract();
   const web3 = useWeb3();
   return useMutation(["freezeAndBurn", transfer.id], {
     mutationFn: async () => {
       const amount = toWei(transfer.amount.toString(), "ether");
-      const method = erc20ManagerContract.methods.freezeBurnERC20(
+      const method = vaultManagerContract.methods.freezeBurn(
         amount,
-        SYSX_ASSET_GUID,
         transfer.utxoAddress
       );
 

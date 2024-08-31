@@ -1,25 +1,14 @@
 import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
 import { useWeb3 } from "components/Bridge/context/Web";
-import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import { useQuery } from "react-query";
-
-interface TokenAsset {
-  assetGuid: string;
-  name: string;
-  symbol: string;
-  balance: string;
-  decimals: number;
-}
 
 interface BalanceResp {
   balance: string;
-  tokensAsset: TokenAsset[];
 }
 
 type Options = {
   address?: string;
-  assetGuid?: string;
   retry?: boolean;
 };
 
@@ -27,27 +16,15 @@ export const useUtxoBalance = (
   xpub: string,
   options: Options = { retry: true }
 ) => {
-  const { address, assetGuid, retry } = options;
+  const { address, retry } = options;
   return useQuery(
-    ["utxo", "balance", xpub, address, assetGuid],
+    ["utxo", "balance", xpub, address],
     async () => {
       if (!xpub || isValidEthereumAddress(xpub)) return Promise.resolve(0);
       const url = BlockbookAPIURL + "/api/v2/xpub/" + xpub;
       const balanceInText = await fetch(url)
         .then((res) => res.json())
         .then((res: BalanceResp) => {
-          if (assetGuid && address) {
-            if (!res.tokensAsset) {
-              return "0";
-            }
-            const total = res.tokensAsset.reduce((acc, asset) => {
-              if (asset.assetGuid === assetGuid) {
-                return acc + parseInt(asset.balance);
-              }
-              return acc;
-            }, 0);
-            return total.toString();
-          }
           return res.balance;
         });
       return parseInt(balanceInText) / Math.pow(10, 8);

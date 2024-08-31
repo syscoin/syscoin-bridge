@@ -10,7 +10,7 @@ import {
   ITransferLog,
 } from "@contexts/Transfer/types";
 import { validateTransactionReceipt } from "./validate-relay-contract-receipt";
-import { ERC20_MANAGER_CONTRACT_ADDRESS } from "@constants";
+import { VAULT_MANAGER_CONTRACT_ADDRESS } from "@constants";
 
 export const handleFreezeBurn = async (
   transferId: string,
@@ -44,7 +44,7 @@ export const handleFreezeBurn = async (
     const receipt = await validateTransactionReceipt(
       web3,
       txHash,
-      ERC20_MANAGER_CONTRACT_ADDRESS
+      VAULT_MANAGER_CONTRACT_ADDRESS
     );
 
     if (clearAll) {
@@ -62,7 +62,7 @@ export const handleFreezeBurn = async (
         data: {
           hash: receipt.transactionHash,
         },
-        message: "Freeze and Burn SYS",
+        message: "Freeze SYS",
         previousStatus: COMMON_STATUS.INITIALIZE,
       },
       status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,

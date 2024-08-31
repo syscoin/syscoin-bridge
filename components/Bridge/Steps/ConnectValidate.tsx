@@ -1,7 +1,5 @@
 import NEVMConnect from "components/Bridge/WalletSwitch/NEVMConnect";
-import UTXOConnect, {
-  AssetType,
-} from "components/Bridge/WalletSwitch/UTXOConnect";
+import UTXOConnect from "components/Bridge/WalletSwitch/UTXOConnect";
 import { useRouter } from "next/router";
 import {
   FormProvider,
@@ -13,10 +11,8 @@ import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 
 import { MIN_AMOUNT } from "@constants";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import {
   ITransfer,
-  SYS_TO_ETH_TRANSFER_STATUS,
   TransferStatus,
 } from "@contexts/Transfer/types";
 import { Box, Typography } from "@mui/material";
@@ -26,17 +22,9 @@ import BridgeLoading from "../Loading";
 import { ConnectValidateAgreeToTermsCheckbox } from "./ConnectValidate/AgreeToTermsCheckbox";
 import { ConnectValidateAmountField } from "./ConnectValidate/AmountField";
 import { ConnectValidateStartTransferButton } from "./ConnectValidate/StartTransferButton";
-import { useCallback } from "react";
 
 const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
   const { setValue, watch } = useFormContext();
-
-  const utxoAssetType = watch("utxoAssetType");
-
-  const setSelectedAsset = useCallback(
-    (asset: AssetType) => setValue("utxoAssetType", asset),
-    [setValue]
-  );
 
   return (
     <UTXOConnect
@@ -45,8 +33,6 @@ const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
         setValue("utxoAddress", address);
         setValue("utxoXpub", xpub);
       }}
-      selectedAsset={utxoAssetType}
-      setSelectedAsset={setSelectedAsset}
     />
   );
 };
@@ -69,7 +55,6 @@ type ConnectValidateFormData = {
   utxoAddress: string;
   utxoXpub: string;
   agreedToTerms: boolean;
-  utxoAssetType?: "sys" | "sysx";
 };
 
 type BridgeConnectValidateStepProps = {
@@ -90,7 +75,6 @@ const BridgeConnectValidateStep: React.FC<
       utxoAddress: "",
       utxoXpub: "",
       agreedToTerms: false,
-      utxoAssetType: undefined,
     },
   });
 
@@ -98,27 +82,19 @@ const BridgeConnectValidateStep: React.FC<
 
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
-  const utxoAssetType = watch("utxoAssetType");
 
   const nevmAddress = watch("nevmAddress");
 
   const utxoBalance = useUtxoBalance(utxoXpub);
-  const sysxBalance = useUtxoBalance(utxoXpub, {
-    address: utxoAddress,
-    assetGuid: SYSX_ASSET_GUID,
-  });
   const nevmBalance = useNevmBalance(nevmAddress);
 
-  const useSysx = utxoAssetType === "sysx";
-
-  const maxUtxoAmount = useSysx ? sysxBalance.data : utxoBalance.data;
+  const maxUtxoAmount =utxoBalance.data;
 
   const maxAmmount =
     transfer.type === "sys-to-nevm" ? maxUtxoAmount : nevmBalance.data;
 
   let maxAmountCalculated =
-    parseFloat(`${maxAmmount ?? "0"}`) -
-    (transfer.type === "sys-to-nevm" && useSysx ? 0 : MIN_AMOUNT);
+    parseFloat(`${maxAmmount ?? "0"}`) - MIN_AMOUNT;
 
   if (maxAmountCalculated < 0) {
     maxAmountCalculated = 0;
@@ -132,11 +108,7 @@ const BridgeConnectValidateStep: React.FC<
       ...transfer,
       amount: amount.toString(),
       ...rest,
-      useSysx,
-      status:
-        useSysx && transfer.type === "sys-to-nevm"
-          ? SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX
-          : successStatus,
+      status: successStatus,
     };
     saveTransfer(modifiedTransfer, {
       onSuccess: (transfer) => {

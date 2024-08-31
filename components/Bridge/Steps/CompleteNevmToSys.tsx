@@ -13,10 +13,7 @@ type Props = {
 const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
   const mintSysTx = logs.find(
-    (log) => log.status === "mint-sysx" && log.payload.data.tx !== undefined
-  );
-  const burnSysxTx = logs.find(
-    (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
+    (log) => log.status === "mint-sys" && log.payload.data.tx !== undefined
   );
   const freezeAndBurnTx = logs.find(
     (log) =>
@@ -37,21 +34,12 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
         </Link>
       </Box>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2">Mint SYSX tx:</Typography>
+        <Typography variant="body2">Mint SYS tx:</Typography>
         <Link
           href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${mintSysTx?.payload.data.tx}`}
           target="_blank"
         >
           {mintSysTx?.payload.data.tx}
-        </Link>
-      </Box>
-      <Box>
-        <Typography variant="body2">Burn SYSX tx:</Typography>
-        <Link
-          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysxTx?.payload.data.tx}`}
-          target="_blank"
-        >
-          {burnSysxTx?.payload.data.tx}
         </Link>
       </Box>
     </Box>

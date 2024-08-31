@@ -34,26 +34,18 @@ const AddLogMenu: React.FC<Props> = ({ transfer, onSelect }) => {
             operation: "burn-sys",
           },
           {
-            label: "Add Burn Sysx Transaction",
-            operation: "burn-sysx",
-          },
-          {
             label: "Add Submit Proofs Transaction",
             operation: "submit-proofs",
           },
         ]
       : [
           {
-            label: "Add Freeze and Burn Transaction",
+            label: "Add Freeze Transaction",
             operation: "freeze-burn-sys",
           },
           {
-            label: "Add Mint Sysx Transaction",
-            operation: "mint-sysx",
-          },
-          {
-            label: "Add Burn Sysx Transaction",
-            operation: "burn-sysx",
+            label: "Add Mint Sys Transaction",
+            operation: "mint-sys",
           },
         ];
 

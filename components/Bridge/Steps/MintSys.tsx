@@ -2,29 +2,46 @@ import { Alert, Box, Button, Typography } from "@mui/material";
 import UTXOStepWrapper from "../UTXOStepWrapper";
 import { useTransfer } from "../context/TransferContext";
 import {
+  ETH_TO_SYS_TRANSFER_STATUS,
   ITransferLog,
-  SYS_TO_ETH_TRANSFER_STATUS,
   TransferStatus,
 } from "@contexts/Transfer/types";
-import { useBurnSysx } from "../hooks/useBurnSysx";
+
+import { useMintSys } from "../hooks/useMintSys";
+import { TransactionReceipt } from "web3-core";
 
 const isError = (error: unknown): error is Error => {
   return error instanceof Error;
 };
 
-type BurnSysProps = {
+type Props = {
   successStatus: TransferStatus;
-  toNevm?: boolean;
 };
 
-const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
+const MintSys: React.FC<Props> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
+
+  const freezeBurnConfirmationLog = transfer.logs.find(
+    (log) => log.status === "confirm-freeze-burn-sys"
+  );
+
+  const transactionReceipt: TransactionReceipt | undefined =
+    freezeBurnConfirmationLog?.payload.data;
+
   const {
-    mutate: signBurnSys,
+    mutate: mintSys,
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
-  } = useBurnSysx(transfer, toNevm);
+  } = useMintSys(transfer);
+
+  if (!transactionReceipt) {
+    return (
+      <Alert severity="error">
+        Invalid State: Freeze and Burn logs was not saved
+      </Alert>
+    );
+  }
 
   const onSignatureSuccess = (tx: string) => {
     const updatedLogs: ITransferLog[] = [
@@ -35,9 +52,9 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
           data: {
             tx,
           },
-          message: "Burning SYSX to NEVM",
+          message: "Mint SYS",
         },
-        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
+        status: ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS,
       },
     ];
     saveTransfer({
@@ -56,9 +73,9 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
           data: {
             error,
           },
-          message: "Burning SYSX to NEVM",
+          message: "Mint SYS",
         },
-        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
+        status: ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS,
       },
     ];
     saveTransfer({
@@ -68,7 +85,10 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
   };
 
   const sign = () => {
-    signBurnSys(undefined, {
+    if (!transactionReceipt) {
+      return;
+    }
+    mintSys(transactionReceipt.transactionHash, {
       onSuccess: onSignatureSuccess,
       onError: onSignatureError,
     });
@@ -87,7 +107,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
     }
     return (
       <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
-        Burn SYS error: {errorMessage}
+        Mint SYS error: {errorMessage}
       </Alert>
     );
   }
@@ -95,10 +115,10 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
   return (
     <Box>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Confirm Burning of SYSX:
+        Confirm Mint of SYS:
       </Typography>
       <Typography variant="h6" sx={{ mb: 2 }}>
-        {transfer.amount} SYSX
+        {transfer.amount} SYS
       </Typography>
       <Button color="primary" variant="contained" onClick={sign}>
         Confirm
@@ -107,10 +127,10 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
   );
 };
 
-const BridgeStepBurnSysx: React.FC<BurnSysProps> = (props) => (
+const BridgeStepMintSys: React.FC<Props> = (props) => (
   <UTXOStepWrapper>
-    <BurnSysx {...props} />
+    <MintSys {...props} />
   </UTXOStepWrapper>
 );
 
-export default BridgeStepBurnSysx;
+export default BridgeStepMintSys;

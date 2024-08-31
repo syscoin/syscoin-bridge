@@ -1,6 +1,6 @@
 # Syscoin Bridge
 
-This project is a bridge between Syscoin UTXO and Syscoin NEVM. It allows Syscoin assets to be moved to Syscoin NEVM and back.
+This project is a bridge between Syscoin UTXO and Syscoin NEVM.
 
 https://bridge.syscoin.org/
 
@@ -16,16 +16,15 @@ https://bridge.syscoin.org/
 
 ### UTXO to NEVM
 
-1. User burns SYS to create SYS on the Syscoin UTXO chain by via `syscoinBurnToAssetAllocation` RPC call.
-2. User burns SYSX to create SYS on the Syscoin NEVM chain by via `assetAllocationBurn` RPC call and specifying the NEVM address which receives the SYS on NEVM chain.
-3. Once both transactions are mined, the user can now use the transaction data to build a SPV proof `fetchBackendSPVProof` . This proof is then send to a Smart Contract on Syscoin NEVM chain.
-4. The Smart Contract verifies the SPV proof and if valid, mints SYS on the Syscoin NEVM chain to the address indicated on the SPV proof.
+1. User burns SYS on the Syscoin UTXO chain specifying the NEVM address which receives the SYS on NEVM chain.
+2. Once both transactions are mined, the user can now use the transaction data to build a SPV proof `fetchBackendSPVProof` . This proof is then send to a Smart Contract on Syscoin NEVM chain.
+4. The Smart Contract verifies the SPV proof and if valid, transfers SYS on the Syscoin NEVM chain to the address indicated on the SPV proof.
 
 ### NEVM to UTXO
 
-1. User freezes and Burn their SYS by calling on the `SyscoinERC20Manager` contract `freezeBurnERC20` function.
-2. Once the transaction is mined, the user can now use the transaction data to mint SYSX asset on UTXO chain by calling `assetAllocationMint` RPC call.
-3. Once SYSX is minted, this again can be burned using `assetAllocationBurn` to get native SYS on UTXO.
+1. User freezes and Burn their SYS by calling on the `VaultManager` contract `freezeBurn` function.
+2. Once the transaction is mined, the user can now use the transaction data to mint SYS on UTXO chain.
+
 
 ### Bridge UI
 

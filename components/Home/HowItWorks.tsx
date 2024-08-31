@@ -9,8 +9,8 @@ const HomeHowItWorks: React.FC = () => {
       <Card sx={{ mb: 3, p: 4 }}>
         <CardContent sx={{ px: 8 }}>
           <Typography variant="h5" textAlign="center" sx={{ mb: 3 }}>
-            Token portability backed by cryptographic proofs. <br />
-            Move tokens back and forth between the Syscoin Native (UTXO) and Syscoin NEVM blockchains.
+            SYS portability backed by cryptographic proofs. <br />
+            Move SYS back and forth between the Syscoin Native (UTXO) and Syscoin NEVM blockchains.
           </Typography>
           <Typography
             variant="body1"
@@ -23,22 +23,22 @@ const HomeHowItWorks: React.FC = () => {
 
           <Box sx={{ mb: 3 }}>
             <Typography variant="body1" fontWeight="bold">
-              Burn tokens on the Syscoin native or NEVM blockchains
+              Burn SYS on the Syscoin native or NEVM blockchains
             </Typography>
             <Typography variant="body1">
-              Burning tokens provably removes them from the circulating supply
+              Burning SYS provably removes them from the circulating supply
               on one chain. The proofs that result from this will be used to
-              mint tokens on the adjacent chain.
+              mint SYS on the adjacent chain.
             </Typography>
           </Box>
           <Box>
             <Typography variant="body1" fontWeight="bold">
-              Mint tokens on the NEVM or Syscoin native blockchain
+              Mint SYS on the NEVM or Syscoin native blockchain
             </Typography>
             <Typography variant="body1">
-              Using the proof of burn from one chain, new tokens can be minted
+              Using the proof of burn from one chain, new SYS can be minted
               into the adjacent chain. This results in a 1:1 representation of
-              the tokens on the new chain and empowers them with all the
+              the SYS on the new chain and empowers them with all the
               capabilities of that chain.
             </Typography>
           </Box>

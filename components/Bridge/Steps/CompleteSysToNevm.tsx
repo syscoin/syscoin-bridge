@@ -12,15 +12,8 @@ type Props = {
 
 const BridgeCompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
-  const burnSysTx =
-    transfer.useSysx || transfer.utxoAssetType === "sysx"
-      ? undefined
-      : logs.find(
-          (log) =>
-            log.status === "burn-sys" && log.payload.data.tx !== undefined
-        );
-  const burnSysxTx = logs.find(
-    (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
+  const burnSysTx = logs.find(
+    (log) => log.status === "burn-sys" && log.payload.data.tx !== undefined
   );
   const submitProofsTx = logs.find(
     (log) =>
@@ -49,12 +42,12 @@ const BridgeCompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
       </Box>
 
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2">Burn Sysx tx:</Typography>
+        <Typography variant="body2">Burn Sys tx:</Typography>
         <Link
-          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysxTx?.payload.data.tx}`}
+          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysTx?.payload.data.tx}`}
           target="_blank"
         >
-          {burnSysxTx?.payload.data.tx}
+          {burnSysTx?.payload.data.tx}
         </Link>
       </Box>
       <Box>

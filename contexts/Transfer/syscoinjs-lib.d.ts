@@ -22,42 +22,27 @@ declare module "syscoinjs-lib" {
 
   export interface UTXOTransaction {
     psbt: Psbt;
-    assets: string;
   }
 
   class syscoin {
     constructor(p1, blockbookAPIURL: string, network: Network): syscoin;
-    syscoinBurnToAssetAllocation(
+    createTransaction(
       txOpts,
-      assetMap,
+      sysChangeAddress,
+      outputsArr,
+      feeRate,
+      xpubAddress
+    ): Promise<{ psbt }>;
+    sysMintFromNEVM(
+      txOpts,
       sysChangeAddress,
       feeRate,
-      sysFromXpubOrAddress,
-      redeemOrWitnessScript?
-    ): Promise<{ psbt; assets }>;
-    assetAllocationBurn(
-      txOpts,
-      assetMap,
-      sysChangeAddress,
-      feeRate,
-      sysFromXpubOrAddress,
-      utxos,
-      redeemOrWitnessScript?
-    ): Promise<{ psbt; assets }>;
-    assetAllocationMint(
-      assetOpts,
-      txOpts,
-      assetMap,
-      sysChangeAddress,
-      feeRate,
-      sysFromXpubOrAddress,
-      utxos = undefined,
-      redeemOrWitnessScript = undefined
-    ): Promise<{ psbt; assets }>;
+      xpubAddress
+    ): Promise<{ psbt }>;
   }
   declare module utils {
     export const BN: any;
-    export function exportPsbtToJson(psbt: Psbt, assets): UTXOTransaction;
+    export function exportPsbtToJson(psbt: Psbt): UTXOTransaction;
     export function importPsbtFromJson(jsonData, network): UTXOTransaction;
     export interface BlockbookTransactionBTC {
       txid: string;
@@ -80,7 +65,7 @@ declare module "syscoinjs-lib" {
     export function fetchBackendRawTx(
       backendUrl: string,
       txid: string
-    ): Promise<BlockbookTransactionBTC & { tokenType: string }>;
+    ): Promise<BlockbookTransactionBTC>;
 
     export const syscoinNetworks: {
       mainnet: Network;

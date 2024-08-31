@@ -26,8 +26,6 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
     formState: { errors },
     watch,
   } = useFormContext();
-  const utxoAssetType = watch("utxoAssetType");
-  const showSysx = transfer.type === "sys-to-nevm" && utxoAssetType === "sysx";
   return (
     <Box>
       <TextField
@@ -38,7 +36,7 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
-              {showSysx ? "SYSX" : "SYS"}
+              "SYS"
             </InputAdornment>
           ),
         }}
@@ -65,21 +63,6 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
         helperText={<>{errors.amount && errors.amount.message}</>}
         sx={{ mb: 2 }}
       />
-      {showSysx && (
-        <Alert severity="info">
-          <Typography variant="body2">
-            <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-              What is SYSX?
-            </Typography>
-            <Typography variant="body2">
-              SYSX serves as a bridge token between the Syscoin UTXO and Syscoin
-              NEVM chains, with a 1:1 ratio to SYS. Users can convert SYS into
-              SYSX on the Syscoin UTXO, and then bridge into Syscoin NEVM, or
-              vice versa. This conversion process is bidirectional.
-            </Typography>
-          </Typography>
-        </Alert>
-      )}
     </Box>
   );
 };

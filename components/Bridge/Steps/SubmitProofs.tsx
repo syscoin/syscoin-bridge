@@ -97,13 +97,13 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   return (
     <Box>
       <Typography variant="caption" sx={{ mb: 1 }}>
-        NEVM Blockchash
+        NEVM Blockhash
       </Typography>
       <Typography variant="body1" sx={{ mb: 2, overflowWrap: "anywhere" }}>
         {spvProof.nevm_blockhash}
       </Typography>
       <Typography variant="caption" sx={{ mb: 1 }}>
-        UTXO Blockchash
+        UTXO Blockhash
       </Typography>
       <Typography variant="body1" sx={{ mb: 2, overflowWrap: "anywhere" }}>
         {spvProof.blockhash}

@@ -34,7 +34,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
           data: {
             tx,
           },
-          message: "Burning SYS to SYSX",
+          message: "Burning SYS",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
       },
@@ -55,7 +55,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
           data: {
             error,
           },
-          message: "Burning SYS to SYSX Error",
+          message: "Burning SYS Error",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
       },

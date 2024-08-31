@@ -4,24 +4,16 @@ import { utils } from "syscoinjs-lib";
 import { useSyscoin } from "../context/Syscoin";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 
-export const useMintSysx = (transfer: ITransfer) => {
+export const useMintSys = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
   const { sendTransaction } = usePaliWalletV2();
   return useMutation(
-    ["mintSysx", transfer.id],
+    ["mintSys", transfer.id],
     async (transactionHash: string) => {
       const feeRate = new utils.BN(10);
-      const txOpts = { rbf: true };
-      const assetOpts = {
-        web3url: "https://rpc.syscoin.org",
-        ethtxid: transactionHash,
-      };
-      const assetMap = null;
-
-      const res = await syscoinInstance.assetAllocationMint(
-        assetOpts,
+      const txOpts = { rbf: true, web3url: "https://rpc.syscoin.org", ethtxid: transactionHash};
+      const res = await syscoinInstance.sysMintFromNEVM(
         txOpts,
-        assetMap,
         transfer.utxoAddress,
         feeRate,
         transfer.utxoXpub
@@ -31,7 +23,7 @@ export const useMintSysx = (transfer: ITransfer) => {
         throw new Error("Mint SYS error: Not enough funds");
       }
 
-      const psbt = utils.exportPsbtToJson(res.psbt, res.assets);
+      const psbt = utils.exportPsbtToJson(res.psbt);
       const { tx, error } = await sendTransaction(psbt);
 
       if (error) {

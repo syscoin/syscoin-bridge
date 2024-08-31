@@ -50,12 +50,6 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   agreedToTerms: {
     type: Boolean,
   },
-  useSysx: {
-    type: Boolean,
-  },
-  utxoAssetType: {
-    type: String,
-  },
 });
 
 const generateModel = () => mongoose.model("Transfer", TransferSchema);

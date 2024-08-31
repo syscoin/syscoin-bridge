@@ -1,14 +1,12 @@
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import { Dispatch } from "react";
 import { SPVProof, syscoin, utils as syscoinUtils } from "syscoinjs-lib";
-import { BlockbookAPIURL, SYSX_ASSET_GUID } from "../constants";
-import burnSysToSysx from "./burnSysToSysx";
-import burnSysx from "./burnSysx";
+import { BlockbookAPIURL } from "../constants";
+import burnSys from "./burnSys";
 import { addLog, TransferActions } from "../store/actions";
 import { COMMON_STATUS, ITransfer, SYS_TO_ETH_TRANSFER_STATUS } from "../types";
 import Web3 from "web3";
 import { Contract } from "web3-eth-contract";
-
 import { getProof } from "bitcoin-proof";
 import { TransactionReceipt } from "web3-core";
 import { captureException } from "@sentry/nextjs";
@@ -45,17 +43,18 @@ const runWithSysToNevmStateMachine = async (
       if (transfer.logs.find((log) => log.status === "burn-sys")) {
         return Promise.resolve();
       }
-      const burnSysTransaction = await burnSysToSysx(
+      const burnSysTransaction = await burnSys(
         syscoinInstance,
         parseFloat(transfer.amount).toFixed(6),
+        transfer.utxoAddress!,
         transfer.utxoXpub!,
-        transfer.utxoAddress!
+        transfer.nevmAddress!.replace(/^0x/g, "")
       );
       await sendUtxoTransaction(burnSysTransaction)
         .then((burnSysTransactionReceipt) => {
           console.log(SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS, burnSysTransactionReceipt, new Date());
           dispatch(
-            addLog(SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS, "Burning SYS to SYSX", burnSysTransactionReceipt)
+            addLog(SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS, "Burning SYS", burnSysTransactionReceipt)
           );
         })
         .catch((error) => {
@@ -76,49 +75,9 @@ const runWithSysToNevmStateMachine = async (
       break;
     }
 
-    case "burn-sysx": {
-      if (transfer.logs.find((log) => log.status === "burn-sysx")) {
-        return Promise.resolve();
-      }
-      const burnSysxTransaction = await burnSysx(
-        syscoinInstance,
-        transfer.amount,
-        SYSX_ASSET_GUID,
-        transfer.utxoAddress!,
-        transfer.utxoXpub!,
-        transfer.nevmAddress!.replace(/^0x/g, "")
-      );
-      await sendUtxoTransaction(burnSysxTransaction)
-        .then((burnSysxTransactionReceipt) => {
-          dispatch(
-            addLog(
-              SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
-              "Burning SYSX to NEVM",
-              burnSysxTransactionReceipt
-            )
-          );
-        })
-        .catch((error) => {
-          captureException(error);
-          console.error("burn-sysx error", error);
-          return Promise.reject(error);
-        });
-      break;
-    }
-
-    case "confirm-burn-sysx": {
-      const { tx } = transfer.logs.find((log) => log.status === "burn-sysx")
-        ?.payload.data;
-      const transactionRaw = await confirmTransaction("utxo", tx);
-      if (!transactionRaw) {
-        return;
-      }
-      break;
-    }
-
     case "generate-proofs": {
       console.log("Fetching backednd proof");
-      const { tx } = transfer.logs.find((log) => log.status === "burn-sysx")
+      const { tx } = transfer.logs.find((log) => log.status === "burn-sys")
         ?.payload.data;
       const proof = await syscoinUtils.fetchBackendSPVProof(
         BlockbookAPIURL,

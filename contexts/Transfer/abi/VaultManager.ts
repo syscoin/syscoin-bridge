@@ -1,5 +1,5 @@
 import { AbiItem } from "web3-utils";
-const SyscoinERC20ManagerABI: AbiItem[] = [
+const VaultManagerABI: AbiItem[] = [
   {
     inputs: [
       {
@@ -272,4 +272,4 @@ const SyscoinERC20ManagerABI: AbiItem[] = [
     payable: true,
   },
 ];
-export default SyscoinERC20ManagerABI;
+export default VaultManagerABI;

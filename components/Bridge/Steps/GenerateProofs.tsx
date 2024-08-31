@@ -15,7 +15,7 @@ const BridgeStepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
 
   const burnSysLog = transfer.logs.find(
-    (log) => log.status === "burn-sysx" && Boolean(log.payload?.data?.tx)
+    (log) => log.status === "burn-sys" && Boolean(log.payload?.data?.tx)
   );
 
   const burnSysTxId: string | undefined = burnSysLog?.payload?.data?.tx;
@@ -28,7 +28,7 @@ const BridgeStepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
         payload: {
           data: typeof data === "string" ? JSON.parse(data) : data,
           message: "Generated proofs",
-          previousStatus: SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYSX,
+          previousStatus: SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYS,
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS,
       },
@@ -48,7 +48,7 @@ const BridgeStepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
   if (!burnSysTxId) {
     return (
       <Alert severity="error" action={<Button>Retry Burn Sys</Button>}>
-        Invalid state: Not Burn Sysx log was saved
+        Invalid state: Not Burn Sys log was saved
       </Alert>
     );
   }

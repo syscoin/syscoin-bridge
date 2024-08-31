@@ -10,7 +10,6 @@ const AddBurnSysTransaction: React.FC<Props> = ({ onClose, transferId }) => {
     <AddUTXOTransactionModal
       onClose={onClose}
       operation="burn-sys"
-      tokenType="SPTSyscoinBurnToAssetAllocation"
       transferId={transferId}
     />
   );

@@ -17,7 +17,6 @@ import { useState } from "react";
 type Props = {
   onClose: (refetch?: boolean) => void;
   transferId: string;
-  tokenType: string;
   operation: AddUTXOLogRequestPayload["operation"];
 };
 
@@ -29,7 +28,6 @@ type FormValues = {
 const AddUTXOTransactionModal: React.FC<Props> = ({
   onClose,
   transferId,
-  tokenType,
   operation,
 }) => {
   const { handleSubmit, register, watch } = useForm<FormValues>({
@@ -48,7 +46,7 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
   const { isFetching, isFetched, isSuccess, data, isError } =
     useUtxoTransaction(txId, 1, 10_000, 1);
 
-  const isValidTx = isFetched && data && data.tokenType === tokenType;
+  const isValidTx = isFetched && data;
 
   let helperText =
     isFetched && !isValidTx ? `Not a valid ${operation} transaction` : "";

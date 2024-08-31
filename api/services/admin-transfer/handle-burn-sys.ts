@@ -2,14 +2,12 @@ import { AddBurnSysLogRequestPayload } from "api/types/admin/transfer/add-log";
 import dbConnect from "lib/mongodb";
 import { NextApiRequest, NextApiResponse } from "next";
 import TransferModel from "models/transfer";
-import { BlockbookAPIURL } from "@contexts/Transfer/constants";
-import { utils as syscoinUtils } from "syscoinjs-lib";
 import {
   ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import { verifySignature } from "utils/api/verify-signature";
-import { CONFIRM_UTXO_TRANSACTION, verifyTxTokenTransfer } from "./constants";
+import { CONFIRM_UTXO_TRANSACTION, verifyTx } from "./constants";
 
 export const handleBurnSys = async (
   transferId: string,
@@ -35,9 +33,8 @@ export const handleBurnSys = async (
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const verifiedTransaction = await verifyTxTokenTransfer(
-    txId,
-    "SPTSyscoinBurnToAssetAllocation"
+  const verifiedTransaction = await verifyTx(
+    txId
   );
 
   if (!verifiedTransaction) {
@@ -54,7 +51,7 @@ export const handleBurnSys = async (
       data: {
         tx: txId,
       },
-      message: "Burning SYS to SYSX",
+      message: "Burning SYS",
       previousStatus: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
     },
     date: Date.now(),
