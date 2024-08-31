@@ -1,6 +1,6 @@
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import satoshibitcoin from "satoshi-bitcoin";
-import bitcoin from "bitcoinjs-lib"
+import * as bitcoin from "bitcoinjs-lib"
 
 export const burnSys = async (
   syscoinInstance: syscoin,

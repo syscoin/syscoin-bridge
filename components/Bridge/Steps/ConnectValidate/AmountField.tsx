@@ -1,10 +1,8 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import {
-  Alert,
   Box,
   InputAdornment,
   TextField,
-  Typography,
 } from "@mui/material";
 import { useFormContext } from "react-hook-form";
 
@@ -36,7 +34,7 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
         InputProps={{
           endAdornment: (
             <InputAdornment position="end">
-              "SYS"
+              {"SYS"}
             </InputAdornment>
           ),
         }}
