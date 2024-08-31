@@ -44,7 +44,18 @@ const BridgeStepSwitch = () => {
     } else if (transfer.status === ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS) {
       return (
         <BridgeStepMintSys
-        successStatus={COMMON_STATUS.COMPLETED}
+        successStatus={COMMON_STATUS.FINALIZING}
+        />
+      );
+    } else if (
+      transfer.status === COMMON_STATUS.FINALIZING
+    ) {
+      return (
+        <BridgeStepConfirmUTXOTransaction
+          invalidStateMessage="Invalid State: Mint Sys transaction was not saved"
+          loadingMessage="Confirming Mint of Sys transaction..."
+          sourceStatus={ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS}
+          successStatus={COMMON_STATUS.COMPLETED}
         />
       );
     } else if (transfer.status === COMMON_STATUS.COMPLETED) {

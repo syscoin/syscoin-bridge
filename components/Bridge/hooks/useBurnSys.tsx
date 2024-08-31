@@ -7,7 +7,7 @@ import burnSys from "@contexts/Transfer/functions/burnSys";
 export const useBurnSys = (transfer: ITransfer, toNevm = true) => {
   const syscoinInstance = useSyscoin();
   const { sendTransaction } = usePaliWalletV2();
-  return useMutation(["burnSyx", transfer.id], {
+  return useMutation(["burnSys", transfer.id], {
     mutationFn: async () => {
       if (!transfer.utxoXpub || !transfer.utxoAddress) {
         throw new Error("Missing UTXO information");
