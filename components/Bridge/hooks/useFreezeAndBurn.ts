@@ -33,8 +33,8 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
           })
           .once("transactionHash", (hash: string | { success: false }) => {
             if (typeof hash !== "string") {
-              reject("Failed to freeze and burn sys. Check browser logs");
-              console.error("freeze and burn failed", hash);
+              reject("Failed to freeze sys. Check browser logs");
+              console.error("freeze failed", hash);
             } else {
               resolve(hash);
             }

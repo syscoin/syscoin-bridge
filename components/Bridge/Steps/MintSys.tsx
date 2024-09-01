@@ -38,7 +38,7 @@ const MintSys: React.FC<Props> = ({ successStatus }) => {
   if (!transactionReceipt) {
     return (
       <Alert severity="error">
-        Invalid State: Freeze and Burn logs was not saved
+        Invalid State: Freeze logs was not saved
       </Alert>
     );
   }

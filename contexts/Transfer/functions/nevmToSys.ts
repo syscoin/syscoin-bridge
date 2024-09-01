@@ -27,13 +27,13 @@ const freezeAndBurn = (
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
-          addLog(ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS, "Freeze and Burn SYS", transactionHash)
+          addLog(ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS, "Freeze SYS", transactionHash)
         );
         resolve(transactionHash);
       })
       .on("error", (error: { message: string }) => {
         dispatch(
-          addLog(COMMON_STATUS.ERROR, "Freeze and Burn error", {
+          addLog(COMMON_STATUS.ERROR, "Freeze error", {
             error,
           })
         );
@@ -73,7 +73,7 @@ const confirmFreezeAndBurnSys = async (
     dispatch(
       addLog(
         COMMON_STATUS.ERROR,
-        `Confirm Freeze and Burn error${
+        `Confirm Freeze error${
           isEVMOnlyError
             ? ": Please switch your Pali to the Syscoin NEVM network"
             : ""

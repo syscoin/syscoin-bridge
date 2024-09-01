@@ -35,8 +35,8 @@ const BridgeStepSwitch = () => {
     ) {
       return (
         <BridgeConfirmNEVMTransaction
-          invalidStateMessage="Invalid State: Freeze and Burn logs was not saved"
-          loadingMessage="Confirming freeze and burn transaction..."
+          invalidStateMessage="Invalid State: Freeze logs was not saved"
+          loadingMessage="Confirming freeze transaction..."
           sourceStatus={ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS}
           successStatus={ETH_TO_SYS_TRANSFER_STATUS.MINT_SYS}
         />

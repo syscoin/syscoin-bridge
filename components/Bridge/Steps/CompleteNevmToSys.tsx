@@ -25,7 +25,7 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
         Transfer complete!
       </Alert>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2">Freeze and Burn SYS tx:</Typography>
+        <Typography variant="body2">Freeze SYS tx:</Typography>
         <Link
           href={`${NEVM_TX_BLOCKCHAIN_URL}${freezeAndBurnTx?.payload.data.hash}`}
           target="_blank"
