@@ -40,13 +40,10 @@ const BridgeMetamaskNevmInstructions = () => {
               </Typography>
             </ListItem>
             <ListItem>
-              <Typography>3. Click on Manage ETH Provider</Typography>
+              <Typography>3. Set default wallet</Typography>
             </ListItem>
             <ListItem>
-              <Typography>
-                4. Disable switch &quot;Enable window.ethereum&quot; and click
-                &quot;Save&quot;
-              </Typography>
+              <Typography>4. Set Metamask as default wallet</Typography>
             </ListItem>
             <ListItem>
               <Typography>5. Reload this page</Typography>
