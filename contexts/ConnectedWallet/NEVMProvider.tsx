@@ -115,10 +115,11 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const switchToMainnet = () => {
+    console.log({ NEVMNetwork });
     window.ethereum
       .request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: MAINNET_CHAIN_ID }],
+        params: [{ chainId: NEVMNetwork.chainId }],
       })
       .then(() => chainId.refetch())
       .catch((err) => {

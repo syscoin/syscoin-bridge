@@ -1,7 +1,5 @@
-import {
-  MAINNET_CHAIN_ID,
-  useNEVM,
-} from "@contexts/ConnectedWallet/NEVMProvider";
+import { CHAIN_ID } from "@constants";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Button } from "@mui/material";
 import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
@@ -30,15 +28,13 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
 
   if (!isValidEthereumAddress(account)) {
     return (
-      <>
-        <Button variant="contained" onClick={connect}>
-          Switch Account
-        </Button>
-      </>
+      <Button variant="contained" onClick={connect}>
+        Switch Account
+      </Button>
     );
   }
 
-  if (chainId !== MAINNET_CHAIN_ID) {
+  if (chainId !== `0x${Number(CHAIN_ID).toString(16)}`) {
     return (
       <Button variant="contained" onClick={switchToMainnet}>
         Switch to NEVM Network

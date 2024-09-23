@@ -1,4 +1,4 @@
-import { MIN_AMOUNT } from "@constants";
+import { MIN_AMOUNT, CHAIN_ID } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { ITransfer } from "@contexts/Transfer/types";
 import { CheckCircleOutline } from "@mui/icons-material";
@@ -64,7 +64,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
     (sysxBalance.data < MIN_AMOUNT || sysxBalance.data < amount);
 
   const isUtxoValid =
-    isValidSYSAddress(utxoAddress, 57) &&
+    isValidSYSAddress(utxoAddress, CHAIN_ID) &&
     !isUtxoNotEnoughGas &&
     !isSysxNotEnoughBalance &&
     utxoAssetType !== undefined;

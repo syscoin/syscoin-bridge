@@ -1,10 +1,11 @@
+import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import { ITransfer } from "@contexts/Transfer/types";
 import { Alert, Box, Typography, Link } from "@mui/material";
 
 import React from "react";
 
-const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.syscoin.org/tx/";
-const NEVM_TX_BLOCKCHAIN_URL = "https://explorer.syscoin.org/tx/";
+const SYSCOIN_TX_BLOCKCHAIN_URL = `${BlockbookAPIURL}/tx/`;
+const NEVM_TX_BLOCKCHAIN_URL = `${process.env.NEXT_PUBLIC_NEVM_EXPLORER}/tx/`;
 
 type Props = {
   transfer: ITransfer;
