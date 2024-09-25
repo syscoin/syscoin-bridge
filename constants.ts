@@ -16,3 +16,5 @@ export const ADMIN_LOGIN_MESSAGE = "Login to Syscoin Bridge Admin";
 
 export const CHAIN_ID =
   process.env.NEXT_PUBLIC_IS_TESTNET === "true" ? 5700 : 57;
+
+console.log("next is testnet", process.env.NEXT_PUBLIC_IS_TESTNET);
