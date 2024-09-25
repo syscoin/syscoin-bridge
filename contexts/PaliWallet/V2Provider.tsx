@@ -74,7 +74,8 @@ declare global {
 
 export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
-}> = ({ children }) => {
+  chainId: string;
+}> = ({ children, chainId }) => {
   const queryClient = useQueryClient();
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
@@ -152,7 +153,7 @@ export const PaliWalletV2Provider: React.FC<{
     () =>
       connectedAccount.isSuccess &&
       connectedAccount.data &&
-      isValidSYSAddress(connectedAccount.data.address, CHAIN_ID)
+      isValidSYSAddress(connectedAccount.data.address, parseInt(chainId))
         ? connectedAccount.data.address
         : undefined,
     [connectedAccount.data, connectedAccount.isSuccess]
@@ -220,7 +221,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "sys_changeUTXOEVM",
             params: [
               {
-                chainId: CHAIN_ID,
+                chainId,
               },
             ],
           })

@@ -23,7 +23,7 @@ function MyApp({ Component, pageProps, router }: AppProps) {
   }
   return (
     <QueryClientProvider client={queryClient}>
-      <PaliWalletV2Provider>
+      <PaliWalletV2Provider chainId={process.env.NEXT_PUBLIC_CHAIN_ID!}>
         <MetamaskProvider>
           <NEVMProvider>
             <ConnectedWalletProvider>
