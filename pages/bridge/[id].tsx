@@ -56,8 +56,6 @@ const createTransfer = (type: TransferType): ITransfer => ({
   agreedToTerms: false,
 });
 
-const chainId = process.env.NEXT_PUBLIC_CHAIN_ID!;
-
 const BridgePage: NextPage = () => {
   const { query } = useRouter();
   const queryClient = useMemo(() => new QueryClient(), []);
@@ -76,7 +74,7 @@ const BridgePage: NextPage = () => {
     <SyscoinProvider>
       <Web3Provider>
         <QueryClientProvider client={queryClient}>
-          <PaliWalletV2Provider chainId={chainId}>
+          <PaliWalletV2Provider>
             <MetamaskProvider>
               <NEVMProvider>
                 <ConnectedWalletProvider>

@@ -19,8 +19,6 @@ interface INEVMContext {
   connect: () => void;
 }
 
-export const MAINNET_CHAIN_ID = "0x39";
-
 const NEVMContext = createContext({} as INEVMContext);
 
 export const useNEVM = () => useContext(NEVMContext);

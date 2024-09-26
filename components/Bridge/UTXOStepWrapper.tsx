@@ -1,7 +1,7 @@
-import { CHAIN_ID } from "@constants";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Button } from "@mui/material";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
+import { useFeatureFlags } from "./hooks/useFeatureFlags";
 
 type UTXOStepWrapperProps = {
   children: React.ReactNode;
@@ -16,6 +16,8 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
     connectWallet,
     changeAccount,
   } = usePaliWalletV2();
+
+  const { chainId: CHAIN_ID } = useFeatureFlags();
 
   if (version === "v2" && !isBitcoinBased) {
     return (

@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 type FeatureFlags = {
   foundationFundingAvailable: boolean;
   adminEnabled: boolean;
+  chainId: string;
 };
 
 export const useFeatureFlags = () => {
@@ -13,5 +14,6 @@ export const useFeatureFlags = () => {
   return {
     isEnabled: (flag: keyof FeatureFlags) =>
       (flags.isFetched && flags.data?.[flag]) ?? false,
+    chainId: flags.data?.chainId ? parseInt(flags.data.chainId) : 57,
   };
 };

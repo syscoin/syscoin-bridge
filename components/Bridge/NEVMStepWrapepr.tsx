@@ -1,8 +1,8 @@
-import { CHAIN_ID } from "@constants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Button } from "@mui/material";
 import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
+import { useFeatureFlags } from "./hooks/useFeatureFlags";
 
 type Props = {
   children: React.ReactNode;
@@ -11,6 +11,7 @@ type Props = {
 const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   const { version, isBitcoinBased, switchTo, isEVMInjected, connectWallet } =
     usePaliWalletV2();
+  const { chainId: expectedChainId } = useFeatureFlags();
 
   const { connect, account, chainId, switchToMainnet } = useNEVM();
 
@@ -34,7 +35,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
     );
   }
 
-  if (chainId !== `0x${Number(CHAIN_ID).toString(16)}`) {
+  if (chainId !== `0x${Number(expectedChainId).toString(16)}`) {
     return (
       <Button variant="contained" onClick={switchToMainnet}>
         Switch to NEVM Network

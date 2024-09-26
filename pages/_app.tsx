@@ -11,8 +11,6 @@ import WelcomeModal from "components/WelcomeModal";
 
 const queryClient = new QueryClient();
 
-const chainId = process.env.NEXT_PUBLIC_CHAIN_ID!;
-
 function MyApp({ Component, pageProps, router }: AppProps) {
   const isAdmin = router.pathname.includes("/admin");
   if (router.pathname.includes("/bridge")) {
@@ -25,7 +23,7 @@ function MyApp({ Component, pageProps, router }: AppProps) {
   }
   return (
     <QueryClientProvider client={queryClient}>
-      <PaliWalletV2Provider chainId={chainId}>
+      <PaliWalletV2Provider>
         <MetamaskProvider>
           <NEVMProvider>
             <ConnectedWalletProvider>
