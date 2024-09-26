@@ -1,6 +1,6 @@
 import { PaliWalletV2Provider } from "@contexts/PaliWallet/V2Provider";
 import { ThemeProvider } from "@mui/material";
-import type { AppProps } from "next/app";
+import type { AppContext, AppInitialProps, AppProps } from "next/app";
 import { QueryClient, QueryClientProvider } from "react-query";
 import theme from "../components/theme";
 import ConnectedWalletProvider from "../contexts/ConnectedWallet/Provider";
@@ -8,10 +8,20 @@ import MetamaskProvider from "../contexts/Metamask/Provider";
 import "../styles/globals.css";
 import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
 import WelcomeModal from "components/WelcomeModal";
+import App from "next/app";
 
 const queryClient = new QueryClient();
 
-function MyApp({ Component, pageProps, router }: AppProps) {
+type AppOwnProps = {
+  chainId: string;
+};
+
+function MyApp({
+  Component,
+  pageProps,
+  router,
+  chainId,
+}: AppProps & AppOwnProps) {
   const isAdmin = router.pathname.includes("/admin");
   if (router.pathname.includes("/bridge")) {
     return (
@@ -23,7 +33,7 @@ function MyApp({ Component, pageProps, router }: AppProps) {
   }
   return (
     <QueryClientProvider client={queryClient}>
-      <PaliWalletV2Provider chainId={process.env.NEXT_PUBLIC_CHAIN_ID!}>
+      <PaliWalletV2Provider chainId={chainId}>
         <MetamaskProvider>
           <NEVMProvider>
             <ConnectedWalletProvider>
@@ -38,5 +48,13 @@ function MyApp({ Component, pageProps, router }: AppProps) {
     </QueryClientProvider>
   );
 }
+
+MyApp.getInitialProps = async (
+  context: AppContext
+): Promise<AppOwnProps & AppInitialProps> => {
+  const ctx = await App.getInitialProps(context);
+
+  return { ...ctx, chainId: process.env.NEXT_PUBLIC_CHAIN_ID! };
+};
 
 export default MyApp;
