@@ -69,11 +69,11 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_NEVM_RPC_URL=$NEXT_PUBLIC_NEVM_RPC_URL
-            NEXT_PUBLIC_IS_TESTNET=$NEXT_PUBLIC_IS_TESTNET
-            NEXT_PUBLIC_NEVM_EXPLORER_URL=$NEXT_PUBLIC_NEVM_EXPLORER_URL
-            NEXT_PUBLIC_CHAIN_ID=$NEXT_PUBLIC_CHAIN_ID
-            NEXT_PUBLIC_BLOCKBOOK_API_URL=$NEXT_PUBLIC_BLOCKBOOK_API_URL
+            NEXT_PUBLIC_NEVM_RPC_URL=${{ env.NEXT_PUBLIC_NEVM_RPC_URL }}
+            NEXT_PUBLIC_IS_TESTNET=${{ env.NEXT_PUBLIC_IS_TESTNET }}
+            NEXT_PUBLIC_NEVM_EXPLORER_URL=${{ env.NEXT_PUBLIC_NEVM_EXPLORER_URL }}
+            NEXT_PUBLIC_CHAIN_ID=${{ env.NEXT_PUBLIC_CHAIN_ID }}
+            NEXT_PUBLIC_BLOCKBOOK_API_URL=${{ env.NEXT_PUBLIC_BLOCKBOOK_API_URL }}
 
       - name: Write metadata
         run: "cp $DOCKER_METADATA_OUTPUT_BAKE_FILE metadata.json"
