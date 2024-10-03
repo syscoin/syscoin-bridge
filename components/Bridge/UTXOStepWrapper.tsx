@@ -1,3 +1,4 @@
+import { CHAIN_ID } from "@constants";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Button } from "@mui/material";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
@@ -28,13 +29,11 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
     return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
   }
 
-  if (!isValidSYSAddress(connectedAccount, 57)) {
+  if (!isValidSYSAddress(connectedAccount, CHAIN_ID)) {
     return (
-      <>
-        <Button variant="contained" onClick={changeAccount}>
-          Switch Account
-        </Button>
-      </>
+      <Button variant="contained" onClick={changeAccount}>
+        Switch Account
+      </Button>
     );
   }
   return <>{children}</>;

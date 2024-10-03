@@ -1,7 +1,6 @@
 import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
 import { useWeb3 } from "components/Bridge/context/Web";
-import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import { useQuery } from "react-query";
 
 interface TokenAsset {
@@ -69,7 +68,7 @@ export const useNevmBalance = (address?: string) => {
       .catch(() => undefined);
 
     if (balRpc === undefined) {
-      const url = `https://explorer.syscoin.org/api?module=account&action=eth_get_balance&address=${address}&tag=latest`;
+      const url = `${process.env.NEXT_PUBLIC_NEVM_EXPLORER}/api?module=account&action=eth_get_balance&address=${address}&tag=latest`;
       const ethBalanceInHex = await fetch(url)
         .then((res) => res.json())
         .then((rpcResp) => rpcResp.result);

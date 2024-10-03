@@ -84,6 +84,7 @@ declare module "syscoinjs-lib" {
 
     export const syscoinNetworks: {
       mainnet: Network;
+      testnet: Network;
     };
   }
 }

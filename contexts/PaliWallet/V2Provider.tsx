@@ -1,16 +1,14 @@
 "use client";
-import { NEVMNetwork } from "@contexts/Transfer/constants";
+import { NEVMNetwork, UTXO_NETWORK } from "@contexts/Transfer/constants";
 import { useCallback, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
-import PaliWalletContextProvider, {
-  IPaliWalletContext,
-  PaliWalletContext,
-} from "./Provider";
+import { IPaliWalletContext, PaliWalletContext } from "./Provider";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
+import { CHAIN_ID } from "@constants";
 
 export interface ProviderState {
   xpub: string;
@@ -154,7 +152,7 @@ export const PaliWalletV2Provider: React.FC<{
     () =>
       connectedAccount.isSuccess &&
       connectedAccount.data &&
-      isValidSYSAddress(connectedAccount.data.address, 57)
+      isValidSYSAddress(connectedAccount.data.address, CHAIN_ID)
         ? connectedAccount.data.address
         : undefined,
     [connectedAccount.data, connectedAccount.isSuccess]
@@ -199,7 +197,7 @@ export const PaliWalletV2Provider: React.FC<{
 
     const unserializedResp = syscoinUtils.importPsbtFromJson(
       signedPsbt,
-      syscoinUtils.syscoinNetworks.mainnet
+      UTXO_NETWORK
     );
 
     const transaction = unserializedResp.psbt.extractTransaction();
@@ -222,7 +220,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "sys_changeUTXOEVM",
             params: [
               {
-                chainId: 57,
+                chainId: CHAIN_ID,
               },
             ],
           })
@@ -235,7 +233,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "eth_changeUTXOEVM",
             params: [
               {
-                chainId: 57,
+                chainId: CHAIN_ID,
               },
             ],
           })
