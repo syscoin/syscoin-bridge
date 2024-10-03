@@ -8,7 +8,7 @@ import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
-import { useFeatureFlags } from "components/Bridge/hooks/useFeatureFlags";
+import { CHAIN_ID } from "@constants";
 
 export interface ProviderState {
   xpub: string;
@@ -76,7 +76,6 @@ export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
   const queryClient = useQueryClient();
-  const { chainId } = useFeatureFlags();
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
@@ -153,7 +152,7 @@ export const PaliWalletV2Provider: React.FC<{
     () =>
       connectedAccount.isSuccess &&
       connectedAccount.data &&
-      isValidSYSAddress(connectedAccount.data.address, chainId)
+      isValidSYSAddress(connectedAccount.data.address, CHAIN_ID)
         ? connectedAccount.data.address
         : undefined,
     [connectedAccount.data, connectedAccount.isSuccess]
@@ -221,7 +220,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "sys_changeUTXOEVM",
             params: [
               {
-                chainId,
+                chainId: CHAIN_ID,
               },
             ],
           })
@@ -234,7 +233,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "eth_changeUTXOEVM",
             params: [
               {
-                chainId,
+                chainId: CHAIN_ID,
               },
             ],
           })

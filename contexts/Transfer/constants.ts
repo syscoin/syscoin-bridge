@@ -1,9 +1,7 @@
 import { utils as syscoinUtils } from "syscoinjs-lib";
 export const SYSX_ASSET_GUID = "123456";
 const isTestnet = process.env.NEXT_PUBLIC_IS_TESTNET === "true";
-export const BlockbookAPIURL = isTestnet
-  ? "https://blockbook-dev.syscoin.org"
-  : "https://blockbook.syscoin.org";
+export const BlockbookAPIURL = process.env.NEXT_PUBLIC_BLOCKBOOK_API_URL;
 
 export const UTXO_NETWORK = isTestnet
   ? syscoinUtils.syscoinNetworks.testnet
@@ -17,6 +15,6 @@ export const NEVMNetwork = {
     symbol: isTestnet ? "TSYS" : "SYS",
     decimals: 18,
   },
-  rpcUrls: [process.env.NEVM_RPC_URL!],
-  blockExplorerUrls: [process.env.NEXT_PUBLIC_NEVM_EXPLORER],
+  rpcUrls: [process.env.NEXT_PUBLIC_NEVM_RPC_URL!],
+  blockExplorerUrls: [process.env.NEXT_PUBLIC_NEVM_EXPLORER_URL],
 };

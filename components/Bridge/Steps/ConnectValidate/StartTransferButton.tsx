@@ -1,4 +1,4 @@
-import { MIN_AMOUNT } from "@constants";
+import { CHAIN_ID, MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { ITransfer } from "@contexts/Transfer/types";
 import { CheckCircleOutline } from "@mui/icons-material";
@@ -23,7 +23,6 @@ export const ConnectValidateStartTransferButton: React.FC<{
   transfer: ITransfer;
   isSaving: boolean;
 }> = ({ isSaving, transfer }) => {
-  const { chainId: CHAIN_ID } = useFeatureFlags();
   const {
     watch,
     formState: { errors, isValid },
