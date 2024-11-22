@@ -57,12 +57,13 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     []
   );
   const web3 = useMemo(() => new Web3(Web3.givenProvider), []);
-  const paliWallet = usePaliWalletV2();
+  const paliWallet = usePaliWallet();
+  const paliWalletV2 = usePaliWalletV2();
   const metamask = useMetamask();
   const [utxoWalletType, setUtxoWalletType] =
     useState<UTXOWallet>("pali-wallet");
   const [nevmWalletType, setNevmWalletType] = useState<NEVMWallet>(
-    paliWallet.version === "v2" && paliWallet.isEVMInjected
+    paliWallet.version === "v2" && paliWalletV2.isEVMInjected
       ? "pali-wallet"
       : "metamask"
   );
@@ -193,7 +194,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     setNevmWalletType(
       window.ethereum.wallet === "pali-v2" ? "pali-wallet" : "metamask"
     );
-  }, [paliWallet.isEVMInjected, setNevmWalletType]);
+  }, [paliWalletV2.isEVMInjected, setNevmWalletType]);
 
   return (
     <ConnectedWalletContext.Provider

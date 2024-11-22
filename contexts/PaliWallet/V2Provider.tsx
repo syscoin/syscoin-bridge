@@ -1,7 +1,7 @@
 "use client";
 import { NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import PaliWalletContextProvider, {
   IPaliWalletContext,
@@ -292,6 +292,10 @@ export const PaliWalletV2Provider: React.FC<{
       isLoading,
     ]
   );
+
+  if (!isInstalled) {
+    return <PaliWalletContextProvider> {children}</PaliWalletContextProvider>;
+  }
 
   return (
     <PaliWalletContext.Provider value={value}>
