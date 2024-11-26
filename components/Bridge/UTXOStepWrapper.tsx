@@ -1,4 +1,7 @@
-import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import {
+  usePaliWallet,
+  usePaliWalletV2,
+} from "@contexts/PaliWallet/usePaliWallet";
 import { Button } from "@mui/material";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
 
@@ -7,14 +10,9 @@ type UTXOStepWrapperProps = {
 };
 
 const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
-  const {
-    version,
-    isBitcoinBased,
-    switchTo,
-    connectedAccount,
-    connectWallet,
-    changeAccount,
-  } = usePaliWalletV2();
+  const { version, connectedAccount, connectWallet } = usePaliWallet();
+
+  const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
 
   if (version === "v2" && !isBitcoinBased) {
     return (

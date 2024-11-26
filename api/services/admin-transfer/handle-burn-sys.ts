@@ -2,8 +2,6 @@ import { AddBurnSysLogRequestPayload } from "api/types/admin/transfer/add-log";
 import dbConnect from "lib/mongodb";
 import { NextApiRequest, NextApiResponse } from "next";
 import TransferModel from "models/transfer";
-import { BlockbookAPIURL } from "@contexts/Transfer/constants";
-import { utils as syscoinUtils } from "syscoinjs-lib";
 import {
   ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
