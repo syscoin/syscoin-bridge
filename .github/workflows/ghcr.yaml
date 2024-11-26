@@ -9,7 +9,7 @@ on:
 
 jobs:
   docker:
-    permissions: 
+    permissions:
       contents: read
       packages: write
     runs-on: ubuntu-latest
@@ -76,12 +76,14 @@ jobs:
 
       - name: Deploy Frontend Service
         uses: appleboy/ssh-action@v0.1.9
+        env:
+          IMAGE_TAG: ${{ steps.read-metadata.outputs.tags }}
         with:
           host: ${{ secrets.HETZNER_STAGING_HOST }}
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
-            export FRONTEND_IMAGE="${{ steps.read-metadata.outputs.tags | split(',')[0] }}"
+            export FRONTEND_IMAGE="${{ env.IMAGE_TAG }}"
             cd /root/bridge
             docker-compose pull frontend
             docker-compose up -d frontend
