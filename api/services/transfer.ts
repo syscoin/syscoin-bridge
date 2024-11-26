@@ -1,30 +1,10 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { UserCredential, signInWithEmailAndPassword } from "firebase/auth";
-import firebase from "firebase-setup";
-import { doc, getDoc } from "firebase/firestore";
 import TransferModel from "models/transfer";
 import { SponsorWalletService } from "./sponsor-wallet";
 
 export class TransferService {
-  private isAuthenticated = false;
   private sponsorWalletService = new SponsorWalletService();
-  constructor() {
-    this.authenticate();
-  }
-  private async authenticate() {
-    if (this.isAuthenticated) {
-      return;
-    }
-    if (process.env.NODE_ENV !== "development" && firebase.auth) {
-      await signInWithEmailAndPassword(
-        firebase.auth,
-        process.env.FIREBASE_AUTH_EMAIL!,
-        process.env.FIREBASE_AUTH_PASSWORD!
-      ).then((userCredential) => {
-        this.isAuthenticated = Boolean(userCredential as UserCredential);
-      });
-    }
-  }
+  constructor() {}
 
   async getAll(params: Partial<ITransfer>): Promise<ITransfer[]> {
     const filters: (keyof ITransfer)[] = [
@@ -47,25 +27,10 @@ export class TransferService {
     const transfer = await TransferModel.findOne({ id });
 
     if (!transfer) {
-      return this.getTransferFirebase(id);
-    }
-
-    return transfer as unknown as ITransfer;
-  }
-
-  async getTransferFirebase(id: string): Promise<ITransfer> {
-    await this.authenticate();
-    const document = await getDoc(
-      doc(firebase.firestore, "transfers", id as string)
-    );
-
-    if (!document.exists()) {
       throw new Error("Transfer not found");
     }
 
-    const transferData = document.data() as ITransfer;
-
-    return this.upsertTransfer(transferData);
+    return transfer as unknown as ITransfer;
   }
 
   async upsertTransfer(transfer: ITransfer): Promise<ITransfer> {

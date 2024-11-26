@@ -5,7 +5,6 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { useQuery } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
@@ -55,6 +54,7 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [xpubAddress, setXpubAddress] = useState<string>();
   const [walletState, setWalletState] = useState<PaliWallet.WalletState>();
   const [isOnWalletUpdateSet, setIsOnWalletUpdateSet] = useState(false);
+
   const connectedAccount = useMemo(() => {
     if (!walletState || !xpubAddress) {
       return undefined;
@@ -130,6 +130,7 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
     setController(controller);
     if (!isOnWalletUpdateSet) {
       windowController.onWalletUpdate(async () => {
+        console.log("wallet updated");
         const xpubAddress = await windowController.getConnectedAccountXpub();
         const walletState = await windowController.getWalletState();
         setXpubAddress(xpubAddress);
