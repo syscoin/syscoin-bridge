@@ -89,7 +89,7 @@ jobs:
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
-            export FRONTEND_IMAGE="${{ env.IMAGE_TAG }}"
+            export FRONTEND_IMAGE="$(echo ${{ env.IMAGE_TAG }} | cut -d ',' -f 2)"
             cd /root/bridge
             docker-compose pull frontend
             docker-compose up -d frontend
