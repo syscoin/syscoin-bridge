@@ -29,30 +29,21 @@ https://bridge.syscoin.org/
 
 ### Bridge UI
 
-The bridge UI is a ReactJS application that allows users to interact with the bridge. It is a NextJS application that uses Firebase for authentication and storage. This allows users to interact with the bridge without having to install any software.
+The bridge UI is a ReactJS application that allows users to interact with the bridge. It is a NextJS application that uses Mongodb for storage. This allows users to interact with the bridge without having to install any software.
 
-Each step taken on the Bridge is stored in Firebase Firestore. This allows the user to resume the process at any time.
+Each step taken on the Bridge is stored in MongoDB. This allows the user to resume the process at any time.
 
 ## How to run
 
 ### Prerequisites
 
-- NodeJS 16+ (recommneded to use `nvm` to install NodeJS)
-- Firebase Emulator (recommended to use `npm install -g firebase-tools` to install Firebase Emulator)
+- NodeJS 16+ (recommended to use `nvm` to install NodeJS)
 - Yarn (recommended to use `npm install -g yarn` to install Yarn)
 
 ### Install dependencies
 
 ```bash
 yarn install
-```
-
-### Run Firebase Emulator
-
-Runs Firebase Emulator on port `4000`
-
-```bash
-yarn firebase:dev
 ```
 
 ### Run Dev Server
@@ -79,18 +70,18 @@ docker build -t syscoin/bridge .
 
 ### Environment Variables (for Production Docker)
 
-| Name                           | Description                  | Default |
-| ------------------------------ | ---------------------------- | ------- |
-| `FIREBASE_API_KEY`             | Firebase API Key             | `""`    |
-| `FIREBASE_AUTH_DOMAIN`         | Firebase Auth Domain         | `""`    |
-| `FIREBASE_PROJECT_ID`          | Firebase Project ID          | `""`    |
-| `FIREBASE_STORAGE_BUCKET`      | Firebase Storage Bucket      | `""`    |
-| `FIREBASE_MESSAGING_SENDER_ID` | Firebase Messaging Sender ID | `""`    |
-| `FIREBASE_APP_ID`              | Firebase App ID              | `""`    |
-| `FIREBASE_MEASUREMENT_ID`      | Firebase Measurement ID      | `""`    |
-| `FIREBASE_AUTH_EMAIL`          | Firebase Auth Email          | `""`    |
-| `FIREBASE_AUTH_PASSWORD`       | Firebase Auth Password       | `""`    |
-| `FIREBASE_AUTH_UID`            | Firebase Auth UID            | `""`    |
+| Name                            | Description                       | Default |
+| ------------------------------- | --------------------------------- | ------- |
+| `MONGODB_URI`                   | MongoDB URI                       |         |
+| `CONFIRM_TRANSACTION_TIMEOUTS`  | Description                       | Default |
+| `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer | 100     |
+| `ADMIN_API_KEY`                 | Admin API Key                     |         |
+| `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password            |         |
+| `NEXT_PUBLIC_NEVM_RPC_URL`      | NEVM RPC URL                      |         |
+| `NEXT_PUBLIC_NEVM_EXPLORER`     | NEVM Explorer URL                 |         |
+| `NEXT_PUBLIC_IS_TESTNET`        | Is Testnet                        |         |
+| `NEXT_PUBLIC_CHAIN_ID`          | Chain ID                          |         |
+| `NEXT_PUBLIC_BLOCKBOOK_API_URL` | Blockbook API URL                 |         |
 
 ## Contact
 

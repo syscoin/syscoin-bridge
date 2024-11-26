@@ -1,7 +1,4 @@
-import firebase from "firebase-setup";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { doc, getDoc } from "firebase/firestore";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { TransferService } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 
@@ -14,25 +11,8 @@ const getRequest = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ message: "Missing id" });
   }
 
-  try {
-    const transfer = await transferService.getTransfer(id as string);
-    return res.status(200).json(transfer);
-  } catch (e) {}
-
-  if (process.env.NODE_ENV !== "development" && firebase.auth) {
-    await signInWithEmailAndPassword(
-      firebase.auth,
-      process.env.FIREBASE_AUTH_EMAIL!,
-      process.env.FIREBASE_AUTH_PASSWORD!
-    );
-  }
-  const document = await getDoc(
-    doc(firebase.firestore, "transfers", id as string)
-  );
-  if (!document.exists()) {
-    return res.status(404).json({ message: "Transfer not found" });
-  }
-  res.status(200).json(document.data());
+  const transfer = await transferService.getTransfer(id as string);
+  return res.status(200).json(transfer);
 };
 
 const patchRequest = async (req: NextApiRequest, res: NextApiResponse) => {
