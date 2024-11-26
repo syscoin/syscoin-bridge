@@ -5,7 +5,11 @@ on:
     branches:
       - "main"
       - "support-pali-v1-backward-compatibility"
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment (e.g., staging)"
+        required: true
 
 jobs:
   docker:
@@ -56,7 +60,7 @@ jobs:
           path: metadata.json
 
   deploy-staging-hetzner:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' }}
     needs: docker
     runs-on: ubuntu-latest
     steps:
