@@ -5,11 +5,6 @@ on:
     branches:
       - "main"
       - "support-pali-v1-backward-compatibility"
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Deployment environment (e.g., staging)"
-        required: true
 
 jobs:
   docker:
@@ -59,9 +54,13 @@ jobs:
           name: metadata
           path: metadata.json
 
-  deploy-staging-hetzner:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' }}
+  deploy-staging:
     needs: docker
+    environment:
+      name: staging
+    permissions:
+      deployments: write
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Download metadata
