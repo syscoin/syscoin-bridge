@@ -36,7 +36,7 @@ const BridgeMetamaskNevmInstructions = () => {
             </ListItem>
             <ListItem>
               <Typography>
-                2. Click on Settings (gear icon on the top right)
+                2. Click options menu (burger icon on the top right)
               </Typography>
             </ListItem>
             <ListItem>
