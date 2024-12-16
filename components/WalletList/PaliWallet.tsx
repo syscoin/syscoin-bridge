@@ -9,6 +9,7 @@ import {
 import Web3 from "web3";
 
 const InstallPaliWallet = () => {
+  const { connectWallet, isInstalled } = usePaliWallet();
   return (
     <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
       <Image
@@ -18,16 +19,22 @@ const InstallPaliWallet = () => {
         alt="PaliWallet logo"
       />
       <Typography variant="body1">Pali Wallet</Typography>
-      <Link
-        href="https://paliwallet.com/"
-        title="Go to PaliWallet"
-        sx={{ ml: "auto" }}
-        target="_blank"
-      >
-        <Button variant="contained">
-          Install <Launch />
+      {!isInstalled ? (
+        <Link
+          href="https://paliwallet.com/"
+          title="Go to PaliWallet"
+          sx={{ ml: "auto" }}
+          target="_blank"
+        >
+          <Button variant="contained">
+            Install <Launch />
+          </Button>
+        </Link>
+      ) : (
+        <Button sx={{ ml: "auto" }} variant="contained" onClick={connectWallet}>
+          Connect
         </Button>
-      </Link>
+      )}
     </Box>
   );
 };
@@ -119,13 +126,13 @@ const PaliWalletV2 = () => {
 
 const WalletListPaliWallet = () => {
   const { utxo } = useConnectedWallet();
-  const { version } = usePaliWallet();
+  const { version, isInstalled } = usePaliWallet();
 
   if (version === "v2") {
     return <PaliWalletV2 />;
   }
 
-  if (utxo.type !== "pali-wallet" || !utxo.account) {
+  if (utxo.type !== "pali-wallet" || !isInstalled || !utxo.account) {
     return <InstallPaliWallet />;
   }
 

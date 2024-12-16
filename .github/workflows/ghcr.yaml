@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "support-pali-v1-backward-compatibility"
 
 jobs:
   docker:
@@ -55,3 +56,40 @@ jobs:
         with:
           name: metadata
           path: metadata.json
+
+  deploy-staging:
+    needs: docker
+    environment:
+      name: staging
+    permissions:
+      deployments: write
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: metadata
+          path: ./metadata
+
+      - name: Read Metadata
+        id: read-metadata
+        run: |
+          cd metadata
+          meta=$(cat metadata.json)
+          echo "::set-output name=tags::$(echo "$meta" | jq -r '.target["docker-metadata-action"].tags | join(",")')"
+        shell: bash
+
+      - name: Deploy Frontend Service
+        uses: appleboy/ssh-action@v0.1.9
+        env:
+          IMAGE_TAG: ${{ steps.read-metadata.outputs.tags }}
+        with:
+          host: ${{ secrets.HETZNER_STAGING_HOST }}
+          username: root
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            export FRONTEND_IMAGE="$(echo ${{ env.IMAGE_TAG }} | cut -d ',' -f 2)"
+            cd /root/bridge
+            docker-compose pull frontend
+            docker-compose up -d frontend
