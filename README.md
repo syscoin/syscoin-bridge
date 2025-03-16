@@ -23,7 +23,7 @@ https://bridge.syscoin.org/
 
 ### NEVM to UTXO
 
-1. User freezes and Burn their SYS by calling on the `SyscoinERC20Manager` contract `freezeBurnERC20` function.
+1. User freezes and Burn their SYS by calling on the `SyscoinERC20Manager` contract `freezeBurn` function.
 2. Once the transaction is mined, the user can now use the transaction data to mint SYSX asset on UTXO chain by calling `assetAllocationMint` RPC call.
 3. Once SYSX is minted, this again can be burned using `assetAllocationBurn` to get native SYS on UTXO.
 

@@ -2,10 +2,10 @@ export const MIN_AMOUNT = 0.01;
 export const DEFAULT_GAS_LIMIT = 120_000;
 
 export const RELAY_CONTRACT_ADDRESS =
-  "0xD822557aC2F2b77A1988617308e4A29A89Cb95A6";
+  "0xd714E7915362FF89388025F584726E6dF26D20f9";
 
 export const ERC20_MANAGER_CONTRACT_ADDRESS =
-  "0xA738a563F9ecb55e0b2245D1e9E380f0fE455ea1";
+  "0x7904299b3D3dC1b03d1DdEb45E9fDF3576aCBd5f";
 
 export const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.syscoin.org/tx/";
 export const NEVM_TX_BLOCKCHAIN_URL = "https://explorer.syscoin.org/tx/";

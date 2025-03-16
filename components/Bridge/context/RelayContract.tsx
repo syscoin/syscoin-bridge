@@ -8,7 +8,7 @@ export const useRelayContract = () => {
     () =>
       new web3.eth.Contract(
         relayAbi,
-        "0xD822557aC2F2b77A1988617308e4A29A89Cb95A6"
+        "0xd714E7915362FF89388025F584726E6dF26D20f9"
       ),
     [web3]
   );
