@@ -8,7 +8,7 @@ export const useErc20ManagerContract = () => {
     () =>
       new web3.eth.Contract(
         SyscoinERC20ManagerABI,
-        "0x7904299b3D3dC1b03d1DdEb45E9fDF3576aCBd5f"
+        "0xA738a563F9ecb55e0b2245D1e9E380f0fE455ea1"
       ),
     [web3]
   );

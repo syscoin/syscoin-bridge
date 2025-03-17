@@ -12,9 +12,9 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
   return useMutation(["freezeAndBurn", transfer.id], {
     mutationFn: async () => {
       const amount = toWei(transfer.amount.toString(), "ether");
-      const method = erc20ManagerContract.methods.freezeBurn(
+      const method = erc20ManagerContract.methods.freezeBurnERC20(
         amount,
-        0, 0,
+        SYSX_ASSET_GUID,
         transfer.utxoAddress
       );
 

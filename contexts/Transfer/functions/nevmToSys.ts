@@ -24,7 +24,7 @@ const freezeAndBurn = (
 
   return new Promise((resolve, reject) => {
     contract.methods
-      .freezeBurn(amount, 0, 0, transfer.utxoAddress)
+      .freezeBurnERC20(amount, SYSX_ASSET_GUID, transfer.utxoAddress)
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
@@ -183,7 +183,7 @@ const runWithNevmToSysStateMachine = async (
 ) => {
   const erc20Manager = new web3.eth.Contract(
     SyscoinERC20ManagerABI,
-    "0x7904299b3D3dC1b03d1DdEb45E9fDF3576aCBd5f"
+    "0xA738a563F9ecb55e0b2245D1e9E380f0fE455ea1"
   );
   switch (transfer.status) {
     case "freeze-burn-sys": {
