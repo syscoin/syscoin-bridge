@@ -44,7 +44,7 @@ export const handleSubmitProofs = async (
     const receipt = await validateTransactionReceipt(
       web3,
       txHash,
-      RELAY_CONTRACT_ADDRESS
+      RELAY_CONTRACT_ADDRESS!
     );
     if (clearAll) {
       transfer.logs = transfer.logs.filter(

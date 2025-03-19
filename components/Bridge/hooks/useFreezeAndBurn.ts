@@ -5,24 +5,35 @@ import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { toWei } from "web3-utils";
 import { useErc20ManagerContract } from "./useErc20ManagerContract";
 import { DEFAULT_GAS_LIMIT } from "@constants";
+import { useFeatureFlags } from "./useFeatureFlags";
 
 export const useFreezeAndBurn = (transfer: ITransfer) => {
   const erc20ManagerContract = useErc20ManagerContract();
   const web3 = useWeb3();
+  const flags = useFeatureFlags();
   return useMutation(["freezeAndBurn", transfer.id], {
     mutationFn: async () => {
       const amount = toWei(transfer.amount.toString(), "ether");
-      const method = erc20ManagerContract.methods.freezeBurnERC20(
+      let method = erc20ManagerContract.methods.freezeBurnERC20(
         amount,
         SYSX_ASSET_GUID,
         transfer.utxoAddress
       );
 
+      if (flags.isEnabled("isSys5Enabled")) {
+        method = erc20ManagerContract.methods.freezeBurn(
+          amount,
+          0,
+          0,
+          transfer.utxoAddress
+        );
+      }
+
       const gasPrice = await web3.eth.getGasPrice();
 
       const gas = await method.estimateGas().catch((error: Error) => {
         console.error("Estimate gas error", error);
-        return DEFAULT_GAS_LIMIT
+        return DEFAULT_GAS_LIMIT;
       });
 
       return new Promise<string>((resolve, reject) => {

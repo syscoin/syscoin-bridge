@@ -5,6 +5,7 @@ on:
     branches:
       - "main"
       - "support-pali-v1-backward-compatibility"
+      - "sys5-bridge"
 
 jobs:
   docker:
