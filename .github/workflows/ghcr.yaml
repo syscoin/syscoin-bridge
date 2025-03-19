@@ -60,6 +60,7 @@ jobs:
 
   deploy-staging:
     needs: docker
+    if: branch = 'main'
     environment:
       name: staging
     permissions:
