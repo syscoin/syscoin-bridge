@@ -44,7 +44,7 @@ export const handleFreezeBurn = async (
     const receipt = await validateTransactionReceipt(
       web3,
       txHash,
-      ERC20_MANAGER_CONTRACT_ADDRESS
+      ERC20_MANAGER_CONTRACT_ADDRESS!
     );
 
     if (clearAll) {

@@ -3,8 +3,11 @@ import { SPVProof } from "syscoinjs-lib";
 
 import { getProof } from "bitcoin-proof";
 import { useWeb3 } from "../context/Web";
-import { useRelayContract } from "./useRelayContract";
+
 import { ITransfer } from "@contexts/Transfer/types";
+import { useRelayContract } from "./useRelayContract";
+
+
 
 export const isSpvProof = (data: unknown): data is SPVProof => {
   return typeof data === "object" && data !== null && "nevm_blockhash" in data;
