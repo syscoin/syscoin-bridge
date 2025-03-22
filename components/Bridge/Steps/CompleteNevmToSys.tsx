@@ -1,10 +1,8 @@
 import { ITransfer } from "@contexts/Transfer/types";
+import { useConstants } from "@contexts/useConstants";
 import { Alert, Box, Typography, Link } from "@mui/material";
 
 import React from "react";
-
-const SYSCOIN_TX_BLOCKCHAIN_URL = "https://blockbook.syscoin.org/tx/";
-const NEVM_TX_BLOCKCHAIN_URL = "https://explorer.syscoin.org/tx/";
 
 type Props = {
   transfer: ITransfer;
@@ -12,6 +10,10 @@ type Props = {
 
 const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
   const { logs } = transfer;
+  const { constants } = useConstants();
+  const SYSCOIN_TX_BLOCKCHAIN_URL = `${constants?.explorer.utxo}/tx/`;
+  const NEVM_TX_BLOCKCHAIN_URL = `${constants?.explorer.nevm}/tx/`;
+
   const mintSysTx = logs.find(
     (log) => log.status === "mint-sysx" && log.payload.data.tx !== undefined
   );

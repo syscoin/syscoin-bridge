@@ -24,6 +24,7 @@ import AddSubmitProofsTransaction from "components/Admin/Transfer/AddLogModals/A
 import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
+import { useConstants } from "@contexts/useConstants";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -32,6 +33,7 @@ type Props = {
 type FormValues = Pick<ITransfer, "status">;
 
 const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
+  const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
   const transferUrl = `/api/admin/transfer/${initialTransfer.id}`;
@@ -132,7 +134,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
           <Typography variant="body1" sx={{ mb: 2 }}>
             NEVM Address:
             <MuiLink
-              href={`https://explorer.syscoin.org/address/${transfer.nevmAddress}`}
+              href={`${constants?.explorer.nevm}/address/${transfer.nevmAddress}`}
               target="_blank"
               sx={{ ml: 2 }}
             >
@@ -142,7 +144,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
           <Typography variant="body1" sx={{ mb: 2 }}>
             UTXO Address:
             <MuiLink
-              href={`https://blockbook.syscoin.org/address/${transfer.utxoAddress}`}
+              href={`${constants?.explorer.utxo}/address/${transfer.utxoAddress}`}
               target="_blank"
               sx={{ ml: 2 }}
             >

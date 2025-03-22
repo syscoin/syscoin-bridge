@@ -39,27 +39,6 @@ const InstallPaliWallet = () => {
   );
 };
 
-const ConnectToPaliWallet = () => {
-  const { connectUTXO, availableWallets } = useConnectedWallet();
-  const { isLoading } = usePaliWalletV2();
-
-  const checkPaliMessage =
-    availableWallets.paliWallet === undefined || isLoading
-      ? "Checking Pali Wallet"
-      : "Not installed";
-
-  return (
-    <Button
-      sx={{ ml: "auto" }}
-      variant="contained"
-      onClick={() => connectUTXO("pali-wallet")}
-      disabled={!availableWallets.paliWallet}
-    >
-      {availableWallets.paliWallet ? "Connect" : checkPaliMessage}
-    </Button>
-  );
-};
-
 const PaliWalletV2 = () => {
   const { utxo, nevm } = useConnectedWallet();
   const { isBitcoinBased, switchTo, isInstalled, isEVMInjected } =

@@ -10,6 +10,7 @@ import {
 import { useFormContext } from "react-hook-form";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";
+import { useConstants } from "@contexts/useConstants";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -23,6 +24,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
   transfer: ITransfer;
   isSaving: boolean;
 }> = ({ isSaving, transfer }) => {
+  const { constants } = useConstants();
   const {
     watch,
     formState: { errors, isValid },
@@ -64,7 +66,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
     (sysxBalance.data < MIN_AMOUNT || sysxBalance.data < amount);
 
   const isUtxoValid =
-    isValidSYSAddress(utxoAddress, 57) &&
+    isValidSYSAddress(utxoAddress, constants?.isTestnet ? 5700 : 57) &&
     !isUtxoNotEnoughGas &&
     !isSysxNotEnoughBalance &&
     utxoAssetType !== undefined;
