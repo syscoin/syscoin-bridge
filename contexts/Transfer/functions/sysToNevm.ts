@@ -1,7 +1,7 @@
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import { Dispatch } from "react";
 import { SPVProof, syscoin, utils as syscoinUtils } from "syscoinjs-lib";
-import { BlockbookAPIURL, SYSX_ASSET_GUID } from "../constants";
+import { SYSX_ASSET_GUID } from "../constants";
 import burnSysToSysx from "./burnSysToSysx";
 import burnSysx from "./burnSysx";
 import { addLog, TransferActions } from "../store/actions";
@@ -53,9 +53,17 @@ const runWithSysToNevmStateMachine = async (
       );
       await sendUtxoTransaction(burnSysTransaction)
         .then((burnSysTransactionReceipt) => {
-          console.log(SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS, burnSysTransactionReceipt, new Date());
+          console.log(
+            SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+            burnSysTransactionReceipt,
+            new Date()
+          );
           dispatch(
-            addLog(SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS, "Burning SYS to SYSX", burnSysTransactionReceipt)
+            addLog(
+              SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+              "Burning SYS to SYSX",
+              burnSysTransactionReceipt
+            )
           );
         })
         .catch((error) => {
@@ -121,14 +129,20 @@ const runWithSysToNevmStateMachine = async (
       const { tx } = transfer.logs.find((log) => log.status === "burn-sysx")
         ?.payload.data;
       const proof = await syscoinUtils.fetchBackendSPVProof(
-        BlockbookAPIURL,
+        syscoinInstance.blockbookURL,
         tx
       );
       if (proof.result === "") {
         throw new Error("Proof not yet available");
       }
       const results = JSON.parse(proof.result) as SPVProof;
-      dispatch(addLog(SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS, "Submitting proofs", { results }));
+      dispatch(
+        addLog(
+          SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS,
+          "Submitting proofs",
+          { results }
+        )
+      );
       break;
     }
 
@@ -192,9 +206,13 @@ const runWithSysToNevmStateMachine = async (
               reject("Failed to submit proofs. Check browser logs");
             } else {
               dispatch(
-                addLog(SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS, "Transaction hash", {
-                  hash,
-                })
+                addLog(
+                  SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS,
+                  "Transaction hash",
+                  {
+                    hash,
+                  }
+                )
               );
               resolve(hash);
             }

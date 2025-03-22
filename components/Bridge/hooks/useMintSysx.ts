@@ -3,9 +3,11 @@ import { useMutation } from "react-query";
 import { utils } from "syscoinjs-lib";
 import { useSyscoin } from "../context/Syscoin";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { useConstants } from "@contexts/useConstants";
 
 export const useMintSysx = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
+  const { constants } = useConstants();
   const { sendTransaction } = usePaliWalletV2();
   return useMutation(
     ["mintSysx", transfer.id],
@@ -13,7 +15,7 @@ export const useMintSysx = (transfer: ITransfer) => {
       const feeRate = new utils.BN(10);
       const txOpts = { rbf: true };
       const assetOpts = {
-        web3url: "https://rpc.syscoin.org",
+        web3url: constants?.rpc.nevm ?? "https://rpc.syscoin.org",
         ethtxid: transactionHash,
       };
       const assetMap = null;

@@ -1,5 +1,4 @@
 "use client";
-import { NEVMNetwork } from "@contexts/Transfer/constants";
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
@@ -11,6 +10,7 @@ import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
+import { useConstants } from "@contexts/useConstants";
 
 export interface ProviderState {
   xpub: string;
@@ -78,6 +78,7 @@ export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
   const queryClient = useQueryClient();
+  const { constants } = useConstants();
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
@@ -154,10 +155,13 @@ export const PaliWalletV2Provider: React.FC<{
     () =>
       connectedAccount.isSuccess &&
       connectedAccount.data &&
-      isValidSYSAddress(connectedAccount.data.address, 57)
+      isValidSYSAddress(
+        connectedAccount.data.address,
+        constants?.isTestnet ? 5700 : 57
+      )
         ? connectedAccount.data.address
         : undefined,
-    [connectedAccount.data, connectedAccount.isSuccess]
+    [connectedAccount.data, connectedAccount.isSuccess, constants?.isTestnet]
   );
 
   const xpubAddress = useMemo(
@@ -222,7 +226,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "sys_changeUTXOEVM",
             params: [
               {
-                chainId: 57,
+                chainId: constants?.isTestnet ? 5700 : 57,
               },
             ],
           })
@@ -235,7 +239,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "eth_changeUTXOEVM",
             params: [
               {
-                chainId: 57,
+                chainId: constants?.isTestnet ? 5700 : 57,
               },
             ],
           })
@@ -245,7 +249,13 @@ export const PaliWalletV2Provider: React.FC<{
       }
       return Promise.reject("Invalid network type");
     },
-    [connectedAccount, isBitcoinBased, isInstalled, queryClient]
+    [
+      connectedAccount,
+      isBitcoinBased,
+      isInstalled,
+      queryClient,
+      constants?.isTestnet,
+    ]
   );
 
   const isLoading = useMemo(
@@ -261,15 +271,16 @@ export const PaliWalletV2Provider: React.FC<{
       isInstalled,
       sendTransaction,
       connectWallet,
-      isTestnet:
-        providerState.isSuccess && providerState.data
-          ? providerState.data.chainId !== NEVMNetwork.chainId
-          : true,
+      isTestnet: Boolean(constants?.isTestnet),
       balance,
       connectedAccount: sysAddress,
       xpubAddress,
       version: "v2",
-      chainType: providerState.data?.chainId === "0x39" ? "nevm" : "syscoin",
+      chainType:
+        providerState.data?.chainId ===
+        (constants?.isTestnet ? "0x39" : "0x1644")
+          ? "nevm"
+          : "syscoin",
       isBitcoinBased: Boolean(isBitcoinBased.data),
       switchTo,
       changeAccount,
@@ -280,7 +291,6 @@ export const PaliWalletV2Provider: React.FC<{
       isInstalled,
       sendTransaction,
       connectWallet,
-      providerState.isSuccess,
       providerState.data,
       balance,
       sysAddress,
@@ -290,6 +300,7 @@ export const PaliWalletV2Provider: React.FC<{
       changeAccount,
       isEVMInjected,
       isLoading,
+      constants?.isTestnet,
     ]
   );
 

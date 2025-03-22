@@ -27,6 +27,7 @@ declare module "syscoinjs-lib" {
 
   class syscoin {
     constructor(p1, blockbookAPIURL: string, network: Network): syscoin;
+    readonly blockbookURL: string;
     syscoinBurnToAssetAllocation(
       txOpts,
       assetMap,
@@ -84,6 +85,7 @@ declare module "syscoinjs-lib" {
 
     export const syscoinNetworks: {
       mainnet: Network;
+      testnet: Network;
     };
   }
 }

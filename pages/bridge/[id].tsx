@@ -71,9 +71,9 @@ const BridgePage: NextPage = () => {
   }, [query.id]);
 
   return (
-    <SyscoinProvider>
-      <Web3Provider>
-        <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <SyscoinProvider>
+        <Web3Provider>
           <PaliWalletV2Provider>
             <MetamaskProvider>
               <NEVMProvider>
@@ -121,9 +121,9 @@ const BridgePage: NextPage = () => {
               </NEVMProvider>
             </MetamaskProvider>
           </PaliWalletV2Provider>
-        </QueryClientProvider>
-      </Web3Provider>
-    </SyscoinProvider>
+        </Web3Provider>
+      </SyscoinProvider>
+    </QueryClientProvider>
   );
 };
 

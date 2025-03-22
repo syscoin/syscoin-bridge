@@ -1,4 +1,4 @@
-import { BlockbookAPIURL } from "@contexts/Transfer/constants";
+import { useConstants } from "@contexts/useConstants";
 import { useQuery } from "react-query";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 
@@ -7,11 +7,12 @@ export const useUtxoTransaction = (
   confirmations = 1,
   refetchInterval = 1000,
   retry: boolean | number = true
-) =>
-  useQuery(["utxo", "transaction", transactionId], {
+) => {
+  const { constants } = useConstants();
+  return useQuery(["utxo", "transaction", transactionId], {
     queryFn: async () => {
       const transaction = await syscoinUtils.fetchBackendRawTx(
-        BlockbookAPIURL,
+        constants!.rpc.utxo,
         transactionId!
       );
       if (transaction.confirmations >= confirmations) {
@@ -21,5 +22,6 @@ export const useUtxoTransaction = (
     },
     refetchInterval,
     retry,
-    enabled: Boolean(transactionId),
+    enabled: Boolean(transactionId) && Boolean(constants),
   });
+};

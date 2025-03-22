@@ -1,4 +1,3 @@
-import { BlockbookAPIURL } from "@contexts/Transfer/constants";
 import {
   createContext,
   ReactNode,
@@ -16,6 +15,8 @@ import { TransactionReceipt } from "web3-core";
 import { useRouter } from "next/router";
 import { useNEVM } from "./NEVMProvider";
 import { useMetamask } from "@contexts/Metamask/Provider";
+import { useSyscoin } from "components/Bridge/context/Syscoin";
+import { useConstants } from "@contexts/useConstants";
 
 export type SendUtxoTransaction = (
   transaction: UTXOTransaction
@@ -49,13 +50,10 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const { route } = useRouter();
+  const { constants } = useConstants();
   const [oldRoute, setOldRoute] = useState<string>();
   const [createdIntervals, setCreatedIntervals] = useState<NodeJS.Timer[]>([]);
-  const syscoinInstance = useMemo(
-    () =>
-      new syscoin(null, BlockbookAPIURL, syscoinUtils.syscoinNetworks.mainnet),
-    []
-  );
+  const syscoinInstance = useSyscoin();
   const web3 = useMemo(() => new Web3(Web3.givenProvider), []);
   const paliWallet = usePaliWallet();
   const paliWalletV2 = usePaliWalletV2();
@@ -118,7 +116,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
             }
             isRequesting = true;
             const transaction = await syscoinUtils
-              .fetchBackendRawTx(BlockbookAPIURL, transactionId)
+              .fetchBackendRawTx(constants!.rpc.utxo, transactionId)
               .catch((error) => {
                 isRequesting = false;
                 clearInterval(interval);

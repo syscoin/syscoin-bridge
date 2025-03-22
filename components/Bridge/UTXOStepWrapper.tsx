@@ -2,6 +2,7 @@ import {
   usePaliWallet,
   usePaliWalletV2,
 } from "@contexts/PaliWallet/usePaliWallet";
+import { useConstants } from "@contexts/useConstants";
 import { Button } from "@mui/material";
 import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
 
@@ -10,6 +11,7 @@ type UTXOStepWrapperProps = {
 };
 
 const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
+  const { constants } = useConstants();
   const { version, connectedAccount, connectWallet } = usePaliWallet();
 
   const { isBitcoinBased, switchTo, changeAccount } = usePaliWalletV2();
@@ -26,7 +28,7 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
     return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
   }
 
-  if (!isValidSYSAddress(connectedAccount, 57)) {
+  if (!isValidSYSAddress(connectedAccount, constants?.isTestnet ? 5700 : 57)) {
     return (
       <>
         <Button variant="contained" onClick={changeAccount}>

@@ -3,12 +3,12 @@ import { useMemo } from "react";
 import relayAbi from "@contexts/Transfer/relay-abi";
 import { useWeb3 } from "../context/Web";
 import { useFeatureFlags } from "./useFeatureFlags";
-import { useConstants } from "./useConstants";
+import { useConstants } from "@contexts/useConstants";
 
 export const useRelayContract = () => {
   const web3 = useWeb3();
   const flags = useFeatureFlags();
-  const { data: constants } = useConstants();
+  const { constants } = useConstants();
 
   return useMemo(
     () =>
