@@ -17,6 +17,7 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
       utxo: process.env.UTXO_EXPLORER,
     },
     isTestnet: process.env.IS_TESTNET === "true",
+    chain_id: process.env.CHAIN_ID,
   });
 }
 

@@ -191,28 +191,33 @@ export const PaliWalletV2Provider: React.FC<{
     [connectedAccount]
   );
 
-  const sendTransaction = useCallback(async (utxo: UTXOTransaction) => {
-    const signedPsbt = await window.pali.request({
-      method: "sys_signAndSend",
-      params: [utxo],
-    });
+  const sendTransaction = useCallback(
+    async (utxo: UTXOTransaction) => {
+      const signedPsbt = await window.pali.request({
+        method: "sys_signAndSend",
+        params: [utxo],
+      });
 
-    if (signedPsbt.success === false) {
-      return Promise.reject("unable to sign transaction");
-    }
+      if (signedPsbt.success === false) {
+        return Promise.reject("unable to sign transaction");
+      }
 
-    const unserializedResp = syscoinUtils.importPsbtFromJson(
-      signedPsbt,
-      syscoinUtils.syscoinNetworks.mainnet
-    );
+      const unserializedResp = syscoinUtils.importPsbtFromJson(
+        signedPsbt,
+        constants?.isTestnet
+          ? syscoinUtils.syscoinNetworks.testnet
+          : syscoinUtils.syscoinNetworks.mainnet
+      );
 
-    const transaction = unserializedResp.psbt.extractTransaction();
+      const transaction = unserializedResp.psbt.extractTransaction();
 
-    return {
-      tx: transaction.getId(),
-      error: null,
-    };
-  }, []);
+      return {
+        tx: transaction.getId(),
+        error: null,
+      };
+    },
+    [constants?.isTestnet]
+  );
 
   const switchTo = useCallback(
     (networkType: PaliWalletNetworkType) => {
@@ -226,7 +231,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "sys_changeUTXOEVM",
             params: [
               {
-                chainId: constants?.isTestnet ? 5700 : 57,
+                chainId: constants?.chain_id,
               },
             ],
           })
@@ -239,7 +244,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "eth_changeUTXOEVM",
             params: [
               {
-                chainId: constants?.isTestnet ? 5700 : 57,
+                chainId: constants?.chain_id,
               },
             ],
           })
@@ -254,7 +259,7 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased,
       isInstalled,
       queryClient,
-      constants?.isTestnet,
+      constants?.chain_id,
     ]
   );
 
@@ -277,8 +282,7 @@ export const PaliWalletV2Provider: React.FC<{
       xpubAddress,
       version: "v2",
       chainType:
-        providerState.data?.chainId ===
-        (constants?.isTestnet ? "0x39" : "0x1644")
+        providerState.data?.chainId === constants?.chain_id
           ? "nevm"
           : "syscoin",
       isBitcoinBased: Boolean(isBitcoinBased.data),
@@ -301,6 +305,7 @@ export const PaliWalletV2Provider: React.FC<{
       isEVMInjected,
       isLoading,
       constants?.isTestnet,
+      constants?.chain_id,
     ]
   );
 
