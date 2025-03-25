@@ -5,10 +5,8 @@ import {
   ETH_TO_SYS_TRANSFER_STATUS,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
-import { useFeatureFlags } from "./hooks/useFeatureFlags";
 
 const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
-  const { isEnabled } = useFeatureFlags();
   return (
     <Stepper activeStep={activeStep}>
       <Step key="connect-and-validate">
@@ -17,16 +15,12 @@ const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
       <Step key="freeze-and-burn">
         <StepLabel>Freeze and Burn SYS</StepLabel>
       </Step>
-      {!isEnabled("isSys5Enabled") && (
-        <>
-          <Step key="mint-sysx">
-            <StepLabel>Mint SYSX</StepLabel>
-          </Step>
-          <Step key="burn-sysx">
-            <StepLabel>Burn SYSX</StepLabel>
-          </Step>
-        </>
-      )}
+      <Step key="mint-sysx">
+        <StepLabel>Mint SYSX</StepLabel>
+      </Step>
+      <Step key="burn-sysx">
+        <StepLabel>Burn SYSX</StepLabel>
+      </Step>
       <Step key="Completed">
         <StepLabel>Completed</StepLabel>
       </Step>
