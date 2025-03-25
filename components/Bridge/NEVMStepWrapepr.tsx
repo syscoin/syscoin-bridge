@@ -1,7 +1,4 @@
-import {
-  MAINNET_CHAIN_ID,
-  useNEVM,
-} from "@contexts/ConnectedWallet/NEVMProvider";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useConstants } from "@contexts/useConstants";
 import { Button } from "@mui/material";
