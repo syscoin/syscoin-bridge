@@ -23,7 +23,7 @@ const BridgeConfirmNEVMTransaction: React.FC<Props> = ({
   const { transfer, saveTransfer } = useTransfer();
 
   const sourceLog: ITransferLog | undefined = transfer?.logs?.find(
-    (log) => log.status === sourceStatus && Boolean(log?.payload?.data.hash)
+    (log) => log.status === sourceStatus && Boolean(log?.payload?.data?.hash)
   );
 
   const sourceTxHash = sourceLog?.payload.data.hash;

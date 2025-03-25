@@ -7,6 +7,7 @@ import { useMetamask } from "@contexts/Metamask/Provider";
 import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { captureException } from "@sentry/nextjs";
+import { useConstants } from "@contexts/useConstants";
 
 interface INEVMContext {
   account?: string;
@@ -37,6 +38,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
       return typeof window.ethereum !== "undefined";
     },
   });
+  const { constants } = useConstants();
 
   const metamask = useMetamask();
   const paliWallet = usePaliWallet() as IPaliWalletV2Context;
@@ -118,7 +120,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     window.ethereum
       .request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: MAINNET_CHAIN_ID }],
+        params: [{ chainId: constants?.chain_id ?? MAINNET_CHAIN_ID }],
       })
       .then(() => chainId.refetch())
       .catch((err) => {
