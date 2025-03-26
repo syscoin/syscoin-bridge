@@ -2955,6 +2955,15 @@ coinselectsyscoin@^1.0.77, coinselectsyscoin@^1.0.79:
     bitcoinjs-lib "^5.2.0"
     bn.js "^5.1.3"
 
+coinselectsyscoin@^1.0.83:
+  version "1.0.83"
+  resolved "https://registry.yarnpkg.com/coinselectsyscoin/-/coinselectsyscoin-1.0.83.tgz#fe406c4b3f1dc9c93eee9fb6bcd6d5e7dd5c79f7"
+  integrity sha512-UrSk/8AH2LYxo3sHKj7sR0mUDQ7TdM6vhSVeNyQHqSj3Pu/Kg2o83h53TtWEr071UDA9tSboupqnre7oOXSbbw==
+  dependencies:
+    bitcoin-ops "^1.4.1"
+    bitcoinjs-lib "^5.2.0"
+    bn.js "^5.1.3"
+
 collect-v8-coverage@^1.0.0:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/collect-v8-coverage/-/collect-v8-coverage-1.0.2.tgz#c0b29bcd33bcd0779a1344c2136051e6afd3d9e9"
@@ -3836,6 +3845,13 @@ eth-lib@^0.1.26:
 eth-object@^1.0.3, "eth-object@https://github.com/syscoin/eth-object.git":
   version "1.0.3"
   resolved "https://github.com/syscoin/eth-object.git#b5ff300f57c136138b31d6e570c816a147e0f1c9"
+  dependencies:
+    eth-util-lite "^1.0.1"
+
+"eth-object@git+https://github.com/syscoin/eth-object.git":
+  version "1.0.3"
+  uid b5ff300f57c136138b31d6e570c816a147e0f1c9
+  resolved "git+https://github.com/syscoin/eth-object.git#b5ff300f57c136138b31d6e570c816a147e0f1c9"
   dependencies:
     eth-util-lite "^1.0.1"
 
@@ -7322,10 +7338,10 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@1.0.220:
-  version "1.0.220"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.220.tgz#abec72ade1884acc72dc052fb849c7ec1685dda3"
-  integrity sha512-XhiLQBKXDnLceg9G+2K+Tna3EioskXXD5dZprrgiElhRUoU/a7Rv9act7feQcMprNeqZlGVaxwPSQ/vujxI+5g==
+syscoinjs-lib@1.0.225:
+  version "1.0.225"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.225.tgz#657a41cfe0d5fe06e16c8614cbe2f28c89e0387f"
+  integrity sha512-82fCiIOVWaTfIoAbf9//rtGGCF0ooYKayFCVLnbbVZBcATJCKiI442FnaGSIv2ZSi7NhBEqb1aDZNygplqaZag==
   dependencies:
     "@trezor/utxo-lib" "^1.0.7"
     axios "^0.21.1"
@@ -7337,7 +7353,7 @@ syscoinjs-lib@1.0.220:
     eth-object "https://github.com/syscoin/eth-object.git"
     eth-proof "^2.1.6"
     node-localstorage "^2.1.6"
-    syscointx-js "^1.0.106"
+    syscointx-js "^1.0.109"
     trezor-connect "^8.1.29"
     varuint-bitcoin "^1.1.2"
     web3 "^1.4.0"
@@ -7371,6 +7387,19 @@ syscointx-js@^1.0.106:
     bitcoinjs-lib "^5.2.0"
     bn.js "^5.1.3"
     coinselectsyscoin "^1.0.79"
+    secp256k1 "^3.8.0"
+    typeforce "^1.18.0"
+    varuint-bitcoin "^1.1.2"
+
+syscointx-js@^1.0.109:
+  version "1.0.110"
+  resolved "https://registry.yarnpkg.com/syscointx-js/-/syscointx-js-1.0.110.tgz#b5bcd48abf5304c44949d28c8aeddd6d06b805cb"
+  integrity sha512-Q5N90NuLd3SYBgmud/9IuoMb6AYCvFwmoEoeAMhtz4gF4X2iC1XTYrNaDAOAvrn/Vcps19lGGw/naBIqjbB1uw==
+  dependencies:
+    bitcoin-ops "^1.4.1"
+    bitcoinjs-lib "^5.2.0"
+    bn.js "^5.1.3"
+    coinselectsyscoin "^1.0.83"
     secp256k1 "^3.8.0"
     typeforce "^1.18.0"
     varuint-bitcoin "^1.1.2"
