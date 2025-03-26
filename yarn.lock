@@ -7329,10 +7329,10 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@1.0.224:
-  version "1.0.224"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.224.tgz#7e44a7116c8f5e509089f608619cafb07d9a742c"
-  integrity sha512-1xfvy0xH2RzO21yMNUYdzIrBkdLwrnwCHVkHtx2wYHeD7jnUNSq2zvCMGGxKVCnReZQzNlQqCb5yQHYjsM1EXw==
+syscoinjs-lib@1.0.225:
+  version "1.0.225"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.225.tgz#657a41cfe0d5fe06e16c8614cbe2f28c89e0387f"
+  integrity sha512-82fCiIOVWaTfIoAbf9//rtGGCF0ooYKayFCVLnbbVZBcATJCKiI442FnaGSIv2ZSi7NhBEqb1aDZNygplqaZag==
   dependencies:
     "@trezor/utxo-lib" "^1.0.7"
     axios "^0.21.1"
