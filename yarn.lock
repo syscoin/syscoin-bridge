@@ -7338,26 +7338,6 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@1.0.225:
-  version "1.0.225"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.225.tgz#657a41cfe0d5fe06e16c8614cbe2f28c89e0387f"
-  integrity sha512-82fCiIOVWaTfIoAbf9//rtGGCF0ooYKayFCVLnbbVZBcATJCKiI442FnaGSIv2ZSi7NhBEqb1aDZNygplqaZag==
-  dependencies:
-    "@trezor/utxo-lib" "^1.0.7"
-    axios "^0.21.1"
-    bip84 "^0.2.7"
-    bitcoin-ops "^1.4.1"
-    bitcoinjs-lib "^5.2.0"
-    bn.js "^5.1.3"
-    crypto-js "^4.0.0"
-    eth-object "https://github.com/syscoin/eth-object.git"
-    eth-proof "^2.1.6"
-    node-localstorage "^2.1.6"
-    syscointx-js "^1.0.109"
-    trezor-connect "^8.1.29"
-    varuint-bitcoin "^1.1.2"
-    web3 "^1.4.0"
-
 syscoinjs-lib@^1.0.218:
   version "1.0.218"
   resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.218.tgz#a45fe2e70d8d26c12b0b924ee012cee959c6a599"
@@ -7378,6 +7358,26 @@ syscoinjs-lib@^1.0.218:
     varuint-bitcoin "^1.1.2"
     web3 "^1.4.0"
 
+syscoinjs-lib@^1.0.228:
+  version "1.0.228"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.228.tgz#0a702d989a1570cd21544fbebcb30b77eebeef83"
+  integrity sha512-hASs26NPDlIoSAJQcc620WPHptsvbEUgebcwQ58sLf5v0LSZ+1V6ka/Sp0Xh8Pyuk2zwdOyviaLfK4V2Q30K0w==
+  dependencies:
+    "@trezor/utxo-lib" "^1.0.7"
+    axios "^0.21.1"
+    bip84 "^0.2.7"
+    bitcoin-ops "^1.4.1"
+    bitcoinjs-lib "^5.2.0"
+    bn.js "^5.1.3"
+    crypto-js "^4.0.0"
+    eth-object "https://github.com/syscoin/eth-object.git"
+    eth-proof "^2.1.6"
+    node-localstorage "^2.1.6"
+    syscointx-js "^1.0.110"
+    trezor-connect "^8.1.29"
+    varuint-bitcoin "^1.1.2"
+    web3 "^1.4.0"
+
 syscointx-js@^1.0.106:
   version "1.0.106"
   resolved "https://registry.yarnpkg.com/syscointx-js/-/syscointx-js-1.0.106.tgz#ffd365de9bd99fcabe829517d38e1e849092b342"
@@ -7391,7 +7391,7 @@ syscointx-js@^1.0.106:
     typeforce "^1.18.0"
     varuint-bitcoin "^1.1.2"
 
-syscointx-js@^1.0.109:
+syscointx-js@^1.0.110:
   version "1.0.110"
   resolved "https://registry.yarnpkg.com/syscointx-js/-/syscointx-js-1.0.110.tgz#b5bcd48abf5304c44949d28c8aeddd6d06b805cb"
   integrity sha512-Q5N90NuLd3SYBgmud/9IuoMb6AYCvFwmoEoeAMhtz4gF4X2iC1XTYrNaDAOAvrn/Vcps19lGGw/naBIqjbB1uw==
