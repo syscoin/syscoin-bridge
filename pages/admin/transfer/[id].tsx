@@ -23,6 +23,7 @@ import AdminTransferLogAccordion from "components/Admin/Transfer/LogAccordion";
 import AddSubmitProofsTransaction from "components/Admin/Transfer/AddLogModals/AddSubmitProofsTransaction";
 import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
+import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -195,6 +196,12 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
             )}
             {addLogModal === "submit-proofs" && (
               <AddSubmitProofsTransaction
+                onClose={closeAddLogModal}
+                transferId={transfer.id}
+              />
+            )}
+            {addLogModal === "mint-sysx" && (
+              <AddMintSysxTransaction
                 onClose={closeAddLogModal}
                 transferId={transfer.id}
               />
