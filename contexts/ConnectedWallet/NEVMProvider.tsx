@@ -134,7 +134,16 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const connect = () => {
-    account.refetch();
+    let prePromise = account.isFetched
+      ? window.ethereum.request({
+          method: "wallet_revokePermissions",
+          params: [{ eth_accounts: {} }],
+        })
+      : Promise.resolve();
+
+    prePromise.then(() => {
+      return account.refetch();
+    });
   };
 
   const signMessage = (message: string): Promise<string> => {

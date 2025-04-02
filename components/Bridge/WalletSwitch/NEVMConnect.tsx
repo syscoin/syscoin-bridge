@@ -7,6 +7,7 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { useNevmBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
+import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 
 type NEVMConnectProps = {
   transfer: ITransfer;
@@ -21,6 +22,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const { isBitcoinBased, switchTo, changeAccount, isEVMInjected } =
     usePaliWalletV2();
   const balance = useNevmBalance(transfer.nevmAddress);
+  const { connectNEVM, nevm } = useConnectedWallet();
 
   const setTransferNevm = () => {
     if (!account) return;
@@ -28,8 +30,13 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   };
 
   const change = () => {
-    const prom = isBitcoinBased ? switchTo("ethereum") : Promise.resolve();
     setNevm({ address: "" });
+    if (nevm.type === "metamask") {
+      connectNEVM("metamask");
+      return;
+    }
+
+    const prom = isBitcoinBased ? switchTo("ethereum") : Promise.resolve();
     prom.then(() => changeAccount());
   };
 
