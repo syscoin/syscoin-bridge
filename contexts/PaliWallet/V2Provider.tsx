@@ -225,13 +225,15 @@ export const PaliWalletV2Provider: React.FC<{
         return Promise.reject("Pali Wallet is not installed");
       }
 
+      const chainId = parseInt(constants?.chain_id ?? "0x69", 16);
+
       if (networkType === "bitcoin") {
         return window.pali
           .request({
             method: "sys_changeUTXOEVM",
             params: [
               {
-                chainId: constants?.chain_id,
+                chainId,
               },
             ],
           })
@@ -244,7 +246,7 @@ export const PaliWalletV2Provider: React.FC<{
             method: "eth_changeUTXOEVM",
             params: [
               {
-                chainId: constants?.chain_id,
+                chainId,
               },
             ],
           })
