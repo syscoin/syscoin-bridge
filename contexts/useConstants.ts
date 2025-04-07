@@ -14,7 +14,7 @@ type Constants = {
     utxo: string;
   };
   isTestnet: boolean;
-  chain_id: number;
+  chain_id: string;
 };
 
 export const useConstants = () => {
