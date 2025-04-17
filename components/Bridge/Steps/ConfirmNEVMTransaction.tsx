@@ -3,8 +3,8 @@ import { useTransfer } from "../context/TransferContext";
 import { Alert, CircularProgress, Link } from "@mui/material";
 import { useNevmTransaction } from "../hooks/useNevmTransaction";
 import { useEffect } from "react";
-import { NEVM_TX_BLOCKCHAIN_URL } from "@constants";
 import NEVMStepWrapper from "../NEVMStepWrapepr";
+import { useConstants } from "@contexts/useConstants";
 
 type Props = {
   successStatus: TransferStatus;
@@ -19,15 +19,18 @@ const BridgeConfirmNEVMTransaction: React.FC<Props> = ({
   invalidStateMessage,
   loadingMessage,
 }) => {
+  const { constants } = useConstants();
   const { transfer, saveTransfer } = useTransfer();
 
   const sourceLog: ITransferLog | undefined = transfer?.logs?.find(
-    (log) => log.status === sourceStatus && Boolean(log?.payload?.data.hash)
+    (log) => log.status === sourceStatus && Boolean(log?.payload?.data?.hash)
   );
 
   const sourceTxHash = sourceLog?.payload.data.hash;
 
-  const { data, isFetched } = useNevmTransaction(sourceTxHash, { refetch: true });
+  const { data, isFetched } = useNevmTransaction(sourceTxHash, {
+    refetch: true,
+  });
 
   useEffect(() => {
     if (!isFetched || !data) {
@@ -63,7 +66,10 @@ const BridgeConfirmNEVMTransaction: React.FC<Props> = ({
       {loadingMessage}
       <CircularProgress size={"1rem"} />
       <br />
-      <Link href={`${NEVM_TX_BLOCKCHAIN_URL}${sourceTxHash}`} target="_blank">
+      <Link
+        href={`${constants?.explorer.nevm}/tx/${sourceTxHash}`}
+        target="_blank"
+      >
         View on Explorer
       </Link>
     </Alert>

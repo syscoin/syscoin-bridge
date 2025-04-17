@@ -6,25 +6,27 @@ import {
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 
-const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => (
-  <Stepper activeStep={activeStep}>
-    <Step key="connect-and-validate">
-      <StepLabel>Connect and Validated</StepLabel>
-    </Step>
-    <Step key="freeze-and-burn">
-      <StepLabel>Freeze and Burn SYS</StepLabel>
-    </Step>
-    <Step key="mint-sysx">
-      <StepLabel>Mint SYSX</StepLabel>
-    </Step>
-    <Step key="burn-sysx">
-      <StepLabel>Burn SYSX</StepLabel>
-    </Step>
-    <Step key="Completed">
-      <StepLabel>Completed</StepLabel>
-    </Step>
-  </Stepper>
-);
+const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
+  return (
+    <Stepper activeStep={activeStep}>
+      <Step key="connect-and-validate">
+        <StepLabel>Connect and Validated</StepLabel>
+      </Step>
+      <Step key="freeze-and-burn">
+        <StepLabel>Freeze and Burn SYS</StepLabel>
+      </Step>
+      <Step key="mint-sysx">
+        <StepLabel>Mint SYSX</StepLabel>
+      </Step>
+      <Step key="burn-sysx">
+        <StepLabel>Burn SYSX</StepLabel>
+      </Step>
+      <Step key="Completed">
+        <StepLabel>Completed</StepLabel>
+      </Step>
+    </Stepper>
+  );
+};
 
 const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
   const { transfer } = useTransfer();

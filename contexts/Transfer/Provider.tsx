@@ -26,11 +26,12 @@ import {
   setUtxoXpub,
   setVersion,
 } from "./store/actions";
-import relayAbi from "./relay-abi";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
 import { captureException } from "@sentry/nextjs";
+import { useRelayContract } from "components/Bridge/hooks/useRelayContract";
+import { useErc20ManagerContract } from "components/Bridge/hooks/useErc20ManagerContract";
 
 interface ITransferContext {
   transfer: ITransfer;
@@ -67,12 +68,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     utxo,
   } = useConnectedWallet();
 
-  const relayContract = useMemo(() => {
-    return new web3.eth.Contract(
-      relayAbi,
-      "0xD822557aC2F2b77A1988617308e4A29A89Cb95A6"
-    );
-  }, [web3]);
+  const relayContract = useRelayContract();
 
   const baseTransfer: Partial<ITransfer> = useMemo(() => {
     return {
@@ -200,6 +196,8 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     }
   }, [steps, transfer.status, dispatch]);
 
+  const erc20ManagerContract = useErc20ManagerContract();
+
   const runSideEffects = useCallback(() => {
     let sideEffectPromise =
       transfer.type === "sys-to-nevm"
@@ -218,7 +216,8 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
             syscoinInstance,
             sendUtxoTransaction,
             dispatch,
-            confirmTransaction
+            confirmTransaction,
+            erc20ManagerContract
           );
     sideEffectPromise
       .then(() => {
@@ -239,6 +238,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
     relayContract,
     confirmTransaction,
     proceedNextStep,
+    erc20ManagerContract,
   ]);
 
   const revertToPreviousStatus = () => {

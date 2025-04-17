@@ -1,5 +1,4 @@
 export const SYSX_ASSET_GUID = "123456";
-export const BlockbookAPIURL = "https://blockbook.syscoin.org/";
 
 export const NEVMNetwork = {
   chainId: "0x39",

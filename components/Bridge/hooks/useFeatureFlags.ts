@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 type FeatureFlags = {
   foundationFundingAvailable: boolean;
   adminEnabled: boolean;
+  isSys5Enabled: boolean;
 };
 
 export const useFeatureFlags = () => {

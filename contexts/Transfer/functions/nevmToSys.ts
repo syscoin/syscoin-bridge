@@ -2,7 +2,6 @@ import { Dispatch } from "react";
 import Web3 from "web3";
 import { Contract } from "web3-eth-contract";
 import { TransactionReceipt } from "web3-core";
-import SyscoinERC20ManagerABI from "../abi/SyscoinERC20Manager";
 import { SYSX_ASSET_GUID } from "../constants";
 import { addLog, TransferActions } from "../store/actions";
 import { COMMON_STATUS, ETH_TO_SYS_TRANSFER_STATUS, ITransfer } from "../types";
@@ -11,6 +10,7 @@ import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
 import { toWei } from "web3-utils";
 import { captureException } from "@sentry/nextjs";
+import { useErc20ManagerContract } from "components/Bridge/hooks/useErc20ManagerContract";
 
 const ERROR_MESSAGE_EVM_ONLY =
   "Method only available when connected on EVM chains";
@@ -28,7 +28,11 @@ const freezeAndBurn = (
       .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
       .once("transactionHash", (transactionHash: string) => {
         dispatch(
-          addLog(ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS, "Freeze and Burn SYS", transactionHash)
+          addLog(
+            ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+            "Freeze and Burn SYS",
+            transactionHash
+          )
         );
         resolve(transactionHash);
       })
@@ -65,7 +69,11 @@ const confirmFreezeAndBurnSys = async (
       return;
     }
     dispatch(
-      addLog(ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, "Confirm Freeze and Burn SYS", receipt)
+      addLog(
+        ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
+        "Confirm Freeze and Burn SYS",
+        receipt
+      )
     );
   } catch (error: any) {
     captureException(error);
@@ -128,7 +136,13 @@ const mintSysx = async (
     transfer.utxoXpub
   );
   if (!res) {
-    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX, "Mint SYS error: Not enough funds", res));
+    dispatch(
+      addLog(
+        ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
+        "Mint SYS error: Not enough funds",
+        res
+      )
+    );
     return Promise.reject(new Error("Mint SYS error: Not enough funds"));
   }
   console.log("assetAllocationMint received", {
@@ -136,7 +150,13 @@ const mintSysx = async (
   });
   const transaction = utils.exportPsbtToJson(res.psbt, res.assets);
   const mintSysxTransactionReceipt = await sendUtxoTransaction(transaction);
-  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX, "Mint Sysx", mintSysxTransactionReceipt));
+  dispatch(
+    addLog(
+      ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
+      "Mint Sysx",
+      mintSysxTransactionReceipt
+    )
+  );
 };
 
 const burnSysxToSys = async (
@@ -159,12 +179,24 @@ const burnSysxToSys = async (
   } catch (e) {
     captureException(e);
     console.error("Burn SYSX error: Not enough funds", e);
-    dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX, "Burn SYSX error: Not enough funds", e));
+    dispatch(
+      addLog(
+        ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
+        "Burn SYSX error: Not enough funds",
+        e
+      )
+    );
     return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
   }
 
   const burnSysxTransactionReceipt = await sendUtxoTransaction(transaction);
-  dispatch(addLog(ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX, "Burn Sysx", burnSysxTransactionReceipt));
+  dispatch(
+    addLog(
+      ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
+      "Burn Sysx",
+      burnSysxTransactionReceipt
+    )
+  );
 };
 
 const runWithNevmToSysStateMachine = async (
@@ -179,12 +211,9 @@ const runWithNevmToSysStateMachine = async (
     duration?: number,
     confirmations?: number
   ) => Promise<utils.BlockbookTransactionBTC | TransactionReceipt>,
+  erc20Manager: ReturnType<typeof useErc20ManagerContract>,
   switchToUtxo?: () => Promise<string>
 ) => {
-  const erc20Manager = new web3.eth.Contract(
-    SyscoinERC20ManagerABI,
-    "0xA738a563F9ecb55e0b2245D1e9E380f0fE455ea1"
-  );
   switch (transfer.status) {
     case "freeze-burn-sys": {
       return freezeAndBurn(erc20Manager, transfer, dispatch);

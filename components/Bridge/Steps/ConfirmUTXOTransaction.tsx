@@ -3,8 +3,8 @@ import { useTransfer } from "../context/TransferContext";
 import { useUtxoTransaction } from "components/Bridge/hooks/useUtxoTransaction";
 import { ITransferLog, TransferStatus } from "@contexts/Transfer/types";
 import React, { useEffect } from "react";
-import { SYSCOIN_TX_BLOCKCHAIN_URL } from "@constants";
 import UTXOStepWrapper from "../UTXOStepWrapper";
+import { useConstants } from "@contexts/useConstants";
 
 type Props = {
   invalidStateMessage: string;
@@ -22,6 +22,7 @@ const BridgeStepConfirmUTXOTransaction: React.FC<Props> = ({
   confirmations,
 }) => {
   const { transfer, saveTransfer } = useTransfer();
+  const { constants } = useConstants();
 
   const utxoStepLog = transfer.logs.find(
     (log) => log.status === sourceStatus && Boolean(log.payload?.data?.tx)
@@ -70,7 +71,7 @@ const BridgeStepConfirmUTXOTransaction: React.FC<Props> = ({
       {loadingMessage} &nbsp;
       <CircularProgress size={"1rem"} />
       <br />
-      <Link href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${txId}`} target="_blank">
+      <Link href={`${constants?.explorer.utxo}/tx/${txId}`} target="_blank">
         View on Explorer
       </Link>
     </Alert>
