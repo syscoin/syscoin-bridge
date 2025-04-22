@@ -9,6 +9,7 @@ const AdminTransferList: React.FC<{
   total: number;
   onPageChange: (page: number) => void;
   pageSize: number;
+  onSortChange?: (sort: string) => void;
 }> = ({ transfers, total, onPageChange, pageSize }) => {
   return (
     <DataGrid
@@ -16,6 +17,7 @@ const AdminTransferList: React.FC<{
         {
           field: "id",
           headerName: "ID",
+          sortable: false,
           renderCell: (params) => (
             <Link href={`/admin/transfer/${params.value}`}>
               <Typography variant="body1" color="primary">
@@ -32,6 +34,9 @@ const AdminTransferList: React.FC<{
       pageSize={pageSize}
       pagination
       onPageChange={onPageChange}
+      sortingMode="server"
+      filterMode="server"
+      onFilterModelChange={(filter) => console.log({ filter })}
     />
   );
 };

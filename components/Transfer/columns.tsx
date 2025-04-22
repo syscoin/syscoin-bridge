@@ -18,6 +18,7 @@ export const TRANSFER_COLUMNS: GridColDef[] = [
   {
     field: "type",
     headerName: "Type",
+    sortable: false,
   },
   {
     field: "amount",
@@ -28,11 +29,13 @@ export const TRANSFER_COLUMNS: GridColDef[] = [
     field: "utxoAddress",
     headerName: "UTXO",
     width: 320,
+    sortable: false,
   },
   {
     field: "nevmAddress",
     headerName: "NEVM",
     width: 300,
+    sortable: false,
   },
   {
     field: "status",
@@ -51,6 +54,7 @@ export const TRANSFER_COLUMNS: GridColDef[] = [
         </Typography>
       );
     },
+    sortable: false,
   },
   {
     field: "createdAt",
