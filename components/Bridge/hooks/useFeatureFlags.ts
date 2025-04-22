@@ -4,6 +4,7 @@ type FeatureFlags = {
   foundationFundingAvailable: boolean;
   adminEnabled: boolean;
   isSys5Enabled: boolean;
+  isPaliV2NevmEnabled: boolean;
 };
 
 export const useFeatureFlags = () => {
