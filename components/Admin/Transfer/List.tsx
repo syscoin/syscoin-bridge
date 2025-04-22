@@ -7,7 +7,9 @@ import Link from "next/link";
 const AdminTransferList: React.FC<{
   transfers: ITransfer[];
   total: number;
-}> = ({ transfers, total }) => {
+  onPageChange: (page: number) => void;
+  pageSize: number;
+}> = ({ transfers, total, onPageChange, pageSize }) => {
   return (
     <DataGrid
       columns={[
@@ -27,8 +29,9 @@ const AdminTransferList: React.FC<{
       rows={transfers ?? []}
       rowCount={total}
       paginationMode="server"
-      pageSize={10}
+      pageSize={pageSize}
       pagination
+      onPageChange={onPageChange}
     />
   );
 };
