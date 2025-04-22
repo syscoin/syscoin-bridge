@@ -12,15 +12,22 @@ type Props = {
   user: SessionUser;
   transfers: ITransfer[];
   total: number;
+  pageSize: number;
 };
 
-const AdminPage: NextPage<Props> = ({ user, transfers, total }) => {
-  const { refresh } = useRouter();
+const AdminPage: NextPage<Props> = ({ user, transfers, total, pageSize }) => {
+  const { refresh, push } = useRouter();
 
   const onLogout = () => {
     fetch("/api/admin/logout").then((res) => {
       res.ok && refresh();
     });
+  };
+
+  const onPageChange = (page: number) => {
+    const query = new URLSearchParams(window.location.search);
+    query.set("page", page.toString());
+    push(`/admin?${query.toString()}`);
   };
 
   return (
@@ -42,7 +49,12 @@ const AdminPage: NextPage<Props> = ({ user, transfers, total }) => {
           border: "px solid #000",
         }}
       >
-        <AdminTransferList transfers={transfers} total={total} />
+        <AdminTransferList
+          transfers={transfers}
+          total={total}
+          onPageChange={onPageChange}
+          pageSize={pageSize}
+        />
       </Box>
     </Container>
   );
@@ -65,14 +77,16 @@ export const getServerSideProps: GetServerSideProps = withSessionSsr(
     await dbConnect();
 
     // Get query params
-    const { id } = query;
+    const { id, page } = query;
     const filters: FilterQuery<ITransfer> = {};
     if (id) {
       filters.id = id as string;
     }
+    const pageSize = 10;
     const transfers = await TransferModel.find(filters)
       .sort({ createdAt: -1 })
-      .limit(10);
+      .skip((Number(page) || 0) * pageSize)
+      .limit(pageSize);
 
     const total = await TransferModel.countDocuments();
 
@@ -82,6 +96,7 @@ export const getServerSideProps: GetServerSideProps = withSessionSsr(
         JSON.parse(JSON.stringify(transfer))
       ),
       total,
+      pageSize,
     };
 
     return {
