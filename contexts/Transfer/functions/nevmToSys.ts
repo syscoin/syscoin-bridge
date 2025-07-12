@@ -114,7 +114,7 @@ const mintSysx = async (
   const txOpts = { rbf: true };
   // web3 URL + ID and nevm burn txid
   const assetOpts = {
-    web3url: "https://rpc.syscoin.org",
+    web3url: process.env.NEXT_PUBLIC_NEVM_RPC_URL || "https://rpc.syscoin.org",
     ethtxid: receipt.transactionHash,
   };
   // will be auto filled based on ethtxid eth-proof

@@ -32,10 +32,12 @@ const MetamaskProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { data: isEnabled } = useQuery(["metamask", "enabled"], {
     queryFn: () => {
+      if (typeof window === "undefined") return false;
       return (
         typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask
       );
     },
+    enabled: typeof window !== "undefined",
   });
 
   return (

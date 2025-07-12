@@ -81,36 +81,46 @@ export const PaliWalletV2Provider: React.FC<{
   const { constants } = useConstants();
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
+      if (typeof window === "undefined") return false;
       return Boolean(window.pali) && window.pali.wallet === "pali-v2";
     },
     refetchInterval: 1000,
+    enabled: typeof window !== "undefined",
   });
 
   const isEVMInjected = useQuery(["pali", "is-ethereum-injected"], {
     queryFn: () => {
+      if (typeof window === "undefined") return false;
       return Boolean(window.ethereum) && window.ethereum.wallet === "pali-v2";
     },
     refetchInterval: 1000,
+    enabled: typeof window !== "undefined",
   });
 
   const isInstalled = installed.isFetched && installed.data;
 
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
     queryFn: () => {
+      if (typeof window === "undefined" || !window.pali) return false;
       const bitcoinBased = window.pali.isBitcoinBased();
       return Boolean(bitcoinBased);
     },
-    enabled: isInstalled,
+    enabled: isInstalled && typeof window !== "undefined",
     refetchInterval: 1000,
   });
 
-  const providerState = useQuery<ProviderState>(["pali", "provider-state"], {
-    queryFn: () => {
-      return window.pali.request({
-        method: "wallet_getProviderState",
-      });
+  const providerState = useQuery<ProviderState | null>(["pali", "provider-state"], {
+    queryFn: async (): Promise<ProviderState | null> => {
+      if (typeof window === "undefined" || !window.pali) return null;
+      try {
+        return await window.pali.request({
+          method: "wallet_getProviderState",
+        });
+      } catch (error) {
+        return null;
+      }
     },
-    enabled: isInstalled,
+    enabled: isInstalled && typeof window !== "undefined",
   });
 
   const requestAccounts = () => {
@@ -225,7 +235,7 @@ export const PaliWalletV2Provider: React.FC<{
         return Promise.reject("Pali Wallet is not installed");
       }
 
-      const chainId = parseInt(constants?.chain_id ?? "0x69", 16);
+      const chainId = parseInt(constants?.chain_id ?? "0x39", 16);
 
       if (networkType === "bitcoin") {
         return window.pali

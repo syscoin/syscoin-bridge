@@ -9,5 +9,5 @@ export const NEVMNetwork = {
     decimals: 18,
   },
   rpcUrls: [process.env.NEVM_RPC_URL!],
-  blockExplorerUrls: ["https://explorer.syscoin.org/"],
+  blockExplorerUrls: [process.env.NEXT_PUBLIC_NEVM_EXPLORER || "https://explorer.syscoin.org/"],
 };

@@ -7,9 +7,34 @@ import {
   usePaliWalletV2,
 } from "@contexts/PaliWallet/usePaliWallet";
 import Web3 from "web3";
+import { useState, useEffect } from "react";
 
 const InstallPaliWallet = () => {
   const { connectWallet, isInstalled } = usePaliWallet();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Show loading state during SSR
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+        <Image
+          src="/pali-wallet-logo.svg"
+          height={32}
+          width={32}
+          alt="PaliWallet logo"
+        />
+        <Typography variant="body1">Pali Wallet</Typography>
+        <Button sx={{ ml: "auto" }} variant="contained" disabled>
+          Loading...
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
       <Image
@@ -43,8 +68,31 @@ const PaliWalletV2 = () => {
   const { utxo, nevm } = useConnectedWallet();
   const { isBitcoinBased, switchTo, isInstalled, isEVMInjected } =
     usePaliWalletV2();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const connectedAccount = isBitcoinBased ? utxo.account : nevm.account;
   const isConnected = Boolean(connectedAccount);
+
+  if (!mounted) {
+    // Show loading state during SSR
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Image
+            src="/pali-wallet-logo.svg"
+            height={32}
+            width={32}
+            alt="PaliWallet logo"
+          />
+          <Typography variant="body1">Loading...</Typography>
+        </Box>
+      </Box>
+    );
+  }
 
   if (utxo.type !== "pali-wallet" || !isInstalled || !isConnected) {
     return <InstallPaliWallet />;
@@ -106,6 +154,29 @@ const PaliWalletV2 = () => {
 const WalletListPaliWallet = () => {
   const { utxo } = useConnectedWallet();
   const { version, isInstalled } = usePaliWallet();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // Show consistent loading state during SSR
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+        <Image
+          src="/pali-wallet-logo.svg"
+          height={32}
+          width={32}
+          alt="PaliWallet logo"
+        />
+        <Typography variant="body1">Pali Wallet</Typography>
+        <Button sx={{ ml: "auto" }} variant="contained" disabled>
+          Loading...
+        </Button>
+      </Box>
+    );
+  }
 
   if (version === "v2") {
     return <PaliWalletV2 />;
