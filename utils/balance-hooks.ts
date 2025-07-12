@@ -33,7 +33,8 @@ export const useUtxoBalance = (
     ["utxo", "balance", xpub, address, assetGuid],
     async () => {
       if (!xpub || isValidEthereumAddress(xpub)) return Promise.resolve(0);
-      const url = constants!.explorer.utxo + "/api/v2/xpub/" + xpub;
+      // Use proxy route instead of direct external API call to avoid CORS
+      const url = "/api/explorer-blockbook/v2/xpub/" + xpub;
       const balanceInText = await fetch(url)
         .then((res) => res.json())
         .then((res: BalanceResp) => {
