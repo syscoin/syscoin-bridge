@@ -75,20 +75,45 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
 
   const account = useQuery(["nevm", "account"], {
     queryFn: async () => {
-      const result: (string | { success: false })[] =
-        await window.ethereum.request({
-          method: "eth_requestAccounts",
-        });
-      if (
-        result.length > 0 &&
-        typeof result[0] === "string" &&
-        web3?.utils.isAddress(result[0])
-      ) {
-        return result[0];
+      try {
+        const result: (string | { success: false })[] =
+          await window.ethereum.request({
+            method: "eth_requestAccounts",
+          });
+        if (
+          result.length > 0 &&
+          typeof result[0] === "string" &&
+          web3?.utils.isAddress(result[0])
+        ) {
+          return result[0];
+        }
+        return Promise.reject("No account found");
+      } catch (error: any) {
+        // Network switch and other user cancellations are handled the same way
+        // The simplified popup system means all rejections are user cancellations
+        
+        // Check if this is a user cancellation error
+        if (error?.message?.includes('Request cancelled') || 
+            error?.message?.includes('User rejected') ||
+            error?.message?.includes('popup closure') ||
+            error?.message?.includes('cancelled') ||
+            error?.message?.includes('Network switch was cancelled') ||
+            error?.message?.includes('Duplicate') ||
+            error?.code === 4001 ||
+            error?.code === -32603) { // Internal error often means user cancellation
+          console.log('User cancelled eth_requestAccounts:', error?.message);
+          return null; // Return null instead of throwing to prevent cascade
+        }
+        
+        // Don't retry when user cancels eth_requestAccounts
+        // This prevents multiple popups when user cancels network switch
+        console.error('eth_requestAccounts failed:', error);
+        throw error; // Re-throw the original error for other errors
       }
-      return Promise.reject("No account found");
     },
     enabled: Boolean(web3) && isEnabled,
+    retry: false, // Don't retry user interaction methods
+    refetchOnWindowFocus: false, // Don't refetch on focus
   });
 
   const balance = useQuery(["nevm", "balance"], {
@@ -106,7 +131,11 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   const chainId = useQuery(
     ["nevm", "chainId"],
     async () => window.ethereum.request({ method: "eth_chainId" }),
-    { enabled: isEnabled, refetchOnMount: true, refetchOnWindowFocus: true }
+    { 
+      enabled: isEnabled && Boolean(account.data), // Only run after account is connected
+      refetchOnMount: true, 
+      refetchOnWindowFocus: true 
+    }
   );
 
   const sendTransaction = (config: TransactionConfig) => {

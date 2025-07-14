@@ -129,31 +129,82 @@ export const PaliWalletV2Provider: React.FC<{
     }) as Promise<(string | { success: boolean })[]>;
   };
 
-  const connectedAccount = useQuery(["pali", "connected-account"], {
+  // UTXO connection query - only run when on UTXO network or already connected
+  const utxoAccount = useQuery(["pali", "utxo-account"], {
     queryFn: async () => {
-      let account: Account = await window.pali.request({
-        method: "wallet_getAccount",
-      });
+      try {
+        // First check if we already have an account
+        try {
+          const existingAccount = await window.pali.request({
+            method: "wallet_getAccount",
+          });
+          if (existingAccount) {
+            return existingAccount.address; // Return address if already connected
+          }
+        } catch {
+          // No existing account, proceed with connection
+        }
 
-      if (account) {
-        return account;
+        // Only attempt connection if we're on UTXO network
+        if (!isBitcoinBased.data) {
+          return null; // Don't interfere when on EVM network
+        }
+        // Connect using sys_requestAccounts (now returns address like eth_requestAccounts)
+        const result = await window.pali.request({
+          method: "sys_requestAccounts",
+        });
+
+        if (
+          result.length === 0 ||
+          (typeof result[0] !== "string" &&
+            result[0].success === false)
+        ) {
+          return null;
+        }
+
+        // sys_requestAccounts now returns address (consistent with eth_requestAccounts)
+        return result[0]; // This is the address
+      } catch (error: any) {
+        // Network switch and other user cancellations are handled the same way
+        // The simplified popup system means all rejections are user cancellations
+        
+        // Check if this is a user cancellation error
+        if (error?.message?.includes('Request cancelled') || 
+            error?.message?.includes('User rejected') ||
+            error?.message?.includes('popup closure') ||
+            error?.message?.includes('cancelled') ||
+            error?.message?.includes('Network switch was cancelled') ||
+            error?.message?.includes('Duplicate') ||
+            error?.code === 4001 ||
+            error?.code === -32603) { // Internal error often means user cancellation
+          console.log('User cancelled UTXO connection request:', error?.message);
+          return null; // Return null instead of throwing to prevent cascade
+        }
+        
+        console.error('sys_requestAccounts failed:', error);
+        return null; // Return null instead of throwing to prevent cascade for CORS errors
       }
-
-      const receivedAccounts = await requestAccounts();
-
-      if (
-        receivedAccounts.length === 0 ||
-        (typeof receivedAccounts[0] !== "string" &&
-          receivedAccounts[0].success === false)
-      ) {
-        return null;
-      }
-      return await window.pali.request({
-        method: "wallet_getAccount",
-      });
     },
-    enabled: isInstalled && isBitcoinBased.isFetched && isBitcoinBased.data,
+    enabled: isInstalled && isBitcoinBased.isFetched,
+    retry: false, // Don't retry user interaction methods
+    refetchOnWindowFocus: false, // Don't refetch on focus
   });
+
+  // Get full account details (including xpub) after connection
+  const accountDetails = useQuery(["pali", "account-details"], {
+    queryFn: async () => {
+      const account: Account = await window.pali.request({
+        method: "wallet_getAccount",
+      });
+      return account;
+    },
+    enabled: Boolean(utxoAccount.data), // Only run after account is connected
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // Extract the account from the connection result
+  const finalAccount = accountDetails.data || null;
 
   const changeAccount = useCallback(() => {
     return window.pali.request({
@@ -163,31 +214,30 @@ export const PaliWalletV2Provider: React.FC<{
 
   const sysAddress = useMemo(
     () =>
-      connectedAccount.isSuccess &&
-      connectedAccount.data &&
+      finalAccount &&
       isValidSYSAddress(
-        connectedAccount.data.address,
+        finalAccount.address,
         constants?.isTestnet ? 5700 : 57
       )
-        ? connectedAccount.data.address
+        ? finalAccount.address
         : undefined,
-    [connectedAccount.data, connectedAccount.isSuccess, constants?.isTestnet]
+    [finalAccount, constants?.isTestnet]
   );
 
   const xpubAddress = useMemo(
     () =>
-      connectedAccount.isSuccess && connectedAccount.data
-        ? connectedAccount.data.xpub
+      finalAccount
+        ? finalAccount.xpub
         : undefined,
-    [connectedAccount.data, connectedAccount.isSuccess]
+    [finalAccount]
   );
 
   const balance = useMemo(
     () =>
-      connectedAccount.isSuccess && connectedAccount.data
-        ? connectedAccount.data.balances.syscoin
+      finalAccount
+        ? finalAccount.balances.syscoin
         : undefined,
-    [connectedAccount.data, connectedAccount.isSuccess]
+    [finalAccount]
   );
 
   const connectWallet = useCallback(
@@ -195,36 +245,51 @@ export const PaliWalletV2Provider: React.FC<{
       if (networkType === "bitcoin") {
         window.pali
           .request({ method: "sys_requestAccounts" })
-          .then(() => connectedAccount.refetch());
+          .then(() => {
+            utxoAccount.refetch();
+            accountDetails.refetch();
+          });
       }
     },
-    [connectedAccount]
+    [finalAccount]
   );
 
   const sendTransaction = useCallback(
     async (utxo: UTXOTransaction) => {
-      const signedPsbt = await window.pali.request({
+      const response = await window.pali.request({
         method: "sys_signAndSend",
         params: [utxo],
       });
 
-      if (signedPsbt.success === false) {
+      if (response.success === false) {
         return Promise.reject("unable to sign transaction");
       }
 
-      const unserializedResp = syscoinUtils.importPsbtFromJson(
-        signedPsbt,
-        constants?.isTestnet
-          ? syscoinUtils.syscoinNetworks.testnet
-          : syscoinUtils.syscoinNetworks.mainnet
-      );
+      // Handle different response formats:
+      // 1. If response has txid (ISysTransaction), use it directly
+      // 2. Fallback to PSBT parsing (legacy format)
+      if (response.txid) {
+        // ISysTransaction format - this is what sys_signAndSend returns
+        return {
+          tx: response.txid,
+          error: null,
+        };
+      } else {
+        // Fallback to PSBT parsing (legacy format)
+        const unserializedResp = syscoinUtils.importPsbtFromJson(
+          response,
+          constants?.isTestnet
+            ? syscoinUtils.syscoinNetworks.testnet
+            : syscoinUtils.syscoinNetworks.mainnet
+        );
 
-      const transaction = unserializedResp.psbt.extractTransaction();
+        const transaction = unserializedResp.psbt.extractTransaction();
 
-      return {
-        tx: transaction.getId(),
-        error: null,
-      };
+        return {
+          tx: transaction.getId(),
+          error: null,
+        };
+      }
     },
     [constants?.isTestnet]
   );
@@ -248,7 +313,10 @@ export const PaliWalletV2Provider: React.FC<{
             ],
           })
           .then(() => {
-            isBitcoinBased.refetch().then(() => connectedAccount.refetch());
+            isBitcoinBased.refetch().then(() => {
+              utxoAccount.refetch();
+              accountDetails.refetch();
+            });
           });
       } else if (networkType === "ethereum") {
         return window.ethereum
@@ -267,7 +335,7 @@ export const PaliWalletV2Provider: React.FC<{
       return Promise.reject("Invalid network type");
     },
     [
-      connectedAccount,
+      finalAccount,
       isBitcoinBased,
       isInstalled,
       queryClient,
