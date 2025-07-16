@@ -16,6 +16,10 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
       nevm: process.env.NEVM_EXPLORER,
       utxo: process.env.UTXO_EXPLORER,
     },
+    apiUrl: {
+      nevm: process.env.NEVM_API_URL || "",  // Only EVM networks use API URLs
+      // No UTXO API URL - UTXO networks don't need separate API URLs
+    },
     isTestnet: process.env.IS_TESTNET === "true",
     chain_id: process.env.CHAIN_ID,
   });

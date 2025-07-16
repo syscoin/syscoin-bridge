@@ -145,10 +145,6 @@ export const PaliWalletV2Provider: React.FC<{
           // No existing account, proceed with connection
         }
 
-        // Only attempt connection if we're on UTXO network
-        if (!isBitcoinBased.data) {
-          return null; // Don't interfere when on EVM network
-        }
         // Connect using sys_requestAccounts (now returns address like eth_requestAccounts)
         const result = await window.pali.request({
           method: "sys_requestAccounts",

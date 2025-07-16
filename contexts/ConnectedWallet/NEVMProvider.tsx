@@ -156,9 +156,22 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         const { code } = err;
         captureException(err);
         if (code === 4902) {
+          // Create network params in EIP-3085 format with Pali wallet extensions
+          const networkParams = {
+            ...NEVMNetwork,
+            chainId: constants?.chain_id ?? MAINNET_CHAIN_ID,
+            // Override with dynamic values from constants if available
+            ...(constants && {
+              rpcUrls: [constants.rpc.nevm],
+              blockExplorerUrls: [constants.explorer.nevm],
+              // Add apiUrl for Pali wallet (only for EVM networks)
+              ...(constants.apiUrl.nevm && { apiUrl: constants.apiUrl.nevm }),
+            }),
+          };
+          
           window.ethereum.request({
             method: "wallet_addEthereumChain",
-            params: [NEVMNetwork],
+            params: [networkParams],
           });
         }
       });

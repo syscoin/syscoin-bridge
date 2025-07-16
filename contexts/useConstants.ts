@@ -13,6 +13,10 @@ type Constants = {
     nevm: string;
     utxo: string;
   };
+  apiUrl: {
+    nevm: string;  // Only EVM networks use API URLs
+    // No utxo field - UTXO networks don't need separate API URLs
+  };
   isTestnet: boolean;
   chain_id: string;
 };

@@ -70,18 +70,25 @@ docker build -t syscoin/bridge .
 
 ### Environment Variables (for Production Docker)
 
-| Name                            | Description                       | Default |
-| ------------------------------- | --------------------------------- | ------- |
-| `MONGODB_URI`                   | MongoDB URI                       |         |
-| `CONFIRM_TRANSACTION_TIMEOUTS`  | Description                       | Default |
-| `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer | 100     |
-| `ADMIN_API_KEY`                 | Admin API Key                     |         |
-| `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password            |         |
-| `NEXT_PUBLIC_NEVM_RPC_URL`      | NEVM RPC URL                      |         |
-| `NEXT_PUBLIC_NEVM_EXPLORER`     | NEVM Explorer URL                 |         |
-| `NEXT_PUBLIC_IS_TESTNET`        | Is Testnet                        |         |
-| `NEXT_PUBLIC_CHAIN_ID`          | Chain ID                          |         |
-| `NEXT_PUBLIC_BLOCKBOOK_API_URL` | Blockbook API URL                 |         |
+| Name                            | Description                                    | Default |
+| ------------------------------- | ---------------------------------------------- | ------- |
+| `MONGODB_URI`                   | MongoDB URI                                    |         |
+| `CONFIRM_TRANSACTION_TIMEOUTS`  | Transaction confirmation timeout               |         |
+| `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer              | 100     |
+| `ADMIN_API_KEY`                 | Admin API Key                                  |         |
+| `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password                         |         |
+| `NEVM_RPC_URL`                  | NEVM RPC URL                                   |         |
+| `NEVM_EXPLORER`                 | NEVM Explorer URL                              |         |
+| `NEVM_API_URL`                  | NEVM Block Explorer API URL (EVM only)        |         |
+| `UTXO_RPC_URL`                  | UTXO RPC URL                                   |         |
+| `UTXO_EXPLORER`                 | UTXO Explorer URL                              |         |
+| `IS_TESTNET`                    | Is Testnet                                     |         |
+| `CHAIN_ID`                      | Chain ID                                       |         |
+| `RELAY_CONTRACT_ADDRESS`        | Relay contract address                         |         |
+| `ERC20_MANAGER_CONTRACT_ADDRESS`| ERC20 Manager contract address                 |         |
+| `SYS5_ENABLED`                  | Enable Sys5 features                           | false   |
+
+**Note**: API URLs are only used for EVM networks. UTXO networks use Blockbook which has a different API structure.
 
 ## Contact
 
