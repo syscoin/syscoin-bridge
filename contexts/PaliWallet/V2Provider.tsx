@@ -334,6 +334,7 @@ export const PaliWalletV2Provider: React.FC<{
           })
           .then(() => {
             queryClient.invalidateQueries(["nevm"]);
+            accountDetails.refetch();
           });
       }
       return Promise.reject("Invalid network type");
@@ -392,7 +393,7 @@ export const PaliWalletV2Provider: React.FC<{
         // Invalidate NEVM queries when ethereum accounts change
         queryClient.invalidateQueries(["nevm"]);
         // Also refetch Pali account data
-        handleAccountsChanged();
+        accountDetails.refetch();
       };
       
       window.ethereum.on("accountsChanged", handleEthAccountsChanged);

@@ -183,9 +183,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
   };
 
   const change = () => {
-    const prom = !isBitcoinBased ? switchTo("bitcoin") : Promise.resolve();
-    setUtxo({ xpub: "", address: "" });
-    prom.then(() => changeAccount());
+    !isBitcoinBased ? switchTo("bitcoin") : changeAccount();
   };
 
   const allowChange = transfer.status === "initialize";

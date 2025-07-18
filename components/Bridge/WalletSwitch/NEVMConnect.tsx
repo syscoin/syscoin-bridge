@@ -93,8 +93,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
       return;
     }
 
-    const prom = isBitcoinBased ? switchTo("ethereum") : Promise.resolve();
-    prom.then(() => changeAccount());
+    isBitcoinBased ? switchTo("ethereum") : changeAccount(); 
   };
 
   const allowChange = transfer.status === "initialize";

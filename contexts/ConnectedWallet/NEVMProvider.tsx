@@ -111,7 +111,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         throw error; // Re-throw the original error for other errors
       }
     },
-    enabled: Boolean(web3) && isEnabled,
+    enabled: Boolean(web3) && isEnabled  && !paliWallet.isBitcoinBased,
     retry: false, // Don't retry user interaction methods
     refetchOnWindowFocus: false, // Don't refetch on focus
   });
