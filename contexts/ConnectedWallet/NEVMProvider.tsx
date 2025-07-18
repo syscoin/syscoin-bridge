@@ -76,6 +76,11 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   const account = useQuery(["nevm", "account"], {
     queryFn: async () => {
       try {
+        // Double-check we're on EVM network before requesting accounts
+        if (paliWallet.isBitcoinBased) {
+          return null; // Don't request ETH accounts when on UTXO
+        }
+        
         const result: (string | { success: false })[] =
           await window.ethereum.request({
             method: "eth_requestAccounts",
@@ -87,7 +92,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         ) {
           return result[0];
         }
-        return Promise.reject("No account found");
+        return null;
       } catch (error: any) {
         // Network switch and other user cancellations are handled the same way
         // The simplified popup system means all rejections are user cancellations

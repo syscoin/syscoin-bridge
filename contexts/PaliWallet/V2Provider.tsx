@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo, useEffect } from "react";
+import { useCallback, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import PaliWalletContextProvider, {
@@ -79,6 +79,8 @@ export const PaliWalletV2Provider: React.FC<{
 }> = ({ children }) => {
   const queryClient = useQueryClient();
   const { constants } = useConstants();
+  const isProcessingAccountChange = useRef(false);
+  
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
       if (typeof window === "undefined") return false;
@@ -333,8 +335,7 @@ export const PaliWalletV2Provider: React.FC<{
             ],
           })
           .then(() => {
-            queryClient.invalidateQueries(["nevm"]);
-            accountDetails.refetch();
+            isBitcoinBased.refetch();
           });
       }
       return Promise.reject("Invalid network type");
@@ -363,9 +364,32 @@ export const PaliWalletV2Provider: React.FC<{
 
     // Handle any account changes (both UTXO and EVM)
     const handleAccountsChanged = () => {
-      // Refetch account data when accounts change
-      utxoAccount.refetch();
-      accountDetails.refetch();
+      // Prevent recursive calls
+      if (isProcessingAccountChange.current) {
+        console.log('Already processing account change, skipping...');
+        return;
+      }
+      
+      isProcessingAccountChange.current = true;
+      
+      // Check current network state without refetching
+      const isCurrentlyBitcoinBased = isBitcoinBased.data;
+      
+      if (isCurrentlyBitcoinBased) {
+        console.log('--------5)utxoAccount.refetch');
+        utxoAccount.refetch();
+        accountDetails.refetch();
+      } else if (isCurrentlyBitcoinBased === false) {
+        console.log('--------6)queryClient.invalidateQueries(["nevm"])');
+        // Only invalidate NEVM queries when on EVM network
+        queryClient.invalidateQueries(["nevm"]);
+      }
+      // If isCurrentlyBitcoinBased is undefined, we don't know the state yet, so do nothing
+      
+      // Reset the flag after a short delay to allow for legitimate subsequent changes
+      setTimeout(() => {
+        isProcessingAccountChange.current = false;
+      }, 100);
     };
 
     // Listen for Pali notification events
@@ -375,7 +399,6 @@ export const PaliWalletV2Provider: React.FC<{
         const data = eventData.data || eventData;
         
         if (data?.method === 'pali_xpubChanged' || data?.method === 'pali_accountsChanged') {
-          
           handleAccountsChanged();
         }
       } catch (error) {
@@ -390,10 +413,8 @@ export const PaliWalletV2Provider: React.FC<{
     
     if (window.ethereum && isEVMInjected && !isBitcoinBased.data) {
       const handleEthAccountsChanged = () => {
-        // Invalidate NEVM queries when ethereum accounts change
-        queryClient.invalidateQueries(["nevm"]);
-        // Also refetch Pali account data
-        accountDetails.refetch();
+        // handleAccountsChanged will handle invalidating NEVM queries
+        handleAccountsChanged();
       };
       
       window.ethereum.on("accountsChanged", handleEthAccountsChanged);
@@ -414,7 +435,7 @@ export const PaliWalletV2Provider: React.FC<{
         ethCleanup();
       }
     };
-  }, [isInstalled, isEVMInjected, isBitcoinBased.data, queryClient]); // Removed utxoAccount and accountDetails to prevent re-runs
+  }, [isInstalled, isEVMInjected.data, isBitcoinBased.data, queryClient]); // Dependencies needed for proper cleanup/setup
 
   const value: IPaliWalletV2Context = useMemo(
     () => ({
