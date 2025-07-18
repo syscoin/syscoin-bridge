@@ -1,7 +1,7 @@
-import {
-  usePaliWallet,
-  usePaliWalletV2,
-} from "@contexts/PaliWallet/usePaliWallet";
+import { useUtxoBalance } from "utils/balance-hooks";
+import { usePaliWallet, usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
+import { ITransfer } from "@contexts/Transfer/types";
 import {
   Alert,
   Button,
@@ -10,13 +10,10 @@ import {
   SelectChangeEvent,
   Typography,
 } from "@mui/material";
+import React, { useEffect } from "react";
 import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
-import { ITransfer } from "@contexts/Transfer/types";
-import { useUtxoBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
-import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
-import { useEffect } from "react";
 
 export type AssetType = "sys" | "sysx" | "none";
 

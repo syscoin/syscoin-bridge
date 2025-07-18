@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { UTXOTransaction } from "syscoinjs-lib";
 import PaliWalletContextProvider, {
@@ -63,7 +63,7 @@ export interface IPaliWalletV2Context extends IPaliWalletContext {
   chainType: string | undefined;
   isBitcoinBased: boolean;
   switchTo: (networkType: PaliWalletNetworkType) => Promise<void>;
-  changeAccount: () => void;
+  changeAccount: () => Promise<any>;
   isEVMInjected: boolean;
   isLoading: boolean;
 }
@@ -296,7 +296,15 @@ export const PaliWalletV2Provider: React.FC<{
         return Promise.reject("Pali Wallet is not installed");
       }
 
-      const chainId = parseInt(constants?.chain_id ?? "0x39", 16);
+      // Get proper chainId based on network type and testnet status
+      let chainId: number;
+      if (networkType === "bitcoin") {
+        // Use UTXO network chainIds: 57 for mainnet, 5700 for testnet
+        chainId = constants?.isTestnet ? 5700 : 57;
+      } else {
+        // Use EVM chainId from constants
+        chainId = parseInt(constants?.chain_id ?? "0x39", 16);
+      }
 
       if (networkType === "bitcoin") {
         return window.pali
@@ -336,6 +344,7 @@ export const PaliWalletV2Provider: React.FC<{
       isInstalled,
       queryClient,
       constants?.chain_id,
+      constants?.isTestnet,
     ]
   );
 
@@ -346,6 +355,65 @@ export const PaliWalletV2Provider: React.FC<{
       isEVMInjected.isLoading,
     [installed.isLoading, isBitcoinBased.isLoading, isEVMInjected.isLoading]
   );
+
+  // Listen for account changes
+  useEffect(() => {
+    if (!isInstalled || !window.pali) return;
+
+    // Handle any account changes (both UTXO and EVM)
+    const handleAccountsChanged = () => {
+      // Refetch account data when accounts change
+      utxoAccount.refetch();
+      accountDetails.refetch();
+    };
+
+    // Listen for Pali notification events
+    const handlePaliNotification = (event: any) => {
+      try {
+        const eventData = JSON.parse(event.detail);
+        const data = eventData.data || eventData;
+        
+        if (data?.method === 'pali_xpubChanged' || data?.method === 'pali_accountsChanged') {
+          
+          handleAccountsChanged();
+        }
+      } catch (error) {
+        // Ignore parsing errors
+      }
+    };
+
+    window.addEventListener('paliNotification', handlePaliNotification);
+
+    // Also listen for standard ethereum accountsChanged if in EVM mode
+    let ethCleanup: (() => void) | undefined;
+    
+    if (window.ethereum && isEVMInjected && !isBitcoinBased.data) {
+      const handleEthAccountsChanged = () => {
+        // Invalidate NEVM queries when ethereum accounts change
+        queryClient.invalidateQueries(["nevm"]);
+        // Also refetch Pali account data
+        handleAccountsChanged();
+      };
+      
+      window.ethereum.on("accountsChanged", handleEthAccountsChanged);
+      
+      ethCleanup = () => {
+        if (typeof (window.ethereum as any).removeListener === 'function') {
+          (window.ethereum as any).removeListener("accountsChanged", handleEthAccountsChanged);
+        } else if (typeof (window.ethereum as any).off === 'function') {
+          (window.ethereum as any).off("accountsChanged", handleEthAccountsChanged);
+        }
+      };
+    }
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('paliNotification', handlePaliNotification);
+      if (ethCleanup) {
+        ethCleanup();
+      }
+    };
+  }, [isInstalled, isEVMInjected, isBitcoinBased.data, queryClient]); // Removed utxoAccount and accountDetails to prevent re-runs
 
   const value: IPaliWalletV2Context = useMemo(
     () => ({

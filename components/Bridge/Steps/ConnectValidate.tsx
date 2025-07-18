@@ -38,13 +38,18 @@ const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
     [setValue]
   );
 
+  const setUtxo = useCallback(
+    ({ address, xpub }: { address: string; xpub: string }) => {
+      setValue("utxoAddress", address);
+      setValue("utxoXpub", xpub);
+    },
+    [setValue]
+  );
+
   return (
     <UTXOConnect
       transfer={transfer}
-      setUtxo={({ address, xpub }) => {
-        setValue("utxoAddress", address);
-        setValue("utxoXpub", xpub);
-      }}
+      setUtxo={setUtxo}
       selectedAsset={utxoAssetType}
       setSelectedAsset={setSelectedAsset}
     />
@@ -53,12 +58,15 @@ const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
 
 const NEVMWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
   const { setValue } = useFormContext();
+  
+  const setNevm = useCallback(({ address }: { address: string }) => {
+    setValue("nevmAddress", address);
+  }, [setValue]);
+  
   return (
     <NEVMConnect
       transfer={transfer}
-      setNevm={({ address }) => {
-        setValue("nevmAddress", address);
-      }}
+      setNevm={setNevm}
     />
   );
 };
