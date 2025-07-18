@@ -196,34 +196,18 @@ const runWithSysToNevmStateMachine = async (
             gas: gas ?? 400_000,
             gasPrice,
           })
-          .once("transactionHash", (result: string | any) => {
-            // Handle both string hash and transaction object formats
-            let hash: string | undefined;
-            
-            if (typeof result === "string") {
-              hash = result;
-            } else if (result && typeof result === "object") {
-              // Check if it's an error object  
-              if (result.success === false) {
-                dispatch(
-                  addLog(COMMON_STATUS.ERROR, "Submission Failed", {
-                    error: result,
-                  })
-                );
-                reject("Failed to submit proofs. Check browser logs");
-                return;
-              }
-              // Extract hash from transaction object
-              hash = result.hash;
-            }
-            
-            if (!hash) {
+          .once("transactionHash", (hash: string | any) => {
+            // Handle both string and object formats
+            const txHash = typeof hash === "string" ? hash : hash?.hash;
+    
+            if (!txHash) {
               dispatch(
-                addLog(COMMON_STATUS.ERROR, "Invalid transaction hash format", {
-                  error: result,
+                addLog(COMMON_STATUS.ERROR, "Submission Failed", {
+                  error: hash,
                 })
               );
-              reject("Failed to submit proofs - no transaction hash received");
+              console.error("Submission failed", hash);
+              reject("Failed to submit proofs. Check browser logs");
             } else {
               dispatch(
                 addLog(
@@ -234,7 +218,7 @@ const runWithSysToNevmStateMachine = async (
                   }
                 )
               );
-              resolve(hash);
+              resolve(txHash);
             }
           })
           .on("error", (error: { message: string }) => {

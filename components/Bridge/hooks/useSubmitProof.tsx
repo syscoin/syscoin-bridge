@@ -47,28 +47,15 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
           gas: gas ?? 400_000,
           gasPrice,
         })
-        .once("transactionHash", (result: string | any) => {
-          // Handle both string hash and transaction object formats
-          let hash: string | undefined;
-          
-          if (typeof result === "string") {
-            hash = result;
-          } else if (result && typeof result === "object") {
-            // Check if it's an error object
-            if (result.success === false) {
-              reject("Failed to submit proofs. Check browser logs");
-              console.error("Submission failed", result);
-              return;
-            }
-            // Extract hash from transaction object
-            hash = result.hash;
-          }
-          
-          if (!hash) {
-            reject("Failed to submit proofs - no transaction hash received");
-            console.error("Invalid transaction hash format", result);
+        .once("transactionHash", (hash: string | any) => {
+          // Handle both string and object formats
+          const txHash = typeof hash === "string" ? hash : hash?.hash;
+  
+          if (!txHash) {
+            reject("Failed to submit proofs. Check browser logs");
+            console.error("Submission failed", hash);
           } else {
-            resolve(hash);
+            resolve(txHash);
           }
         })
         .on("error", (error: { message: string }) => {

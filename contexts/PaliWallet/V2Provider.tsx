@@ -376,11 +376,9 @@ export const PaliWalletV2Provider: React.FC<{
       const isCurrentlyBitcoinBased = isBitcoinBased.data;
       
       if (isCurrentlyBitcoinBased) {
-        console.log('--------5)utxoAccount.refetch');
         utxoAccount.refetch();
         accountDetails.refetch();
       } else if (isCurrentlyBitcoinBased === false) {
-        console.log('--------6)queryClient.invalidateQueries(["nevm"])');
         // Only invalidate NEVM queries when on EVM network
         queryClient.invalidateQueries(["nevm"]);
       }
