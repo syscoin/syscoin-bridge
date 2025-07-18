@@ -196,14 +196,34 @@ const runWithSysToNevmStateMachine = async (
             gas: gas ?? 400_000,
             gasPrice,
           })
-          .once("transactionHash", (hash: string | { success: false }) => {
-            if (typeof hash !== "string" && !hash.success) {
+          .once("transactionHash", (result: string | any) => {
+            // Handle both string hash and transaction object formats
+            let hash: string | undefined;
+            
+            if (typeof result === "string") {
+              hash = result;
+            } else if (result && typeof result === "object") {
+              // Check if it's an error object  
+              if (result.success === false) {
+                dispatch(
+                  addLog(COMMON_STATUS.ERROR, "Submission Failed", {
+                    error: result,
+                  })
+                );
+                reject("Failed to submit proofs. Check browser logs");
+                return;
+              }
+              // Extract hash from transaction object
+              hash = result.hash;
+            }
+            
+            if (!hash) {
               dispatch(
-                addLog(COMMON_STATUS.ERROR, "Submission Failed", {
-                  error: hash,
+                addLog(COMMON_STATUS.ERROR, "Invalid transaction hash format", {
+                  error: result,
                 })
               );
-              reject("Failed to submit proofs. Check browser logs");
+              reject("Failed to submit proofs - no transaction hash received");
             } else {
               dispatch(
                 addLog(

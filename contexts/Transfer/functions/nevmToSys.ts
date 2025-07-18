@@ -25,16 +25,39 @@ const freezeAndBurn = (
   return new Promise((resolve, reject) => {
     contract.methods
       .freezeBurnERC20(amount, SYSX_ASSET_GUID, transfer.utxoAddress)
-      .send({ from: transfer.nevmAddress, gas: 400000, value: amount })
-      .once("transactionHash", (transactionHash: string) => {
-        dispatch(
-          addLog(
-            ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
-            "Freeze and Burn SYS",
-            transactionHash
-          )
-        );
-        resolve(transactionHash);
+      .send({
+        from: transfer.nevmAddress,
+        gas: 400000,
+        value: amount,
+      })
+      .once("transactionHash", (result: string | any) => {
+        // Handle both string hash and transaction object formats
+        let hash: string | undefined;
+        
+        if (typeof result === "string") {
+          hash = result;
+        } else if (result && typeof result === "object") {
+          // Extract hash from transaction object
+          hash = result.hash;
+        }
+        
+        if (!hash) {
+          dispatch(
+            addLog(COMMON_STATUS.ERROR, "Freeze and Burn error - no hash", {
+              error: result,
+            })
+          );
+          reject("Failed to freeze and burn - no transaction hash received");
+        } else {
+          dispatch(
+            addLog(
+              ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+              "Freeze and Burn SYS",
+              hash
+            )
+          );
+          resolve(hash);
+        }
       })
       .on("error", (error: { message: string }) => {
         dispatch(

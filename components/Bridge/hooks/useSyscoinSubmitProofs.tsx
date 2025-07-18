@@ -19,7 +19,6 @@ const useSyscoinSubmitProofs = (
         }
         return res.json().then(({ message }) => Promise.reject(message));
       });
-
       const receipt = await web3.eth.getTransactionReceipt(
         sponsorWalletTransaction.transaction.hash,
       );
@@ -33,13 +32,15 @@ const useSyscoinSubmitProofs = (
           sponsorWalletTransaction.transaction.rawData
         );
         method
-          .once("transactionHash", (hash: string | { success: false }) => {
-            if (typeof hash === "string") {
-              return resolve(hash);
-            }
-            if (!hash.success) {
+          .once("transactionHash", (hash: string | any) => {
+            // Handle both string and object formats
+            const txHash = typeof hash === "string" ? hash : hash?.hash;
+            
+            if (!txHash) {
               reject("Failed to submit proofs. Check browser logs");
               console.error("Submission failed", hash);
+            } else {
+              resolve(txHash);
             }
           })
           .on("error", (error: { message: string }) => {

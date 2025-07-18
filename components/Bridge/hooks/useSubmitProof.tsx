@@ -8,7 +8,6 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { useRelayContract } from "./useRelayContract";
 
 
-
 export const isSpvProof = (data: unknown): data is SPVProof => {
   return typeof data === "object" && data !== null && "nevm_blockhash" in data;
 };
@@ -48,10 +47,26 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
           gas: gas ?? 400_000,
           gasPrice,
         })
-        .once("transactionHash", (hash: string | { success: false }) => {
-          if (typeof hash !== "string" && !hash.success) {
-            reject("Failed to submit proofs. Check browser logs");
-            console.error("Submission failed", hash);
+        .once("transactionHash", (result: string | any) => {
+          // Handle both string hash and transaction object formats
+          let hash: string | undefined;
+          
+          if (typeof result === "string") {
+            hash = result;
+          } else if (result && typeof result === "object") {
+            // Check if it's an error object
+            if (result.success === false) {
+              reject("Failed to submit proofs. Check browser logs");
+              console.error("Submission failed", result);
+              return;
+            }
+            // Extract hash from transaction object
+            hash = result.hash;
+          }
+          
+          if (!hash) {
+            reject("Failed to submit proofs - no transaction hash received");
+            console.error("Invalid transaction hash format", result);
           } else {
             resolve(hash);
           }

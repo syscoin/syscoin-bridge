@@ -47,12 +47,15 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
             value: amount,
             gasPrice,
           })
-          .once("transactionHash", (hash: string | { success: false }) => {
-            if (typeof hash !== "string") {
+          .once("transactionHash", (hash: string | any) => {
+            // Handle both string and object formats
+            const txHash = typeof hash === "string" ? hash : hash?.hash;
+            
+            if (!txHash) {
               reject("Failed to freeze and burn sys. Check browser logs");
               console.error("freeze and burn failed", hash);
             } else {
-              resolve(hash);
+              resolve(txHash);
             }
           })
           .on("error", (error: { message: string }) => {
