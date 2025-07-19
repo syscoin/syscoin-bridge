@@ -366,7 +366,6 @@ export const PaliWalletV2Provider: React.FC<{
     const handleAccountsChanged = () => {
       // Prevent recursive calls
       if (isProcessingAccountChange.current) {
-        console.log('Already processing account change, skipping...');
         return;
       }
       
