@@ -2,7 +2,7 @@ import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useConstants } from "@contexts/useConstants";
 import { Button } from "@mui/material";
-import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
+import { isValidEthereumAddress } from "@sidhujag/sysweb3-utils";
 
 type Props = {
   children: React.ReactNode;

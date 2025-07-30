@@ -9,7 +9,7 @@ import PaliWalletContextProvider, {
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
-import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
+import { isValidSYSAddress } from "@sidhujag/sysweb3-utils";
 import { useConstants } from "@contexts/useConstants";
 
 export interface ProviderState {

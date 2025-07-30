@@ -1,5 +1,5 @@
 import { useConstants } from "@contexts/useConstants";
-import { isValidEthereumAddress } from "@pollum-io/sysweb3-utils";
+import { isValidEthereumAddress } from "@sidhujag/sysweb3-utils";
 import { useWeb3 } from "components/Bridge/context/Web";
 
 import { useQuery } from "react-query";

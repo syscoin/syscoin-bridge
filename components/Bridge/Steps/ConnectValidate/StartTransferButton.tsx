@@ -6,7 +6,7 @@ import { Box, Button, Typography } from "@mui/material";
 import {
   isValidEthereumAddress,
   isValidSYSAddress,
-} from "@pollum-io/sysweb3-utils";
+} from "@sidhujag/sysweb3-utils";
 import { useFormContext } from "react-hook-form";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";

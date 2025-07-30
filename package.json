@@ -15,7 +15,7 @@
     "@mui/lab": "^5.0.0-alpha.89",
     "@mui/material": "^5.7.0",
     "@mui/x-data-grid": "^5.11.1",
-    "@pollum-io/sysweb3-utils": "^1.1.223",
+    "@sidhujag/sysweb3-utils": "^1.1.246",
     "@sentry/nextjs": "^7.57.0",
     "axios": "^0.27.2",
     "bitcoin-proof": "^2.0.0",
@@ -30,7 +30,8 @@
     "react-hook-form": "^7.31.3",
     "react-query": "^3.39.1",
     "satoshi-bitcoin": "^1.0.5",
-    "syscoinjs-lib": "^1.0.228"
+    "syscoinjs-lib": "^1.0.247",
+    "web3": "^1.10.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

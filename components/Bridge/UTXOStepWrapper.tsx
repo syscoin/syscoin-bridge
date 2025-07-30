@@ -4,7 +4,7 @@ import {
 } from "@contexts/PaliWallet/usePaliWallet";
 import { useConstants } from "@contexts/useConstants";
 import { Button } from "@mui/material";
-import { isValidSYSAddress } from "@pollum-io/sysweb3-utils";
+import { isValidSYSAddress } from "@sidhujag/sysweb3-utils";
 
 type UTXOStepWrapperProps = {
   children: React.ReactNode;
