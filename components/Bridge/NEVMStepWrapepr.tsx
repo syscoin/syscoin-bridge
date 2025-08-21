@@ -9,7 +9,7 @@ type Props = {
 };
 
 const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
-  const { version, isBitcoinBased, switchTo, isEVMInjected, connectWallet } =
+  const { version, isBitcoinBased, switchTo, isEVMInjected } =
     usePaliWalletV2();
 
   const { constants } = useConstants();
@@ -25,7 +25,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   }
 
   if (!account) {
-    return <Button onClick={connectWallet}>Connect NEVM Wallet</Button>;
+    return <Button onClick={connect}>Connect NEVM Wallet</Button>;
   }
 
   if (!isValidEthereumAddress(account)) {
