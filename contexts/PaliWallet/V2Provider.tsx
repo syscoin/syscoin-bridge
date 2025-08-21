@@ -398,6 +398,37 @@ export const PaliWalletV2Provider: React.FC<{
         if (data?.method === 'pali_xpubChanged' || data?.method === 'pali_accountsChanged') {
           handleAccountsChanged();
         }
+
+        // React to network-type and chain changes instantly
+        if (data?.method === 'pali_isBitcoinBased') {
+          // Update UTXO/EVM mode
+          isBitcoinBased.refetch();
+          // NEVM-dependent queries may need invalidation
+          queryClient.invalidateQueries(["nevm"]);
+        }
+
+        if (data?.method === 'pali_chainChanged') {
+          // Invalidate NEVM queries (account/chain/gas/balances) on chain change
+          queryClient.invalidateQueries(["nevm"]);
+        }
+
+        if (data?.method === 'pali_unlockStateChanged') {
+          // When unlocking, refresh whichever side is active
+          const unlocked = Boolean(data?.params?.isUnlocked ?? data?.params);
+          if (unlocked) {
+            // If on UTXO, refresh UTXO account/xpub; if on EVM, invalidate NEVM
+            if (isBitcoinBased.data) {
+              utxoAccount.refetch();
+              accountDetails.refetch();
+            } else if (isBitcoinBased.data === false) {
+              queryClient.invalidateQueries(["nevm"]);
+            } else {
+              // Unknown state: refresh both light-weight queries
+              isBitcoinBased.refetch();
+              queryClient.invalidateQueries(["nevm"]);
+            }
+          }
+        }
       } catch (error) {
         // Ignore parsing errors
       }
