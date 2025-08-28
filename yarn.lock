@@ -1460,10 +1460,10 @@
     "@ethersproject/bytes" "^5.8.0"
     eth-chains "^1.0.0"
 
-"@sidhujag/sysweb3-utils@^1.0.267":
-  version "1.1.267"
-  resolved "https://registry.yarnpkg.com/@sidhujag/sysweb3-utils/-/sysweb3-utils-1.1.267.tgz#603ba471de5d9348087172f557d8ae44527112d1"
-  integrity sha512-QnULthWuS+lcofdtCENDhAVoDQjufp6wo0VLZAsD1xLYMPC5TAqosGuPKso4VlwuOArK/JWPA/qmBm4RGA36uQ==
+"@sidhujag/sysweb3-utils@^1.1.269":
+  version "1.1.269"
+  resolved "https://registry.yarnpkg.com/@sidhujag/sysweb3-utils/-/sysweb3-utils-1.1.269.tgz#850391f1f7b030b3704c75dc8594dc5ecdcd66cb"
+  integrity sha512-3lYnReTV5gt/C3JpORN22tQTl6Si4qdUFV9TsLFl0sBSX6wq3ygi2bNA4lSazCkZIqbXNuDEEWpRITdQ42Qy+g==
   dependencies:
     "@ethersproject/address" "^5.8.0"
     "@ethersproject/contracts" "^5.8.0"
@@ -7368,10 +7368,10 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@^1.0.265:
-  version "1.0.265"
-  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.265.tgz#a4bfc10112e57192411ee96ee4a16a8e00700b50"
-  integrity sha512-PnEvMtSCn2nCnIJIpY/n/ke+VkSOJcda6Okmi4zUTyVYr9xtV3SvzKZhvx4SOSlOh0jftbrZ+1uFJ996NKTgcw==
+syscoinjs-lib@^1.0.266:
+  version "1.0.266"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.266.tgz#b3795e55ab75453e96ed2afbae47fe6bfa1919fc"
+  integrity sha512-ZD4ra3eSe+YUWEsyaZAtv/iiERcEcuQrO9FqW0KkH1JBCCUs4vcCI0vEy3ySb5nrnddd2TGZChnkgnGNDDTekQ==
   dependencies:
     "@bitcoinerlab/secp256k1" "^1.2.0"
     "@ethersproject/abi" "^5.8.0"
