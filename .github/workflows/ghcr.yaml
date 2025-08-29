@@ -5,9 +5,10 @@ on:
     types: [released]
   push:
     branches:
-      - "main"
-      - "support-pali-v1-backward-compatibility"
-      - "sys5-bridge"
+    - "main"
+    - "support-pali-v1-backward-compatibility"
+    - "sys5-bridge"
+    - "update/node20"
 
 jobs:
   docker:
