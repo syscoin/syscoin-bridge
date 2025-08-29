@@ -58,7 +58,8 @@ const createTransfer = (type: TransferType): ITransfer => ({
 
 const BridgePage: NextPage = () => {
   const { query } = useRouter();
-  const queryClient = useMemo(() => new QueryClient(), []);
+  // Create a new QueryClient when the transfer ID changes to avoid stale data
+  const queryClient = useMemo(() => new QueryClient(), [query.id]);
 
   const initialTransfer = useMemo(() => {
     const id = query.id;

@@ -26,7 +26,7 @@ import BridgeLoading from "../Loading";
 import { ConnectValidateAgreeToTermsCheckbox } from "./ConnectValidate/AgreeToTermsCheckbox";
 import { ConnectValidateAmountField } from "./ConnectValidate/AmountField";
 import { ConnectValidateStartTransferButton } from "./ConnectValidate/StartTransferButton";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 const UTXOWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
   const { setValue, watch } = useFormContext();
@@ -94,21 +94,35 @@ const BridgeConnectValidateStep: React.FC<
     mode: "all",
     values: {
       amount: 0.1,
-      nevmAddress: "",
-      utxoAddress: "",
-      utxoXpub: "",
+      nevmAddress: transfer.nevmAddress || "",
+      utxoAddress: transfer.utxoAddress || "",
+      utxoXpub: transfer.utxoXpub || "",
       agreedToTerms: false,
       utxoAssetType: undefined,
     },
   });
 
-  const { handleSubmit, watch } = form;
+  const { handleSubmit, watch, reset } = form;
 
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
   const utxoAssetType = watch("utxoAssetType");
 
   const nevmAddress = watch("nevmAddress");
+
+  // Reset form when transfer ID changes (e.g., starting a new transfer)
+  useEffect(() => {
+    if (transfer.status === "initialize" && !transfer.nevmAddress && !transfer.utxoAddress) {
+      reset({
+        amount: 0.1,
+        nevmAddress: "",
+        utxoAddress: "",
+        utxoXpub: "",
+        agreedToTerms: false,
+        utxoAssetType: undefined,
+      });
+    }
+  }, [transfer.id, transfer.status, transfer.nevmAddress, transfer.utxoAddress, reset]);
 
   const utxoBalance = useUtxoBalance(utxoXpub);
   const sysxBalance = useUtxoBalance(utxoXpub, {

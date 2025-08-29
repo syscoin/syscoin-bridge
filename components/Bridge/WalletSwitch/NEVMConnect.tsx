@@ -45,11 +45,10 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   };
 
   const allowChange = transfer.status === "initialize";
-  if (
-    !isBitcoinBased && allowChange
-      ? transfer.nevmAddress === account
-      : Boolean(transfer.nevmAddress)
-  ) {
+  const hasNevmAddress = Boolean(transfer.nevmAddress);
+  
+  // Show the card with the selected address if we have a nevmAddress
+  if (hasNevmAddress) {
     let balanceNum = balance.data ?? 0;
     if (isNaN(balanceNum)) {
       balanceNum = 0;

@@ -161,12 +161,7 @@ const UTXOConnectV1: React.FC<UTXOConnectProps> = (props) => {
 };
 
 const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
-  const { setUtxo, transfer, setSelectedAsset } = props;
-  const sysxBalance = useUtxoBalance(transfer.utxoXpub!, {
-    address: transfer.utxoAddress,
-    assetGuid: SYSX_ASSET_GUID,
-    retry: false,
-  });
+  const { setUtxo, transfer } = props;
   const { version } = usePaliWallet();
   const isV2 = version === "v2";
   const {
@@ -186,17 +181,14 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
     !isBitcoinBased ? switchTo("bitcoin") : changeAccount();
   };
 
-  const allowChange = transfer.status === "initialize";
+  const hasUtxoAddress = Boolean(transfer.utxoAddress);
 
   if (!isV2) {
     return <UTXOConnectV1 {...props} />;
   }
 
-  if (
-    isBitcoinBased && allowChange
-      ? transfer.utxoAddress === connectedAccount
-      : Boolean(transfer.utxoAddress)
-  ) {
+  // Show the connected wallet card if we have a UTXO address
+  if (hasUtxoAddress) {
     return <ConnectedUtxoWallet {...props} change={change} />;
   }
 
