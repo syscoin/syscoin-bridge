@@ -18,14 +18,14 @@ const BridgeCompleteSysToNevm: React.FC<Props> = ({ transfer }) => {
       ? undefined
       : logs.find(
           (log) =>
-            log.status === "burn-sys" && log.payload.data.tx !== undefined
+            log?.status === "burn-sys" && log.payload?.data?.tx !== undefined
         );
   const burnSysxTx = logs.find(
-    (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
+    (log) => log?.status === "burn-sysx" && log.payload?.data?.tx !== undefined
   );
   const submitProofsTx = logs.find(
     (log) =>
-      log.status === "submit-proofs" && log.payload.data.hash !== undefined
+      log?.status === "submit-proofs" && log.payload?.data?.hash !== undefined
   );
   return (
     <Box>

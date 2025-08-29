@@ -15,14 +15,14 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
   const NEVM_TX_BLOCKCHAIN_URL = `${constants?.explorer.nevm}/tx/`;
 
   const mintSysTx = logs.find(
-    (log) => log.status === "mint-sysx" && log.payload.data.tx !== undefined
+    (log) => log?.status === "mint-sysx" && log.payload?.data?.tx !== undefined
   );
   const burnSysxTx = logs.find(
-    (log) => log.status === "burn-sysx" && log.payload.data.tx !== undefined
+    (log) => log?.status === "burn-sysx" && log.payload?.data?.tx !== undefined
   );
   const freezeAndBurnTx = logs.find(
     (log) =>
-      log.status === "freeze-burn-sys" && log.payload.data.hash !== undefined
+      log?.status === "freeze-burn-sys" && log.payload?.data?.hash !== undefined
   );
   return (
     <Box>
@@ -32,28 +32,28 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2">Freeze and Burn SYS tx:</Typography>
         <Link
-          href={`${NEVM_TX_BLOCKCHAIN_URL}${freezeAndBurnTx?.payload.data.hash}`}
+          href={`${NEVM_TX_BLOCKCHAIN_URL}${freezeAndBurnTx?.payload?.data?.hash}`}
           target="_blank"
         >
-          {freezeAndBurnTx?.payload.data.hash}
+          {freezeAndBurnTx?.payload?.data?.hash}
         </Link>
       </Box>
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2">Mint SYSX tx:</Typography>
         <Link
-          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${mintSysTx?.payload.data.tx}`}
+          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${mintSysTx?.payload?.data?.tx}`}
           target="_blank"
         >
-          {mintSysTx?.payload.data.tx}
+          {mintSysTx?.payload?.data?.tx}
         </Link>
       </Box>
       <Box>
         <Typography variant="body2">Burn SYSX tx:</Typography>
         <Link
-          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysxTx?.payload.data.tx}`}
+          href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysxTx?.payload?.data?.tx}`}
           target="_blank"
         >
-          {burnSysxTx?.payload.data.tx}
+          {burnSysxTx?.payload?.data?.tx}
         </Link>
       </Box>
     </Box>
