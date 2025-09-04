@@ -1,4 +1,4 @@
-import { Box, Container, Grid, Typography } from "@mui/material";
+import { Box, Container, Grid, Typography, Link } from "@mui/material";
 
 import type { NextPage } from "next";
 import Head from "next/head";
@@ -19,6 +19,10 @@ const Home: NextPage = () => {
 
   const isPaliVersion2 =
     isInstalled && version && version === "v2" && isEVMInjected;
+
+  const commitHash = process.env.NEXT_PUBLIC_COMMIT_HASH || "";
+  const repoUrl = process.env.NEXT_PUBLIC_REPO_URL || "";
+  const shortHash = commitHash ? commitHash.slice(0, 7) : "";
 
   return (
     <Box>
@@ -68,6 +72,20 @@ const Home: NextPage = () => {
         </Container>
         <Box component={FAQ} mb={3} />
         <Box component={ContactUs} mb={3} />
+        {commitHash && repoUrl && (
+          <Container sx={{ mt: 2, mb: 2 }}>
+            <Typography variant="caption" color="text.secondary">
+              Build: {" "}
+              <Link
+                href={`${repoUrl.replace(/\/$/, "")}/commit/${commitHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {shortHash}
+              </Link>
+            </Typography>
+          </Container>
+        )}
       </Box>
 
       <Footer />

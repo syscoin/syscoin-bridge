@@ -10,6 +10,24 @@ const nextConfig = {
   images: {
     domains: ["syscoin.github.io"],
   },
+  env: {
+    NEXT_PUBLIC_COMMIT_HASH:
+      process.env.VERCEL_GIT_COMMIT_SHA ||
+      process.env.GITHUB_SHA ||
+      (() => {
+        try {
+          return require("child_process")
+            .execSync("git rev-parse HEAD")
+            .toString()
+            .trim();
+        } catch (e) {
+          return "";
+        }
+      })(),
+    NEXT_PUBLIC_REPO_URL:
+      process.env.REPOSITORY_URL ||
+      "https://github.com/syscoin/syscoin-bridge",
+  },
 };
 
 module.exports = nextConfig;
