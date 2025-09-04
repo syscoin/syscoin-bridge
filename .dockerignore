@@ -1,0 +1,39 @@
+# Version control
+.git
+.gitignore
+
+# Node dependencies and logs
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Build artifacts
+.next
+out
+build
+dist
+.cache
+.cache-loader
+coverage
+
+# OS/editor files
+.DS_Store
+.vscode
+.idea
+
+# Environment files (keep examples)
+.env
+.env.*
+!.env.example
+
+# Tests (exclude from image)
+**/__tests__/**
+**/*.test.*
+**/*.spec.*
+
+# Misc
+*.swp
+*.swo
