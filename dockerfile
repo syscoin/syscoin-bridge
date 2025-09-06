@@ -20,6 +20,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Accept build arguments for commit hash and repo url
+ARG NEXT_PUBLIC_COMMIT_HASH
+ARG NEXT_PUBLIC_REPO_URL
+
+# Set as environment variables for build (Next.js will pick these up)
+ENV NEXT_PUBLIC_COMMIT_HASH=${NEXT_PUBLIC_COMMIT_HASH}
+ENV NEXT_PUBLIC_REPO_URL=${NEXT_PUBLIC_REPO_URL}
+
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
 # Uncomment the following line in case you want to disable telemetry during the build.
@@ -47,6 +55,12 @@ COPY --from=builder /app/public ./public
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Accept build arguments for commit hash and repo url in runner too
+ARG NEXT_PUBLIC_COMMIT_HASH
+ARG NEXT_PUBLIC_REPO_URL
+ENV NEXT_PUBLIC_COMMIT_HASH=${NEXT_PUBLIC_COMMIT_HASH}
+ENV NEXT_PUBLIC_REPO_URL=${NEXT_PUBLIC_REPO_URL}
 
 USER nextjs
 
