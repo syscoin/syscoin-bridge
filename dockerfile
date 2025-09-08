@@ -56,11 +56,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Accept build arguments for commit hash and repo url in runner too
-ARG NEXT_PUBLIC_COMMIT_HASH
-ARG NEXT_PUBLIC_REPO_URL
-ENV NEXT_PUBLIC_COMMIT_HASH=${NEXT_PUBLIC_COMMIT_HASH}
-ENV NEXT_PUBLIC_REPO_URL=${NEXT_PUBLIC_REPO_URL}
 
 USER nextjs
 
