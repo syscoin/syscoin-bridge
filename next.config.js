@@ -12,6 +12,7 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_COMMIT_HASH:
+      process.env.NEXT_PUBLIC_COMMIT_HASH ||
       process.env.VERCEL_GIT_COMMIT_SHA ||
       process.env.GITHUB_SHA ||
       (() => {
@@ -25,6 +26,7 @@ const nextConfig = {
         }
       })(),
     NEXT_PUBLIC_REPO_URL:
+      process.env.NEXT_PUBLIC_REPO_URL ||
       process.env.REPOSITORY_URL ||
       "https://github.com/syscoin/syscoin-bridge",
   },
