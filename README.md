@@ -37,8 +37,28 @@ Each step taken on the Bridge is stored in MongoDB. This allows the user to resu
 
 ### Prerequisites
 
-- NodeJS 16+ (recommended to use `nvm` to install NodeJS)
+- NodeJS 24+ (recommended to use `nvm` to install NodeJS)
 - Yarn (recommended to use `npm install -g yarn` to install Yarn)
+
+### Node Version Management with nvm
+
+This project uses Node.js v24. We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
+
+```bash
+# Install nvm (if not already installed)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+
+# Restart your terminal or run:
+source ~/.bashrc  # or ~/.zshrc
+
+# Install and use the correct Node version (reads from .nvmrc)
+nvm install
+nvm use
+
+# Or manually install Node v24
+nvm install 24
+nvm use 24
+```
 
 ### Install dependencies
 
