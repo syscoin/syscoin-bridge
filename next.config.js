@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: false,
+  swcMinify: true,
   webpack: (config) => {
-    config.resolve.fallback = { fs: false };
+    config.resolve.fallback = { ...(config.resolve.fallback || {}), fs: false };
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      web3: require.resolve("web3/dist/web3.js"),
+    };
 
     return config;
   },
