@@ -6,7 +6,7 @@ const nextConfig = {
     config.resolve.fallback = { ...(config.resolve.fallback || {}), fs: false };
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      web3: require.resolve("web3/dist/web3.js"),
+      web3: require.resolve("web3/lib/index.js"),
     };
 
     return config;
