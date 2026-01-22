@@ -106,9 +106,15 @@ docker build -t syscoin/bridge .
 | `CHAIN_ID`                      | Chain ID                                       |         |
 | `RELAY_CONTRACT_ADDRESS`        | Relay contract address                         |         |
 | `ERC20_MANAGER_CONTRACT_ADDRESS`| ERC20 Manager contract address                 |         |
-| `SYS5_ENABLED`                  | Enable Sys5 features                           | false   |
+| `SYS5_ENABLED`                  | Enable Sys5 features                           | true    |
+| `PALI_V2_NEVM_ENABLED`          | Enable Pali V2 NEVM features                    | true    |
 
 **Note**: API URLs are only used for EVM networks. UTXO networks use Blockbook which has a different API structure.
+
+### Env Files
+
+Next.js automatically loads `.env.local` and `.env` (and env-specific files like `.env.production`).
+So a production build will pick up `.env.local` if it exists in the project root.
 
 ## Contact
 
