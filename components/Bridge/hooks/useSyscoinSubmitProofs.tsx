@@ -2,6 +2,7 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { useMutation } from "react-query";
 import { useWeb3 } from "../context/Web";
 import { ISponsorWalletTransaction } from "models/sponsor-wallet-transactions";
+import { API_BASE_URL } from "utils/api-base-url";
 
 const useSyscoinSubmitProofs = (
   transfer: ITransfer,
@@ -12,7 +13,7 @@ const useSyscoinSubmitProofs = (
     ["syscoin-submit-proofs", transfer.id],
     async () => {
       const sponsorWalletTransaction: ISponsorWalletTransaction = await fetch(
-        `/api/transfer/${transfer.id}/signed-submit-proofs-tx`
+        `${API_BASE_URL}/api/transfer/${transfer.id}/signed-submit-proofs-tx`
       ).then((res) => {
         if (res.ok) {
           return res.json();
