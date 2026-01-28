@@ -8,6 +8,7 @@ import dbConnect from "lib/mongodb";
 import { ITransfer } from "@contexts/Transfer/types";
 import AdminTransferFilters from "components/Admin/Transfer/Filters";
 import { FilterQuery } from "mongoose";
+import { API_BASE_URL } from "utils/api-base-url";
 type Props = {
   user: SessionUser;
   transfers: ITransfer[];
@@ -19,7 +20,7 @@ const AdminPage: NextPage<Props> = ({ user, transfers, total, pageSize }) => {
   const { refresh, push } = useRouter();
 
   const onLogout = () => {
-    fetch("/api/admin/logout").then((res) => {
+    fetch(`${API_BASE_URL}/api/admin/logout`).then((res) => {
       res.ok && refresh();
     });
   };

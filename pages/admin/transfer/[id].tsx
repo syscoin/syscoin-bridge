@@ -25,6 +25,7 @@ import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 import { useConstants } from "@contexts/useConstants";
+import { API_BASE_URL } from "utils/api-base-url";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -36,7 +37,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
-  const transferUrl = `/api/admin/transfer/${initialTransfer.id}`;
+  const transferUrl = `${API_BASE_URL}/api/admin/transfer/${initialTransfer.id}`;
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
     {
@@ -74,7 +75,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       signedMessage,
       changes,
     };
-    fetch(`/api/admin/transfer/${transfer.id}`, {
+    fetch(`${API_BASE_URL}/api/admin/transfer/${transfer.id}`, {
       method: "POST",
       body: JSON.stringify(body),
       headers: {
