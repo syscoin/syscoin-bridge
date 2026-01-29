@@ -22,6 +22,7 @@ export const AdminLoginPage: NextPage<Props> = ({ loginMessage }) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: account, signedMessage }),
           method: "POST",
+          credentials: "include",
         })
       )
       .then((res) => {

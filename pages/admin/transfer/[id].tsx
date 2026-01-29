@@ -46,6 +46,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
         });
 
         return resp.json();
@@ -81,6 +82,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
     })
       .then((res) => {
         if (res.ok) {
