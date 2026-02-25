@@ -3,11 +3,8 @@ import { SessionUser, withSessionSsr } from "lib/session";
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import AdminTransferList from "components/Admin/Transfer/List";
-import TransferModel from "models/transfer";
-import dbConnect from "lib/mongodb";
 import { ITransfer } from "@contexts/Transfer/types";
 import AdminTransferFilters from "components/Admin/Transfer/Filters";
-import { FilterQuery } from "mongoose";
 import { API_BASE_URL } from "utils/api-base-url";
 type Props = {
   user: SessionUser;
@@ -77,27 +74,56 @@ export const getServerSideProps: GetServerSideProps = withSessionSsr(
       };
     }
 
-    await dbConnect();
+    const getQueryValue = (value?: string | string[]) =>
+      Array.isArray(value) ? value[0] : value;
 
-    // Get query params
-    const { id, page } = query;
-    const filters: FilterQuery<ITransfer> = {};
+    const searchParams = new URLSearchParams();
+    const id = getQueryValue(query.id);
+    const page = getQueryValue(query.page);
+
     if (id) {
-      filters.id = id as string;
+      searchParams.set("id", id);
     }
-    const pageSize = 10;
-    const transfers = await TransferModel.find(filters)
-      .sort({ createdAt: -1 })
-      .skip((Number(page) || 0) * pageSize)
-      .limit(pageSize);
 
-    const total = await TransferModel.countDocuments();
+    if (page) {
+      searchParams.set("page", page);
+    }
+
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = Array.isArray(forwardedProto)
+      ? forwardedProto[0]
+      : forwardedProto || "http";
+    const host = req.headers.host || "localhost:3000";
+    const baseUrl = API_BASE_URL || `${protocol}://${host}`;
+    const queryString = searchParams.toString();
+    const requestUrl = `${baseUrl}/api/admin/transfers${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    const response = await fetch(requestUrl, {
+      headers: {
+        cookie: req.headers.cookie || "",
+      },
+    });
+
+    if (response.status === 401) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
+    }
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch admin transfers");
+    }
+
+    const { transfers, total, pageSize } = await response.json();
 
     const props: Props = {
       user,
-      transfers: transfers.map((transfer) =>
-        JSON.parse(JSON.stringify(transfer))
-      ),
+      transfers,
       total,
       pageSize,
     };

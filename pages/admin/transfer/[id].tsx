@@ -1,9 +1,7 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import { Box, Button, Container, Modal, Typography } from "@mui/material";
 import { AdminLayoutContainer } from "components/Admin/LayoutContainer";
-import dbConnect from "lib/mongodb";
 import { GetServerSideProps, NextPage } from "next";
-import TransferModel from "models/transfer";
 import { ArrowCircleLeft } from "@mui/icons-material";
 import Link from "next/link";
 import MuiLink from "@mui/material/Link";
@@ -26,6 +24,7 @@ import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModal
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 import { useConstants } from "@contexts/useConstants";
 import { API_BASE_URL } from "utils/api-base-url";
+import { withSessionSsr } from "lib/session";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -37,7 +36,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
-  const transferUrl = `${API_BASE_URL}/api/admin/transfer/${initialTransfer.id}`;
+  const transferUrl = `${API_BASE_URL}/api/admin/transfers/${initialTransfer.id}`;
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
     {
@@ -224,47 +223,69 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   );
 };
 
-export const getServerSideProps: GetServerSideProps = async ({ params }) => {
-  if (!params) {
-    return {
-      notFound: true,
-    };
-  }
+export const getServerSideProps: GetServerSideProps = withSessionSsr(
+  async ({ params, req }) => {
+    const { user } = req.session;
 
-  const id = params["id"];
-
-  if (!id) {
-    return {
-      notFound: true,
-    };
-  }
-
-  await dbConnect();
-
-  const transfer = await TransferModel.findOne(
-    { id },
-    {
-      id: 1,
-      nevmAddress: 1,
-      utxoAddress: 1,
-      status: 1,
-      type: 1,
-      createdAt: 1,
-      logs: 1,
+    if (!user) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
     }
-  );
 
-  if (!transfer) {
+    const rawId = params?.["id"];
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    if (!id) {
+      return {
+        notFound: true,
+      };
+    }
+
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = Array.isArray(forwardedProto)
+      ? forwardedProto[0]
+      : forwardedProto || "http";
+    const host = req.headers.host || "localhost:3000";
+    const baseUrl = API_BASE_URL || `${protocol}://${host}`;
+    const requestUrl = `${baseUrl}/api/admin/transfers/${id}`;
+
+    const response = await fetch(requestUrl, {
+      headers: {
+        cookie: req.headers.cookie || "",
+      },
+    });
+
+    if (response.status === 401) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
+    }
+
+    if (response.status === 404) {
+      return {
+        notFound: true,
+      };
+    }
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch transfer");
+    }
+
+    const transfer = await response.json();
+
     return {
-      notFound: true,
+      props: {
+        initialTransfer: transfer,
+      },
     };
   }
-
-  return {
-    props: {
-      initialTransfer: JSON.parse(JSON.stringify(transfer)),
-    },
-  };
-};
+);
 
 export default TransferDetailsPage;
