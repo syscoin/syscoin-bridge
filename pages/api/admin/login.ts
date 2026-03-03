@@ -4,9 +4,18 @@ import { NextApiHandler } from "next";
 import dbConnect from "lib/mongodb";
 import AdminModel from "models/admin";
 import { verifySignature } from "utils/api/verify-signature";
+import { applyApiCors } from "utils/api/cors";
 
 const AdminLoginApiRoute: NextApiHandler = withSessionRoute(
   async (req, res) => {
+    if (applyApiCors(req, res, { allowCredentials: true })) {
+      return;
+    }
+
+    if (req.method !== "POST") {
+      return res.status(405).json({ message: "Method not allowed" });
+    }
+
     const { address, signedMessage } = req.body;
 
     const isVerified = verifySignature(

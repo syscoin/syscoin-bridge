@@ -1,6 +1,7 @@
 import { AdminService } from "api/services/admin";
 import dbConnect from "lib/mongodb";
 import { NextApiHandler } from "next";
+import { applyApiCors } from "utils/api/cors";
 
 const adminService = new AdminService();
 
@@ -14,6 +15,10 @@ const isValidBody = (body: any): body is ICreateAdminBody => {
 };
 
 const handler: NextApiHandler = async (req, res) => {
+  if (applyApiCors(req, res)) {
+    return;
+  }
+
   if (req.method === "GET") {
     await dbConnect();
     const { address } = req.query;

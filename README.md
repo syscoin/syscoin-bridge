@@ -110,7 +110,7 @@ docker build -t syscoin/bridge .
 | `SYS5_ENABLED`                  | Enable Sys5 features                           | true    |
 | `PALI_V2_NEVM_ENABLED`          | Enable Pali V2 NEVM features                    | true    |
 | `NEXT_PUBLIC_API_BASE_URL`      | Base URL the frontend uses for API requests    |         |
-| `CORS_ALLOWED_ORIGIN`           | Allowed origin for API CORS responses          | `*`     |
+| `CORS_ALLOWED_ORIGIN`           | Allowed frontend origin(s) for API CORS responses (comma-separated, no `*` for admin cookie auth) |         |
 
 **Note**: API URLs are only used for EVM networks. UTXO networks use Blockbook which has a different API structure.
 

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { TransferService } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
+import { applyApiCors } from "utils/api/cors";
 
 const transferService = new TransferService();
 
@@ -35,6 +36,14 @@ const patchRequest = async (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (applyApiCors(req, res)) {
+    return;
+  }
+
+  if (req.method !== "GET" && req.method !== "PATCH") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
+
   await dbConnect();
   if (req.method === "GET") {
     await getRequest(req, res);
@@ -44,7 +53,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     await patchRequest(req, res);
     return;
   }
-  res.status(405).json({ message: "Invalid method" });
 }
 
 export default handler;

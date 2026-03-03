@@ -42,9 +42,6 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
     {
       queryFn: async () => {
         const resp = await fetch(transferUrl, {
-          headers: {
-            "Content-Type": "application/json",
-          },
           credentials: "include",
         });
 

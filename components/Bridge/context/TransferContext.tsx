@@ -29,9 +29,7 @@ export const TransferContextProvider: React.FC<
     {
       queryFn: async (): Promise<ITransfer> => {
         const url = `${API_BASE_URL}/api/transfer/${initialData.id}`;
-        const res = await fetch(url, {
-          headers: { "Content-Type": "application/json" },
-        });
+        const res = await fetch(url);
         const jsonData = await res.json();
         if (isTransfer(jsonData)) {
           return jsonData;
