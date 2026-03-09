@@ -1,4 +1,4 @@
-import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { useNEVM, MAINNET_CHAIN_ID } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Alert, Button, Link, Typography } from "@mui/material";
 import WalletSwitchCard from "./Card";
@@ -8,6 +8,7 @@ import { useNevmBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
+import { useConstants } from "@contexts/useConstants";
 import React from "react";
 
 type NEVMConnectProps = {
@@ -18,7 +19,7 @@ type NEVMConnectProps = {
 const minAmount = MIN_AMOUNT;
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
-  const { account, connect } = useNEVM();
+  const { account, connect, chainId, switchToMainnet } = useNEVM();
   const { isEnabled } = useFeatureFlags();
   const {
     changeAccount,
@@ -26,6 +27,9 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
     isEVMInjected,
     switchTo,
   } = usePaliWalletV2();
+  const { constants } = useConstants();
+  const expectedChainId = constants?.chain_id ?? MAINNET_CHAIN_ID;
+  const isWrongChain = Boolean(chainId && chainId !== expectedChainId);
   const balance = useNevmBalance(transfer.nevmAddress);
   const { connectNEVM, nevm } = useConnectedWallet();
 
@@ -47,6 +51,15 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const allowChange = transfer.status === "initialize";
   const hasNevmAddress = Boolean(transfer.nevmAddress);
   
+  // If the address is already set but the user switched to a wrong EVM chain, prompt to switch back
+  if (hasNevmAddress && isWrongChain) {
+    return (
+      <Button variant="contained" onClick={switchToMainnet}>
+        Switch to NEVM Network
+      </Button>
+    );
+  }
+
   // Show the card with the selected address if we have a nevmAddress
   if (hasNevmAddress) {
     let balanceNum = balance.data ?? 0;
@@ -92,6 +105,14 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
 
   if (!account) {
     return <Button onClick={() => connect()}>Fetch account</Button>;
+  }
+
+  if (isWrongChain) {
+    return (
+      <Button variant="contained" onClick={switchToMainnet}>
+        Switch to NEVM Network
+      </Button>
+    );
   }
 
   return (
