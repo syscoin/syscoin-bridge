@@ -2,7 +2,7 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { createContext, useContext } from "react";
 import { UseMutateFunction, useMutation, useQuery } from "react-query";
 import isTransfer from "utils/isTransfer";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 
 export interface ITransferContext {
   transfer: ITransfer;
@@ -28,7 +28,7 @@ export const TransferContextProvider: React.FC<
     ["transfer", initialData.id],
     {
       queryFn: async (): Promise<ITransfer> => {
-        const url = `${API_BASE_URL}/api/transfer/${initialData.id}`;
+        const url = buildApiUrl(`/api/transfer/${initialData.id}`);
         const res = await fetch(url);
         const jsonData = await res.json();
         if (isTransfer(jsonData)) {
@@ -45,7 +45,7 @@ export const TransferContextProvider: React.FC<
   const { mutate: saveTransfer, isLoading: isSaving } = useMutation(
     ["transfer", initialData.id],
     async (updatedTransfer: ITransfer) => {
-      const url = `${API_BASE_URL}/api/transfer/${initialData.id}`;
+      const url = buildApiUrl(`/api/transfer/${initialData.id}`);
       const res = await fetch(url, {
         method: "PATCH",
         body: JSON.stringify(updatedTransfer),

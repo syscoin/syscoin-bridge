@@ -114,6 +114,10 @@ docker build -t syscoin/bridge .
 
 **Note**: API URLs are only used for EVM networks. UTXO networks use Blockbook which has a different API structure.
 
+### Split Frontend/Backend Deployments
+
+When hosting the frontend separately from the backend services, set `NEXT_PUBLIC_API_BASE_URL` to the backend origin (for example, `https://backend.test.com`). All browser and server-side fetches automatically use that base URL when provided, and fall back to the current origin otherwise. The same variable also enables a framework rewrite so hitting `/api/*` on the frontend domain proxies to the backend. This lets a single build work for both combined and split deployments—just omit the variable when the API routes run alongside the frontend.
+
 ### Env Files
 
 Next.js automatically loads `.env.local` and `.env` (and env-specific files like `.env.production`).

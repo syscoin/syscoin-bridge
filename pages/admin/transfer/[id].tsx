@@ -23,7 +23,7 @@ import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 import { useConstants } from "@contexts/useConstants";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 import { withSessionSsr } from "lib/session";
 
 type Props = {
@@ -36,7 +36,9 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
-  const transferUrl = `${API_BASE_URL}/api/admin/transfers/${initialTransfer.id}`;
+  const transferUrl = buildApiUrl(
+    `/api/admin/transfers/${initialTransfer.id}`
+  );
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
     {
@@ -72,7 +74,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       signedMessage,
       changes,
     };
-    fetch(`${API_BASE_URL}/api/admin/transfer/${transfer.id}`, {
+    fetch(buildApiUrl(`/api/admin/transfer/${transfer.id}`), {
       method: "POST",
       body: JSON.stringify(body),
       headers: {
@@ -247,8 +249,10 @@ export const getServerSideProps: GetServerSideProps = withSessionSsr(
       ? forwardedProto[0]
       : forwardedProto || "http";
     const host = req.headers.host || "localhost:3000";
-    const baseUrl = API_BASE_URL || `${protocol}://${host}`;
-    const requestUrl = `${baseUrl}/api/admin/transfers/${id}`;
+    const fallbackOrigin = `${protocol}://${host}`;
+    const requestUrl = buildApiUrl(`/api/admin/transfers/${id}`, {
+      fallbackOrigin,
+    });
 
     const response = await fetch(requestUrl, {
       headers: {

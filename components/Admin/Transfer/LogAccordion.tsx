@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { GridExpandMoreIcon } from "@mui/x-data-grid";
 import { useMutation } from "react-query";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 
 type Props = {
   transferId: string;
@@ -27,7 +27,7 @@ const AdminTransferLogAccordion: React.FC<Props> = ({
     ["admin", "transfer", "log", "delete", log.date],
     async () => {
       const resp = await fetch(
-        `${API_BASE_URL}/api/admin/transfer/${transferId}/log/${log.date}`,
+        buildApiUrl(`/api/admin/transfer/${transferId}/log/${log.date}`),
         {
           method: "DELETE",
           credentials: "include",

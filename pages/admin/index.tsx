@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import AdminTransferList from "components/Admin/Transfer/List";
 import { ITransfer } from "@contexts/Transfer/types";
 import AdminTransferFilters from "components/Admin/Transfer/Filters";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 type Props = {
   user: SessionUser;
   transfers: ITransfer[];
@@ -17,7 +17,7 @@ const AdminPage: NextPage<Props> = ({ user, transfers, total, pageSize }) => {
   const { refresh, push } = useRouter();
 
   const onLogout = () => {
-    fetch(`${API_BASE_URL}/api/admin/logout`, {
+    fetch(buildApiUrl("/api/admin/logout"), {
       credentials: "include",
     }).then((res) => {
       res.ok && refresh();
@@ -94,11 +94,12 @@ export const getServerSideProps: GetServerSideProps = withSessionSsr(
       ? forwardedProto[0]
       : forwardedProto || "http";
     const host = req.headers.host || "localhost:3000";
-    const baseUrl = API_BASE_URL || `${protocol}://${host}`;
+    const fallbackOrigin = `${protocol}://${host}`;
     const queryString = searchParams.toString();
-    const requestUrl = `${baseUrl}/api/admin/transfers${
-      queryString ? `?${queryString}` : ""
-    }`;
+    const requestUrl = buildApiUrl(
+      `/api/admin/transfers${queryString ? `?${queryString}` : ""}`,
+      { fallbackOrigin }
+    );
 
     const response = await fetch(requestUrl, {
       headers: {

@@ -1,5 +1,5 @@
 import { useQuery } from "react-query";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 
 type Constants = {
   contracts: {
@@ -26,7 +26,7 @@ export const useConstants = () => {
   const query = useQuery<Constants>({
     queryKey: "constants",
     queryFn: () => {
-      return fetch(`${API_BASE_URL}/api/constants`).then((res) => res.json());
+      return fetch(buildApiUrl("/api/constants")).then((res) => res.json());
     },
   });
 

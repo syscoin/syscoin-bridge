@@ -28,7 +28,7 @@ import {
 } from "./store/actions";
 import runWithSysToNevmStateMachine from "./functions/sysToNevm";
 import runWithNevmToSysStateMachine from "./functions/nevmToSys";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 import { TransferStep, nevmToSysSteps, sysToNevmSteps } from "./Steps";
 import { captureException } from "@sentry/nextjs";
 import { useRelayContract } from "components/Bridge/hooks/useRelayContract";
@@ -276,7 +276,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       return;
     }
     localStorage.setItem(`transfer-${transfer.id}`, JSON.stringify(transfer));
-    fetch(`${API_BASE_URL}/api/transfer/${transfer.id}`, {
+    fetch(buildApiUrl(`/api/transfer/${transfer.id}`), {
       body: JSON.stringify(transfer),
       method: "PATCH",
       headers: {
@@ -300,7 +300,7 @@ const TransferProvider: React.FC<TransferProviderProps> = ({
       } as ITransfer;
       dispatch(initialize(item ? JSON.parse(item) : defaultState));
     };
-    fetch(`${API_BASE_URL}/api/transfer/${id}`)
+    fetch(buildApiUrl(`/api/transfer/${id}`))
       .then((transfer) => {
         return transfer.status === 200 ? transfer.json() : undefined;
       })

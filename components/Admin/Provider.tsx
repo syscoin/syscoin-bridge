@@ -2,7 +2,7 @@ import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { IAdmin } from "models/admin";
 import { createContext, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 
 interface IAdminContext {
   admin?: IAdmin | null;
@@ -20,7 +20,12 @@ const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const { data: admin, isFetched } = useQuery(
     [account, "is_admin"],
     async () => {
-      const res = await fetch(`${API_BASE_URL}/api/admin?address=${account}`);
+      const res = await fetch(
+        buildApiUrl(`/api/admin?address=${account}`),
+        {
+          credentials: "include",
+        }
+      );
       const data: IAdmin = await res.json();
       return data;
     },

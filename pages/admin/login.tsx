@@ -5,7 +5,7 @@ import ConnectAdmin from "components/Admin/ConnectAdmin";
 import { GetServerSideProps, NextPage } from "next";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import { API_BASE_URL } from "utils/api-base-url";
+import { buildApiUrl } from "utils/api-base-url";
 
 type Props = {
   loginMessage: string;
@@ -18,7 +18,7 @@ export const AdminLoginPage: NextPage<Props> = ({ loginMessage }) => {
   const onLogin = () => {
     signMessage(loginMessage)
       .then((signedMessage) =>
-        fetch(`${API_BASE_URL}/api/admin/login`, {
+        fetch(buildApiUrl("/api/admin/login"), {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ address: account, signedMessage }),
           method: "POST",
