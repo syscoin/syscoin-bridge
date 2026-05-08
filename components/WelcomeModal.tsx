@@ -27,6 +27,7 @@ const LinkToNewTab: React.FC<LinkToNewTabProps> = ({ label, link }) => {
 };
 
 const terms: (string | React.ReactNode)[] = [
+  "NEVER start a Bridge using hardware wallets like Trezor, Ledger, etc.",
   "We will NEVER ask you for your private keys or seed phrase.",
   "This software is subject to change.",
   <>
