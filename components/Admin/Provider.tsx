@@ -20,12 +20,7 @@ const AdminProvider: React.FC<{ children: React.ReactNode }> = ({
   const { data: admin, isFetched } = useQuery(
     [account, "is_admin"],
     async () => {
-      const res = await fetch(
-        buildApiUrl(`/api/admin?address=${account}`),
-        {
-          credentials: "include",
-        }
-      );
+      const res = await fetch(buildApiUrl(`/api/admin?address=${account}`));
       const data: IAdmin = await res.json();
       return data;
     },

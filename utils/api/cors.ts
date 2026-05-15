@@ -21,6 +21,26 @@ const normalizeOrigin = (origin: string) =>
 
 const firstForwardedValue = (value?: string) => value?.split(",")[0]?.trim();
 
+const parseOrigin = (origin: string) => {
+  try {
+    return new URL(origin);
+  } catch {
+    return null;
+  }
+};
+
+const normalizeHost = (host: string) => host.trim().toLowerCase();
+
+const isLocalhostHost = (host: string) => {
+  const hostname = host.split(":")[0];
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  );
+};
+
 const getAllowedOrigins = (): string[] => {
   const rawOrigins = process.env.CORS_ALLOWED_ORIGIN ?? "*";
   return rawOrigins
@@ -30,10 +50,14 @@ const getAllowedOrigins = (): string[] => {
 };
 
 const isSameOriginRequest = (req: NextApiRequest, origin: string) => {
+  const requestOrigin = parseOrigin(origin);
+  if (!requestOrigin) {
+    return false;
+  }
+
   const forwardedProto = firstForwardedValue(
     normalizeHeaderValue(req.headers["x-forwarded-proto"])
   );
-  const proto = forwardedProto || "http";
   const forwardedHost = firstForwardedValue(
     normalizeHeaderValue(req.headers["x-forwarded-host"])
   );
@@ -43,7 +67,46 @@ const isSameOriginRequest = (req: NextApiRequest, origin: string) => {
     return false;
   }
 
-  return normalizeOrigin(`${proto}://${host}`) === normalizeOrigin(origin);
+  const normalizedHost = normalizeHost(host);
+  if (normalizeHost(requestOrigin.host) !== normalizedHost) {
+    return false;
+  }
+
+  if (forwardedProto) {
+    return (
+      normalizeOrigin(`${forwardedProto}://${normalizedHost}`) ===
+      normalizeOrigin(origin)
+    );
+  }
+
+  if (req.socket.encrypted) {
+    return requestOrigin.protocol === "https:";
+  }
+
+  const forwardedPort = firstForwardedValue(
+    normalizeHeaderValue(req.headers["x-forwarded-port"])
+  );
+  if (forwardedPort === "443") {
+    return requestOrigin.protocol === "https:";
+  }
+
+  if (forwardedPort === "80") {
+    return requestOrigin.protocol === "http:";
+  }
+
+  if (normalizedHost.endsWith(":443")) {
+    return requestOrigin.protocol === "https:";
+  }
+
+  if (normalizedHost.endsWith(":80")) {
+    return requestOrigin.protocol === "http:";
+  }
+
+  if (isLocalhostHost(normalizedHost)) {
+    return requestOrigin.protocol === "http:";
+  }
+
+  return requestOrigin.protocol === "https:";
 };
 
 const appendVaryOrigin = (res: NextApiResponse) => {
