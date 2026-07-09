@@ -380,7 +380,9 @@ export class SponsorWalletService {
   }
 
   private async getUtxoXpubBalanceSats(xpub: string): Promise<number> {
-    const response = await fetch(`${getUtxoBlockbookUrl()}/api/v2/xpub/${xpub}`);
+    const response = await fetch(
+      `${getUtxoBlockbookUrl()}/api/v2/xpub/${xpub}?details=basic`
+    );
 
     if (!response.ok) {
       throw new Error("Unable to fetch UTXO wallet balance");
