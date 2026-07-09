@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@jest/globals";
 import {
   MAINNET_BLOCKBOOK_URL,
   resolveUtxoBlockbookUrl,

@@ -20,6 +20,7 @@ import TransferTitle from "components/Bridge/Transfer/Title";
 import BridgeSavingIndicator from "components/Bridge/SavingIndicator";
 import BridgeStepSwitch from "components/Bridge/StepSwitch";
 import BridgeStepper from "components/Bridge/Stepper";
+import type { ConnectValidateDraft } from "components/Bridge/Steps/ConnectValidate";
 import { SyscoinProvider } from "components/Bridge/context/Syscoin";
 import {
   TransferContextProvider,
@@ -28,7 +29,7 @@ import {
 import { Web3Provider } from "components/Bridge/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
@@ -45,7 +46,10 @@ const NewTransferButton = () => {
   return <BridgeNewTransferButton />;
 };
 
-const createTransfer = (type: TransferType): ITransfer => ({
+const createTransfer = (
+  type: TransferType,
+  draft: Partial<ConnectValidateDraft> = {}
+): ITransfer => ({
   amount: "0",
   id: `${Date.now()}`,
   type,
@@ -54,22 +58,53 @@ const createTransfer = (type: TransferType): ITransfer => ({
   createdAt: Date.now(),
   version: "v2",
   agreedToTerms: false,
+  ...(draft.amount !== undefined && Number.isFinite(draft.amount)
+    ? { amount: draft.amount.toString() }
+    : {}),
+  nevmAddress: draft.nevmAddress || undefined,
+  utxoAddress: draft.utxoAddress || undefined,
+  utxoXpub: draft.utxoXpub || undefined,
+  utxoAssetType: draft.utxoAssetType,
 });
 
 const BridgePage: NextPage = () => {
   const { query } = useRouter();
+  const [connectValidateDraft, setConnectValidateDraft] = useState<
+    Partial<ConnectValidateDraft>
+  >({});
   // Create a new QueryClient when the transfer ID changes to avoid stale data
   const queryClient = useMemo(() => new QueryClient(), [query.id]);
+
+  const handleConnectValidateDraftChange = useCallback(
+    (draft: ConnectValidateDraft) => {
+      setConnectValidateDraft((currentDraft) => {
+        const nextDraft = {
+          ...currentDraft,
+          ...draft,
+        };
+
+        const hasChanges =
+          currentDraft.amount !== nextDraft.amount ||
+          currentDraft.nevmAddress !== nextDraft.nevmAddress ||
+          currentDraft.utxoAddress !== nextDraft.utxoAddress ||
+          currentDraft.utxoXpub !== nextDraft.utxoXpub ||
+          currentDraft.utxoAssetType !== nextDraft.utxoAssetType;
+
+        return hasChanges ? nextDraft : currentDraft;
+      });
+    },
+    []
+  );
 
   const initialTransfer = useMemo(() => {
     const id = query.id;
     if (id === "sys-to-nevm" || id === "nevm-to-sys") {
-      return createTransfer(id);
+      return createTransfer(id, connectValidateDraft);
     }
     return {
       id,
     } as ITransfer;
-  }, [query.id]);
+  }, [connectValidateDraft, query.id]);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -112,7 +147,11 @@ const BridgePage: NextPage = () => {
                         }}
                       >
                         <CardContent>
-                          <BridgeStepSwitch />
+                          <BridgeStepSwitch
+                            onConnectValidateDraftChange={
+                              handleConnectValidateDraftChange
+                            }
+                          />
                           <BridgeSavingIndicator />
                         </CardContent>
                       </Card>

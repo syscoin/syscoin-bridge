@@ -80,35 +80,68 @@ type ConnectValidateFormData = {
   utxoAssetType?: "sys" | "sysx";
 };
 
+export type ConnectValidateDraft = {
+  amount?: number;
+  nevmAddress: string;
+  utxoAddress: string;
+  utxoXpub: string;
+  utxoAssetType?: "sys" | "sysx";
+};
+
 type BridgeConnectValidateStepProps = {
   successStatus: TransferStatus;
+  onDraftChange?: (draft: ConnectValidateDraft) => void;
+};
+
+const parseTransferAmount = (amount: string) => {
+  const parsedAmount = Number(amount);
+
+  return Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0.1;
 };
 
 const BridgeConnectValidateStep: React.FC<
   BridgeConnectValidateStepProps
-> = ({ successStatus }) => {
+> = ({ successStatus, onDraftChange }) => {
   const { replace } = useRouter();
   const { transfer, isSaving, saveTransfer } = useTransfer();
   const { isLoading } = usePaliWalletV2();
   const form = useForm<ConnectValidateFormData>({
     mode: "all",
     values: {
-      amount: 0.1,
+      amount: parseTransferAmount(transfer.amount),
       nevmAddress: transfer.nevmAddress || "",
       utxoAddress: transfer.utxoAddress || "",
       utxoXpub: transfer.utxoXpub || "",
       agreedToTerms: false,
-      utxoAssetType: undefined,
+      utxoAssetType: transfer.utxoAssetType,
     },
   });
 
   const { handleSubmit, watch, reset } = form;
 
+  const amount = watch("amount");
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
   const utxoAssetType = watch("utxoAssetType");
 
   const nevmAddress = watch("nevmAddress");
+
+  useEffect(() => {
+    onDraftChange?.({
+      amount: Number.isFinite(amount) ? amount : undefined,
+      nevmAddress,
+      utxoAddress,
+      utxoXpub,
+      utxoAssetType,
+    });
+  }, [
+    amount,
+    nevmAddress,
+    onDraftChange,
+    utxoAddress,
+    utxoAssetType,
+    utxoXpub,
+  ]);
 
   // Reset form when transfer ID changes (e.g., starting a new transfer)
   useEffect(() => {
