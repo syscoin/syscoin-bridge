@@ -28,6 +28,17 @@ declare module "syscoinjs-lib" {
   class syscoin {
     constructor(p1, blockbookAPIURL: string, network: Network): syscoin;
     readonly blockbookURL: string;
+    createTransaction(
+      txOpts,
+      changeAddress,
+      outputsArr,
+      feeRate,
+      fromXpubOrAddress?,
+      utxos?,
+      redeemOrWitnessScript?,
+      inputsArr?
+    ): Promise<{ psbt; res; fee }>;
+    signAndSendWithWIF(psbt, wif: string): Promise<any>;
     syscoinBurnToAssetAllocation(
       txOpts,
       assetMap,

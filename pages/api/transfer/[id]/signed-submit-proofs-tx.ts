@@ -3,6 +3,7 @@ import relayAbi from "@contexts/Transfer/relay-abi";
 import SponsorWalletService from "api/services/sponsor-wallet";
 import { TransferService } from "api/services/transfer";
 import { getProof } from "bitcoin-proof";
+import dbConnect from "lib/mongodb";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import { SPVProof } from "syscoinjs-lib";
 import Web3 from "web3";
@@ -32,6 +33,7 @@ const handler: NextApiHandler = async (
     if (process.env.FOUNDATION_FUNDED !== "true") {
       throw new Error("Foundation funding is not available");
     }
+    await dbConnect();
     const transfer = await transferService.getTransfer(id as string);
     const generatedProofLog = transfer.logs.find(
       (a) => a.status === "generate-proofs"

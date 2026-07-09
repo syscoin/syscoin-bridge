@@ -13,7 +13,8 @@ import {
 import React, { useEffect } from "react";
 import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
-import { MIN_AMOUNT } from "@constants";
+import { MIN_GAS_AMOUNT } from "@constants";
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 
 export type AssetType = "sys" | "sysx" | "none";
 
@@ -24,7 +25,7 @@ type UTXOConnectProps = {
   setSelectedAsset?: (asset: AssetType) => void;
 };
 
-const minAmount = MIN_AMOUNT;
+const minAmount = MIN_GAS_AMOUNT;
 
 type ConnectedUtxoWalletProps = UTXOConnectProps & {
   change: () => void;
@@ -47,12 +48,21 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
   const { version } = usePaliWallet();
   const isV2 = version === "v2";
   const { isBitcoinBased } = usePaliWalletV2();
+  const { isEnabled } = useFeatureFlags();
   if (isNaN(gasBalance)) {
     gasBalance = 0;
   }
 
+  const claimGasSponsorshipAvailable =
+    isEnabled("foundationFundingAvailable") && transfer.type === "nevm-to-sys";
   const faucetLink =
-    balance.isFetched && gasBalance < minAmount ? (
+    balance.isFetched && gasBalance < minAmount && claimGasSponsorshipAvailable ? (
+      <Alert severity="info">
+        <Typography variant="body2">
+          The bridge will fund the minimal SYS needed to claim this transfer.
+        </Typography>
+      </Alert>
+    ) : balance.isFetched && gasBalance < minAmount ? (
       <Alert severity="warning">
         <Typography variant="body2">
           Please send at least {minAmount} SYS into your Pali wallet to continue

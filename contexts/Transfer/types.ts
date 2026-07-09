@@ -2,6 +2,7 @@ export type TransferType = "sys-to-nevm" | "nevm-to-sys";
 
 export enum COMMON_STATUS {
   INITIALIZE = "initialize",
+  SPONSOR_CLAIM_GAS = "sponsor-claim-gas",
   FINALIZING = "finalizing",
   COMPLETED = "completed",
   ERROR = "error",
@@ -52,6 +53,7 @@ export enum ETH_TO_SYS_TRANSFER_STATUS {
 export type TransferStatus =
   | SysToEthTransferStatus
   | EthToSysTransferStatus
+  | COMMON_STATUS.SPONSOR_CLAIM_GAS
   | "switch";
 
 export interface ITransferLog<T = any> {

@@ -11,7 +11,7 @@ import {
 } from "react-hook-form";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 
-import { MIN_AMOUNT } from "@constants";
+import { MIN_AMOUNT, MIN_GAS_AMOUNT } from "@constants";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import {
@@ -198,7 +198,7 @@ const BridgeConnectValidateStep: React.FC<
 
   let maxAmountCalculated =
     parseFloat(`${maxAmmount ?? "0"}`) -
-    (transfer.type === "sys-to-nevm" && useSysx ? 0 : MIN_AMOUNT);
+    (transfer.type === "sys-to-nevm" && useSysx ? 0 : MIN_GAS_AMOUNT);
 
   if (maxAmountCalculated < 0) {
     maxAmountCalculated = 0;
