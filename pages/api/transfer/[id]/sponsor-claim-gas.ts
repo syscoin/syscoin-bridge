@@ -1,4 +1,4 @@
-import { ERC20_MANAGER_CONTRACT_ADDRESS } from "@constants";
+import { ERC20_MANAGER_CONTRACT_ADDRESS, MIN_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import SyscoinERC20ManagerABI from "@contexts/Transfer/abi/SyscoinERC20Manager";
 import { ETH_TO_SYS_TRANSFER_STATUS } from "@contexts/Transfer/types";
@@ -142,18 +142,22 @@ const getConfirmedFreezeBurnTxHash = (
     throw new Error("Freeze and burn must be confirmed before claim gas funding");
   }
 
-  return confirmedFreezeBurn.payload.data.transactionHash;
+  return confirmedFreezeBurn.payload.data.transactionHash.toLowerCase();
 };
 
 const assertClaimGasEligible = async (
   transfer: Awaited<ReturnType<TransferService["getTransfer"]>>
-) => {
+): Promise<string> => {
   if (transfer.type !== "nevm-to-sys") {
     throw new Error("Claim gas sponsorship is only available for NEVM to SYS");
   }
 
   if (!transfer.utxoAddress || !transfer.nevmAddress) {
     throw new Error("Missing transfer addresses");
+  }
+
+  if (Number(transfer.amount) < MIN_AMOUNT) {
+    throw new Error("Transfer amount is below the bridge minimum");
   }
 
   if (!ERC20_MANAGER_CONTRACT_ADDRESS) {
@@ -225,6 +229,8 @@ const assertClaimGasEligible = async (
   if (!tokenFreezeLog) {
     throw new Error("Freeze and burn event does not match this transfer");
   }
+
+  return transactionHash;
 };
 
 const applySponsorRateLimits = async (
@@ -280,16 +286,22 @@ const handler: NextApiHandler = async (
     await dbConnect();
 
     const transfer = await transferService.getTransfer(id);
-    await assertClaimGasEligible(transfer);
+    const freezeBurnTxHash = await assertClaimGasEligible(transfer);
 
     const preflightResult =
-      await sponsorWalletService.getUtxoClaimGasFundingStatus(transfer);
+      await sponsorWalletService.getUtxoClaimGasFundingStatus(
+        transfer,
+        freezeBurnTxHash
+      );
     if (preflightResult) {
       return res.status(200).json(preflightResult);
     }
 
     await applySponsorRateLimits(req, transfer);
-    const result = await sponsorWalletService.sponsorUtxoClaimGas(transfer);
+    const result = await sponsorWalletService.sponsorUtxoClaimGas(
+      transfer,
+      freezeBurnTxHash
+    );
 
     return res.status(200).json(result);
   } catch (e) {

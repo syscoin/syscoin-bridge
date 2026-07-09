@@ -171,6 +171,26 @@ describe("SponsorWalletService", () => {
       });
     });
 
+    it("looks up existing claim gas transactions by source burn transaction", async () => {
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+        status: "pending",
+        transaction: { hash: "utxo-txid" },
+      });
+
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.getUtxoClaimGasSponsorStatus("transfer-2", "0xburn")
+      ).resolves.toMatchObject({
+        funded: true,
+        txid: "utxo-txid",
+      });
+      expect(SponsorWalletTransactionsMock.findOne).toHaveBeenCalledWith({
+        action: "utxo-claim-gas",
+        $or: [{ transferId: "transfer-2" }, { sourceTxHash: "0xburn" }],
+      });
+    });
+
     it("skips funding when the destination already has enough claim gas", async () => {
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
       (global.fetch as jest.Mock).mockResolvedValue({

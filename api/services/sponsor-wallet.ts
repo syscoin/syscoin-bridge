@@ -159,7 +159,8 @@ export class SponsorWalletService {
   }
 
   public async sponsorUtxoClaimGas(
-    transfer: ITransfer
+    transfer: ITransfer,
+    sourceTxHash?: string
   ): Promise<SponsorClaimGasResult> {
     if (transfer.type !== "nevm-to-sys") {
       throw new Error("UTXO claim gas sponsorship is only for NEVM to SYS");
@@ -169,7 +170,10 @@ export class SponsorWalletService {
       throw new Error("Missing UTXO address");
     }
 
-    const preflightStatus = await this.getUtxoClaimGasFundingStatus(transfer);
+    const preflightStatus = await this.getUtxoClaimGasFundingStatus(
+      transfer,
+      sourceTxHash
+    );
     if (preflightStatus) {
       return preflightStatus;
     }
@@ -185,7 +189,8 @@ export class SponsorWalletService {
     const placeholderResult = await this.createSponsorPlaceholder(
       transfer.id,
       UTXO_CLAIM_GAS_ACTION,
-      sponsorAddress
+      sponsorAddress,
+      sourceTxHash
     );
     const placeholder = placeholderResult.transaction;
 
@@ -248,11 +253,15 @@ export class SponsorWalletService {
   }
 
   public async getUtxoClaimGasSponsorStatus(
-    transferId: string
+    transferId: string,
+    sourceTxHash?: string
   ): Promise<SponsorClaimGasResult | undefined> {
     const existingTransaction = await SponsorWalletTransactions.findOne({
-      transferId,
       action: UTXO_CLAIM_GAS_ACTION,
+      $or: [
+        { transferId },
+        ...(sourceTxHash ? [{ sourceTxHash }] : []),
+      ],
     });
 
     if (existingTransaction?.transaction?.hash) {
@@ -285,9 +294,13 @@ export class SponsorWalletService {
   }
 
   public async getUtxoClaimGasFundingStatus(
-    transfer: ITransfer
+    transfer: ITransfer,
+    sourceTxHash?: string
   ): Promise<SponsorClaimGasResult | undefined> {
-    const existingStatus = await this.getUtxoClaimGasSponsorStatus(transfer.id);
+    const existingStatus = await this.getUtxoClaimGasSponsorStatus(
+      transfer.id,
+      sourceTxHash
+    );
     if (existingStatus) {
       return existingStatus;
     }
@@ -357,11 +370,13 @@ export class SponsorWalletService {
   private async createSponsorPlaceholder(
     transferId: string,
     action: SponsorWalletTransactionAction,
-    walletId: string
+    walletId: string,
+    sourceTxHash?: string
   ): Promise<SponsorPlaceholderResult> {
     const placeholder = new SponsorWalletTransactions({
       transferId,
       action,
+      sourceTxHash,
       walletId,
       status: "pending",
       transaction: {},
@@ -376,8 +391,11 @@ export class SponsorWalletService {
         }
 
         const duplicate = await SponsorWalletTransactions.findOne({
-          transferId,
           action,
+          $or: [
+            { transferId },
+            ...(sourceTxHash ? [{ sourceTxHash }] : []),
+          ],
         });
         if (!duplicate) {
           throw error;

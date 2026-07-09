@@ -11,6 +11,7 @@ export const SponsorWalletTransactionCollectionName =
 export interface ISponsorWalletTransaction extends mongoose.Document {
   transferId: string;
   action: SponsorWalletTransactionAction;
+  sourceTxHash?: string;
   walletId: string;
   status: SponsorWalletTransactionStatus;
   createdAt: Date;
@@ -35,6 +36,9 @@ const SponsorWalletTransactionSchema =
         required: true,
         default: "submit-proofs",
       },
+      sourceTxHash: {
+        type: String,
+      },
       walletId: {
         type: String,
       },
@@ -53,6 +57,16 @@ const SponsorWalletTransactionSchema =
 SponsorWalletTransactionSchema.index(
   { transferId: 1, action: 1 },
   { unique: true }
+);
+SponsorWalletTransactionSchema.index(
+  { action: 1, sourceTxHash: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      action: "utxo-claim-gas",
+      sourceTxHash: { $type: "string" },
+    },
+  }
 );
 
 const generateModel = () =>
