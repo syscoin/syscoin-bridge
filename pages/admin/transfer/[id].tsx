@@ -36,9 +36,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
-  const transferUrl = buildApiUrl(
-    `/api/admin/transfers/${initialTransfer.id}`
-  );
+  const transferUrl = `/api/admin/transfers/${initialTransfer.id}`;
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
     {
@@ -74,7 +72,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       signedMessage,
       changes,
     };
-    fetch(buildApiUrl(`/api/admin/transfer/${transfer.id}`), {
+    fetch(`/api/admin/transfer/${transfer.id}`, {
       method: "POST",
       body: JSON.stringify(body),
       headers: {

@@ -15,7 +15,6 @@ import {
 } from "api/types/admin/transfer/add-log";
 import { useState } from "react";
 import { useNevmTransaction } from "components/Bridge/hooks/useNevmTransaction";
-import { buildApiUrl } from "utils/api-base-url";
 
 type Props = {
   onClose: (refetch?: boolean) => void;
@@ -75,7 +74,7 @@ const AddNEVMTransactionModal: React.FC<Props> = ({
           signedMessage,
         };
         setSubmitError(undefined);
-        return fetch(buildApiUrl(`/api/admin/transfer/${transferId}/add-log`), {
+        return fetch(`/api/admin/transfer/${transferId}/add-log`, {
           body: JSON.stringify(payload),
           headers: {
             "Content-Type": "application/json",

@@ -13,7 +13,6 @@ import { useUtxoTransaction } from "components/Bridge/hooks/useUtxoTransaction";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { AddUTXOLogRequestPayload } from "api/types/admin/transfer/add-log";
 import { useState } from "react";
-import { buildApiUrl } from "utils/api-base-url";
 
 type Props = {
   onClose: (refetch?: boolean) => void;
@@ -75,7 +74,7 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
           signedMessage,
         };
         setSubmitError(undefined);
-        return fetch(buildApiUrl(`/api/admin/transfer/${transferId}/add-log`), {
+        return fetch(`/api/admin/transfer/${transferId}/add-log`, {
           body: JSON.stringify(payload),
           headers: {
             "Content-Type": "application/json",

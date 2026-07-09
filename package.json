@@ -15,8 +15,8 @@
     "@mui/lab": "^5.0.0-alpha.89",
     "@mui/material": "^5.7.0",
     "@mui/x-data-grid": "^5.11.1",
+    "@sidhujag/sysweb3-utils": "^1.1.277",
     "@sentry/nextjs": "^7.57.0",
-    "@sidhujag/sysweb3-utils": "^1.1.272",
     "axios": "^1.13.2",
     "bitcoin-proof": "^2.0.0",
     "date-fns": "^2.30.0",
@@ -29,7 +29,7 @@
     "react-hook-form": "^7.31.3",
     "react-query": "^3.39.1",
     "satoshi-bitcoin": "^1.0.5",
-    "syscoinjs-lib": "^1.0.268",
+    "syscoinjs-lib": "^1.0.271",
     "web3": "1.10.4"
   },
   "devDependencies": {
@@ -44,8 +44,8 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": "22.x",
-    "npm": "10.x"
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
   },
   "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }

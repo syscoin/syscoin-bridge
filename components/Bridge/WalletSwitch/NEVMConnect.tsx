@@ -1,4 +1,4 @@
-import { useNEVM, MAINNET_CHAIN_ID } from "@contexts/ConnectedWallet/NEVMProvider";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Alert, Button, Link, Typography } from "@mui/material";
 import WalletSwitchCard from "./Card";
@@ -8,7 +8,6 @@ import { useNevmBalance } from "utils/balance-hooks";
 import { MIN_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
-import { useConstants } from "@contexts/useConstants";
 import React from "react";
 
 type NEVMConnectProps = {
@@ -19,7 +18,7 @@ type NEVMConnectProps = {
 const minAmount = MIN_AMOUNT;
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
-  const { account, connect, chainId, switchToMainnet } = useNEVM();
+  const { account, connect, isWrongChain, switchToMainnet } = useNEVM();
   const { isEnabled } = useFeatureFlags();
   const {
     changeAccount,
@@ -27,9 +26,6 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
     isEVMInjected,
     switchTo,
   } = usePaliWalletV2();
-  const { constants } = useConstants();
-  const expectedChainId = constants?.chain_id ?? MAINNET_CHAIN_ID;
-  const isWrongChain = Boolean(chainId && chainId !== expectedChainId);
   const balance = useNevmBalance(transfer.nevmAddress);
   const { connectNEVM, nevm } = useConnectedWallet();
 

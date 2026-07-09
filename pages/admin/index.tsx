@@ -17,7 +17,7 @@ const AdminPage: NextPage<Props> = ({ user, transfers, total, pageSize }) => {
   const { refresh, push } = useRouter();
 
   const onLogout = () => {
-    fetch(buildApiUrl("/api/admin/logout"), {
+    fetch("/api/admin/logout", {
       credentials: "include",
     }).then((res) => {
       res.ok && refresh();
