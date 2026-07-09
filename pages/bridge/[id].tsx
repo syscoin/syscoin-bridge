@@ -29,7 +29,7 @@ import {
 import { Web3Provider } from "components/Bridge/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
@@ -67,11 +67,20 @@ const createTransfer = (
   utxoAssetType: draft.utxoAssetType,
 });
 
+const isDirectionRoute = (id: unknown): id is TransferType =>
+  id === "sys-to-nevm" || id === "nevm-to-sys";
+
 const BridgePage: NextPage = () => {
   const { query } = useRouter();
   const connectValidateDraft = useRef<Partial<ConnectValidateDraft>>({});
   // Create a new QueryClient when the transfer ID changes to avoid stale data
   const queryClient = useMemo(() => new QueryClient(), [query.id]);
+
+  useEffect(() => {
+    if (!isDirectionRoute(query.id)) {
+      connectValidateDraft.current = {};
+    }
+  }, [query.id]);
 
   const handleConnectValidateDraftChange = useCallback(
     (draft: ConnectValidateDraft) => {
@@ -85,7 +94,7 @@ const BridgePage: NextPage = () => {
 
   const initialTransfer = useMemo(() => {
     const id = query.id;
-    if (id === "sys-to-nevm" || id === "nevm-to-sys") {
+    if (isDirectionRoute(id)) {
       return createTransfer(id, connectValidateDraft.current);
     }
     return {

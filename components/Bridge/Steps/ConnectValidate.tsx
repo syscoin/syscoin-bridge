@@ -99,6 +99,18 @@ const parseTransferAmount = (amount: string) => {
   return Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0.1;
 };
 
+const hasDraftFormValues = (
+  amount: string,
+  utxoAssetType?: "sys" | "sysx"
+) => {
+  const parsedAmount = Number(amount);
+
+  return (
+    (Number.isFinite(parsedAmount) && parsedAmount > 0) ||
+    Boolean(utxoAssetType)
+  );
+};
+
 const BridgeConnectValidateStep: React.FC<
   BridgeConnectValidateStepProps
 > = ({ successStatus, onDraftChange }) => {
@@ -145,7 +157,12 @@ const BridgeConnectValidateStep: React.FC<
 
   // Reset form when transfer ID changes (e.g., starting a new transfer)
   useEffect(() => {
-    if (transfer.status === "initialize" && !transfer.nevmAddress && !transfer.utxoAddress) {
+    if (
+      transfer.status === "initialize" &&
+      !transfer.nevmAddress &&
+      !transfer.utxoAddress &&
+      !hasDraftFormValues(transfer.amount, transfer.utxoAssetType)
+    ) {
       reset({
         amount: 0.1,
         nevmAddress: "",
@@ -155,7 +172,15 @@ const BridgeConnectValidateStep: React.FC<
         utxoAssetType: undefined,
       });
     }
-  }, [transfer.id, transfer.status, transfer.nevmAddress, transfer.utxoAddress, reset]);
+  }, [
+    reset,
+    transfer.amount,
+    transfer.id,
+    transfer.nevmAddress,
+    transfer.status,
+    transfer.utxoAddress,
+    transfer.utxoAssetType,
+  ]);
 
   const utxoBalance = useUtxoBalance(utxoXpub);
   const sysxBalance = useUtxoBalance(utxoXpub, {
