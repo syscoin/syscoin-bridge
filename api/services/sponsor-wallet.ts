@@ -328,16 +328,34 @@ export class SponsorWalletService {
     }
 
     const targetAmountSats = this.getUtxoClaimGasAmountSats();
-    const balanceSats = await this.getUtxoClaimGasBalanceSats(transfer);
+    const addressBalanceSats = await this.getUtxoAddressBalanceSats(
+      transfer.utxoAddress
+    );
 
-    if (balanceSats >= targetAmountSats) {
+    if (addressBalanceSats >= targetAmountSats) {
       return {
         funded: false,
         status: "skipped",
         amountSats: 0,
-        balanceSats,
+        balanceSats: addressBalanceSats,
         reason: "Destination UTXO address already has claim gas",
       };
+    }
+
+    if (transfer.utxoXpub) {
+      const xpubBalanceSats = await this.getUtxoXpubBalanceSats(
+        transfer.utxoXpub
+      );
+
+      if (xpubBalanceSats >= targetAmountSats) {
+        return {
+          funded: false,
+          status: "skipped",
+          amountSats: 0,
+          balanceSats: xpubBalanceSats,
+          reason: "Connected UTXO wallet already has claim gas",
+        };
+      }
     }
 
     return undefined;
@@ -449,7 +467,9 @@ export class SponsorWalletService {
   }
 
   private async getUtxoAddressBalanceSats(address: string): Promise<number> {
-    const response = await fetch(`${getUtxoBlockbookUrl()}/api/v2/address/${address}`);
+    const response = await fetch(
+      `${getUtxoBlockbookUrl()}/api/v2/address/${address}?details=basic`
+    );
 
     if (!response.ok) {
       throw new Error("Unable to fetch UTXO address balance");
@@ -474,20 +494,6 @@ export class SponsorWalletService {
     const balance = Number.parseInt(data.balance ?? "0", 10);
 
     return Number.isFinite(balance) ? balance : 0;
-  }
-
-  private async getUtxoClaimGasBalanceSats(
-    transfer: ITransfer
-  ): Promise<number> {
-    if (transfer.utxoXpub) {
-      return this.getUtxoXpubBalanceSats(transfer.utxoXpub);
-    }
-
-    if (!transfer.utxoAddress) {
-      throw new Error("Missing UTXO address");
-    }
-
-    return this.getUtxoAddressBalanceSats(transfer.utxoAddress);
   }
 
   private getUtxoClaimGasAmountSats() {

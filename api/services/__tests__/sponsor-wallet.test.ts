@@ -209,7 +209,39 @@ describe("SponsorWalletService", () => {
         reason: "Destination UTXO address already has claim gas",
       });
       expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v2/address/sys1destination?details=basic")
+      );
+      expect(global.fetch).not.toHaveBeenCalledWith(
         expect.stringContaining("/api/v2/xpub/xpub")
+      );
+    });
+
+    it("skips funding when the wallet xpub has enough claim gas", async () => {
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "0" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "100000" }),
+        });
+
+      const service = new SponsorWalletService();
+
+      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toEqual({
+        funded: false,
+        status: "skipped",
+        amountSats: 0,
+        balanceSats: 100_000,
+        reason: "Connected UTXO wallet already has claim gas",
+      });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v2/address/sys1destination?details=basic")
+      );
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v2/xpub/xpub?details=basic")
       );
     });
 
@@ -225,6 +257,10 @@ describe("SponsorWalletService", () => {
         deletedCount: 0,
       });
       (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "0" }),
+        })
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ balance: "0" }),
