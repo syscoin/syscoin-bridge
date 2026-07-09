@@ -20,6 +20,8 @@ const AdminTransferLog: NextApiHandler = adminSessionGuard(async (req, res) => {
     );
     return res.status(200).json(deleteResults);
   }
+
+  return res.status(405).json({ message: "Method not allowed" });
 });
 
 export default AdminTransferLog;

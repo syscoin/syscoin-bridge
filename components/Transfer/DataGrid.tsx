@@ -5,6 +5,7 @@ import axios from "axios";
 import NextLink from "next/link";
 import { useQuery } from "react-query";
 import { TRANSFER_COLUMNS } from "./columns";
+import { buildApiUrl } from "utils/api-base-url";
 
 type TransferDataGridProps = {
   xpub?: string;
@@ -35,7 +36,9 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
       if (version) {
         searchParams.set("version", version);
       }
-      return axios(`/api/transfer?${searchParams.toString()}`);
+      return axios(
+        buildApiUrl(`/api/transfer?${searchParams.toString()}`)
+      );
     },
     { enabled: isFullyConnected }
   );

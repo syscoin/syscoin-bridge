@@ -6,6 +6,7 @@ import { getProof } from "bitcoin-proof";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import { SPVProof } from "syscoinjs-lib";
 import Web3 from "web3";
+import { applyApiCors } from "utils/api/cors";
 
 const web3 = new Web3(process.env.NEVM_RPC_URL ?? "https://rpc.syscoin.org");
 
@@ -17,6 +18,14 @@ const handler: NextApiHandler = async (
   req: NextApiRequest,
   res: NextApiResponse
 ) => {
+  if (applyApiCors(req, res)) {
+    return;
+  }
+
+  if (req.method !== "GET") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
+
   const { id } = req.query;
 
   try {

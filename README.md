@@ -97,6 +97,7 @@ docker build -t syscoin/bridge .
 | `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer              | 100     |
 | `ADMIN_API_KEY`                 | Admin API Key                                  |         |
 | `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password                         |         |
+| `ADMIN_COOKIE_DOMAIN`           | Optional domain for admin session cookie       |         |
 | `NEVM_RPC_URL`                  | NEVM RPC URL                                   |         |
 | `NEVM_EXPLORER`                 | NEVM Explorer URL                              |         |
 | `NEVM_API_URL`                  | NEVM Block Explorer API URL (EVM only)        |         |
@@ -108,8 +109,14 @@ docker build -t syscoin/bridge .
 | `ERC20_MANAGER_CONTRACT_ADDRESS`| ERC20 Manager contract address                 |         |
 | `SYS5_ENABLED`                  | Enable Sys5 features                           | true    |
 | `PALI_V2_NEVM_ENABLED`          | Enable Pali V2 NEVM features                    | true    |
+| `NEXT_PUBLIC_API_BASE_URL`      | Base URL the frontend uses for API requests    |         |
+| `CORS_ALLOWED_ORIGIN`           | Allowed frontend origin(s) for API CORS responses (comma-separated, no `*` for admin cookie auth) |         |
 
 **Note**: API URLs are only used for EVM networks. UTXO networks use Blockbook which has a different API structure.
+
+### Split Frontend/Backend Deployments
+
+When hosting the frontend separately from the backend services, set `NEXT_PUBLIC_API_BASE_URL` to the backend origin (for example, `https://backend.test.com`). All browser and server-side fetches automatically use that base URL when provided, and fall back to the current origin otherwise. The same variable also enables a framework rewrite so hitting `/api/*` on the frontend domain proxies to the backend. This lets a single build work for both combined and split deployments—just omit the variable when the API routes run alongside the frontend.
 
 ### Env Files
 

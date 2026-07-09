@@ -29,9 +29,7 @@ const AdminTransferLogAccordion: React.FC<Props> = ({
         `/api/admin/transfer/${transferId}/log/${log.date}`,
         {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          credentials: "include",
         }
       );
       return resp.json();

@@ -80,6 +80,7 @@ const AddNEVMTransactionModal: React.FC<Props> = ({
             "Content-Type": "application/json",
           },
           method: "POST",
+          credentials: "include",
         });
       })
       .then((res) => {

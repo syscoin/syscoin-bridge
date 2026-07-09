@@ -1,4 +1,9 @@
 /** @type {import('next').NextConfig} */
+const API_PROXY_TARGET = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
+  /\/$/,
+  ""
+);
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
@@ -34,6 +39,20 @@ const nextConfig = {
       process.env.NEXT_PUBLIC_REPO_URL ||
       process.env.REPOSITORY_URL ||
       "https://github.com/syscoin/syscoin-bridge",
+  },
+  async rewrites() {
+    if (!API_PROXY_TARGET) {
+      return [];
+    }
+
+    return {
+      beforeFiles: [
+        {
+          source: "/api/:path*",
+          destination: `${API_PROXY_TARGET}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 

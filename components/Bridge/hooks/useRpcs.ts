@@ -1,4 +1,5 @@
 import { useQuery } from "react-query";
+import { buildApiUrl } from "utils/api-base-url";
 
 type RpcApiResponse = {
   nevmRpc: string;
@@ -6,7 +7,7 @@ type RpcApiResponse = {
 
 export const useRpc = () => {
   return useQuery<RpcApiResponse>(["rpc"], () => {
-    return fetch("/api/rpc").then(
+    return fetch(buildApiUrl("/api/rpc")).then(
       (res) => res.json() as Promise<RpcApiResponse>
     );
   });

@@ -1,9 +1,7 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import { Box, Button, Container, Modal, Typography } from "@mui/material";
 import { AdminLayoutContainer } from "components/Admin/LayoutContainer";
-import dbConnect from "lib/mongodb";
 import { GetServerSideProps, NextPage } from "next";
-import TransferModel from "models/transfer";
 import { ArrowCircleLeft } from "@mui/icons-material";
 import Link from "next/link";
 import MuiLink from "@mui/material/Link";
@@ -25,6 +23,8 @@ import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 import { useConstants } from "@contexts/useConstants";
+import { buildApiUrl } from "utils/api-base-url";
+import { withSessionSsr } from "lib/session";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -36,15 +36,13 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
-  const transferUrl = `/api/admin/transfer/${initialTransfer.id}`;
+  const transferUrl = `/api/admin/transfers/${initialTransfer.id}`;
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
     {
       queryFn: async () => {
         const resp = await fetch(transferUrl, {
-          headers: {
-            "Content-Type": "application/json",
-          },
+          credentials: "include",
         });
 
         return resp.json();
@@ -80,6 +78,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
     })
       .then((res) => {
         if (res.ok) {
@@ -221,47 +220,71 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   );
 };
 
-export const getServerSideProps: GetServerSideProps = async ({ params }) => {
-  if (!params) {
-    return {
-      notFound: true,
-    };
-  }
+export const getServerSideProps: GetServerSideProps = withSessionSsr(
+  async ({ params, req }) => {
+    const { user } = req.session;
 
-  const id = params["id"];
-
-  if (!id) {
-    return {
-      notFound: true,
-    };
-  }
-
-  await dbConnect();
-
-  const transfer = await TransferModel.findOne(
-    { id },
-    {
-      id: 1,
-      nevmAddress: 1,
-      utxoAddress: 1,
-      status: 1,
-      type: 1,
-      createdAt: 1,
-      logs: 1,
+    if (!user) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
     }
-  );
 
-  if (!transfer) {
+    const rawId = params?.["id"];
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    if (!id) {
+      return {
+        notFound: true,
+      };
+    }
+
+    const forwardedProto = req.headers["x-forwarded-proto"];
+    const protocol = (
+      Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
+    )?.split(",")[0]?.trim() || "http";
+    const host = req.headers.host || "localhost:3000";
+    const fallbackOrigin = `${protocol}://${host}`;
+    const requestUrl = buildApiUrl(`/api/admin/transfers/${id}`, {
+      fallbackOrigin,
+    });
+
+    const response = await fetch(requestUrl, {
+      headers: {
+        cookie: req.headers.cookie || "",
+      },
+    });
+
+    if (response.status === 401) {
+      return {
+        redirect: {
+          destination: "/admin/login",
+          permanent: false,
+        },
+      };
+    }
+
+    if (response.status === 404) {
+      return {
+        notFound: true,
+      };
+    }
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch transfer");
+    }
+
+    const transfer = await response.json();
+
     return {
-      notFound: true,
+      props: {
+        initialTransfer: transfer,
+      },
     };
   }
-
-  return {
-    props: {
-      initialTransfer: JSON.parse(JSON.stringify(transfer)),
-    },
-  };
-};
+);
 
 export default TransferDetailsPage;

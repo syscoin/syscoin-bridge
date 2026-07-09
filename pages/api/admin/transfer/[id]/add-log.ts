@@ -9,6 +9,10 @@ import { handleMintSysx } from "api/services/admin-transfer/handle-mint-sysx";
 
 const AdminTransferAddLog: NextApiHandler = adminSessionGuard(
   async (req: NextApiRequest, res: NextApiResponse) => {
+    if (req.method !== "POST") {
+      return res.status(405).json({ message: "Method not allowed" });
+    }
+
     const body = req.body as AddLogRequestPayload;
     const transferId = req.query.id as string;
     if (body.operation === "burn-sys") {

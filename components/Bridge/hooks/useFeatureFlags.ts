@@ -1,4 +1,5 @@
 import { useQuery } from "react-query";
+import { buildApiUrl } from "utils/api-base-url";
 
 type FeatureFlags = {
   foundationFundingAvailable: boolean;
@@ -8,9 +9,12 @@ type FeatureFlags = {
 };
 
 export const useFeatureFlags = () => {
-  const flags = useQuery<unknown, unknown, FeatureFlags>("featureFlags", () => {
-    return fetch("/api/flags").then((res) => res.json());
-  });
+  const flags = useQuery<unknown, unknown, FeatureFlags>(
+    "featureFlags",
+    () => {
+      return fetch(buildApiUrl("/api/flags")).then((res) => res.json());
+    }
+  );
 
   return {
     isEnabled: (flag: keyof FeatureFlags) =>
