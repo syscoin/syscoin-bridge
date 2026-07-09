@@ -305,6 +305,24 @@ describe("SponsorWalletService", () => {
       });
       expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
     });
+
+    it("expires stale pending claim gas placeholders without a hash", async () => {
+      const stalePlaceholder = {
+        status: "pending",
+        transaction: {},
+        updatedAt: new Date(Date.now() - 10 * 60_000),
+        save: jest.fn().mockResolvedValue(undefined),
+      };
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(stalePlaceholder);
+
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.getUtxoClaimGasSponsorStatus("transfer-1")
+      ).resolves.toBeUndefined();
+      expect(stalePlaceholder.status).toBe("failed");
+      expect(stalePlaceholder.save).toHaveBeenCalled();
+    });
   });
 
   describe("updateSponsorWalletTransactionStatus", () => {

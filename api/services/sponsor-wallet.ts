@@ -72,6 +72,17 @@ const isDuplicateKeyError = (error: unknown) => {
   );
 };
 
+const getDocumentUpdatedAtMs = (document: unknown) => {
+  const updatedAt = (document as { updatedAt?: Date | string | number })
+    .updatedAt;
+
+  if (!updatedAt) {
+    return undefined;
+  }
+
+  return new Date(updatedAt).getTime();
+};
+
 export class SponsorWalletService {
   public async sponsorTransaction(
     transferId: string,
@@ -253,6 +264,16 @@ export class SponsorWalletService {
     }
 
     if (existingTransaction?.status === "pending") {
+      const updatedAtMs = getDocumentUpdatedAtMs(existingTransaction);
+      if (
+        updatedAtMs !== undefined &&
+        Date.now() - updatedAtMs > UTXO_RESERVATION_LEASE_MS
+      ) {
+        existingTransaction.status = "failed";
+        await existingTransaction.save();
+        return undefined;
+      }
+
       return {
         funded: true,
         status: "pending",
