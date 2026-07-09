@@ -157,25 +157,9 @@ export class SponsorWalletService {
       throw new Error("Missing UTXO address");
     }
 
-    const existingTransaction = await SponsorWalletTransactions.findOne({
-      transferId: transfer.id,
-      action: UTXO_CLAIM_GAS_ACTION,
-    });
-
-    if (existingTransaction?.transaction?.hash) {
-      return {
-        funded: true,
-        status: existingTransaction.status,
-        txid: existingTransaction.transaction.hash,
-      };
-    }
-
-    if (existingTransaction?.status === "pending") {
-      return {
-        funded: true,
-        status: "pending",
-        reason: "UTXO claim gas sponsorship is already in progress",
-      };
+    const existingStatus = await this.getUtxoClaimGasSponsorStatus(transfer.id);
+    if (existingStatus) {
+      return existingStatus;
     }
 
     const targetAmountSats = toSats(
@@ -263,6 +247,33 @@ export class SponsorWalletService {
         await this.releaseSponsorUtxoReservation(reservation.key);
       }
     }
+  }
+
+  public async getUtxoClaimGasSponsorStatus(
+    transferId: string
+  ): Promise<SponsorClaimGasResult | undefined> {
+    const existingTransaction = await SponsorWalletTransactions.findOne({
+      transferId,
+      action: UTXO_CLAIM_GAS_ACTION,
+    });
+
+    if (existingTransaction?.transaction?.hash) {
+      return {
+        funded: true,
+        status: existingTransaction.status,
+        txid: existingTransaction.transaction.hash,
+      };
+    }
+
+    if (existingTransaction?.status === "pending") {
+      return {
+        funded: true,
+        status: "pending",
+        reason: "UTXO claim gas sponsorship is already in progress",
+      };
+    }
+
+    return undefined;
   }
 
   public async updateSponsorWalletTransactionStatus(transactionHash: string) {

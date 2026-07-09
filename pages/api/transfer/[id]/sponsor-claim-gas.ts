@@ -22,6 +22,16 @@ const tokenFreezeAbi = SyscoinERC20ManagerABI.find(
 const tokenFreezeSignature = tokenFreezeAbi
   ? web3.eth.abi.encodeEventSignature(tokenFreezeAbi)
   : undefined;
+const duplicateKeyCode = 11000;
+
+const isDuplicateKeyError = (error: unknown) => {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: number }).code === duplicateKeyCode
+  );
+};
 
 const getNumericEnv = (name: string, fallback: number) => {
   const parsed = Number(process.env[name]);
@@ -30,43 +40,74 @@ const getNumericEnv = (name: string, fallback: number) => {
 };
 
 const getClientIp = (req: NextApiRequest) => {
-  const forwardedFor = req.headers["x-forwarded-for"];
-  const forwardedValue = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : forwardedFor;
+  if (process.env.SPONSOR_TRUST_PROXY_HEADERS === "true") {
+    const realIp = req.headers["x-real-ip"];
+    if (typeof realIp === "string" && realIp) {
+      return realIp;
+    }
 
-  return (
-    forwardedValue?.split(",")[0]?.trim() ??
-    req.socket.remoteAddress ??
-    "unknown"
-  );
+    const forwardedFor = req.headers["x-forwarded-for"];
+    const forwardedValue = Array.isArray(forwardedFor)
+      ? forwardedFor[0]
+      : forwardedFor;
+    const forwardedIp = forwardedValue?.split(",")[0]?.trim();
+    if (forwardedIp) {
+      return forwardedIp;
+    }
+  }
+
+  return req.socket.remoteAddress ?? "unknown";
 };
 
-const consumeRateLimit = async (key: string, limit: number, windowMs: number) => {
-  const now = Date.now();
-  const resetAt = new Date(now + windowMs);
-  const existing = await SponsorRateLimit.findOne({ key });
-
-  if (!existing || existing.resetAt.getTime() <= now) {
+const initializeRateLimit = async (
+  key: string,
+  resetAt: Date,
+  retry = true
+) => {
+  try {
     await SponsorRateLimit.updateOne(
       { key },
       {
-        $set: {
-          count: 1,
+        $setOnInsert: {
+          count: 0,
           resetAt,
         },
       },
       { upsert: true }
     );
-    return;
-  }
+  } catch (error) {
+    if (retry && isDuplicateKeyError(error)) {
+      await initializeRateLimit(key, resetAt, false);
+      return;
+    }
 
-  if (existing.count >= limit) {
+    throw error;
+  }
+};
+
+const consumeRateLimit = async (key: string, limit: number, windowMs: number) => {
+  const now = new Date();
+  const resetAt = new Date(now.getTime() + windowMs);
+
+  await initializeRateLimit(key, resetAt);
+  await SponsorRateLimit.updateOne(
+    { key, resetAt: { $lte: now } },
+    {
+      $set: {
+        count: 0,
+        resetAt,
+      },
+    }
+  );
+
+  const result = await SponsorRateLimit.updateOne(
+    { key, resetAt: { $gt: now }, count: { $lt: limit } },
+    { $inc: { count: 1 } }
+  );
+
+  if (result.modifiedCount !== 1) {
     throw new Error("Sponsor claim gas rate limit exceeded");
   }
-
-  existing.count += 1;
-  await existing.save();
 };
 
 const normalizeAddress = (address: string) => address.toLowerCase();
@@ -122,6 +163,7 @@ const assertClaimGasEligible = async (
     throw new Error("TokenFreeze event ABI is not configured");
   }
 
+  const amountWei = toWei(transfer.amount.toString(), "ether");
   const transactionHash = getConfirmedFreezeBurnTxHash(transfer);
   const [transaction, receipt] = await Promise.all([
     web3.eth.getTransaction(transactionHash),
@@ -139,7 +181,7 @@ const assertClaimGasEligible = async (
     !transaction.to ||
     normalizeAddress(transaction.to) !== managerAddress ||
     normalizeAddress(transaction.from) !== nevmAddress ||
-    transaction.value !== toWei(transfer.amount.toString(), "ether")
+    transaction.value !== amountWei
   ) {
     throw new Error("Freeze and burn transaction does not match this transfer");
   }
@@ -168,9 +210,12 @@ const assertClaimGasEligible = async (
       tokenFreezeAbi.inputs?.filter((input) => !input.indexed) ?? [],
       log.data,
       []
-    ) as { syscoinAddr?: string };
+    ) as { satoshiValue?: string; syscoinAddr?: string };
 
-    return decoded.syscoinAddr === transfer.utxoAddress;
+    return (
+      decoded.satoshiValue?.toString() === amountWei &&
+      decoded.syscoinAddr === transfer.utxoAddress
+    );
   });
 
   if (!tokenFreezeLog) {
@@ -232,6 +277,13 @@ const handler: NextApiHandler = async (
 
     const transfer = await transferService.getTransfer(id);
     await assertClaimGasEligible(transfer);
+
+    const existingResult =
+      await sponsorWalletService.getUtxoClaimGasSponsorStatus(transfer.id);
+    if (existingResult) {
+      return res.status(200).json(existingResult);
+    }
+
     await applySponsorRateLimits(req, transfer);
     const result = await sponsorWalletService.sponsorUtxoClaimGas(transfer);
 

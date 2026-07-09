@@ -130,6 +130,7 @@ docker build -t syscoin/bridge .
 | `SPONSOR_IP_RATE_LIMIT`         | Max claim-gas sponsorship attempts per client IP per window | 20      |
 | `SPONSOR_ADDRESS_RATE_LIMIT`    | Max claim-gas sponsorship attempts per UTXO/NEVM address per window | 3       |
 | `SPONSOR_RATE_LIMIT_WINDOW_MS`  | Sponsorship rate-limit window in milliseconds   | 86400000 |
+| `SPONSOR_TRUST_PROXY_HEADERS`   | Trust `x-real-ip`/`x-forwarded-for` for sponsor IP limits only when a trusted proxy overwrites them | false   |
 | `NEXT_PUBLIC_API_BASE_URL`      | Base URL the frontend uses for API requests    |         |
 | `CORS_ALLOWED_ORIGIN`           | Allowed frontend origin(s) for API CORS responses (comma-separated, no `*` for admin cookie auth) |         |
 
