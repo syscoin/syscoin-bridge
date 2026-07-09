@@ -36,6 +36,11 @@ type SponsorClaimGasResult = {
   reason?: string;
 };
 
+type SponsorPlaceholderResult = {
+  created: boolean;
+  transaction: ISponsorWalletTransaction;
+};
+
 const duplicateKeyCode = 11000;
 
 const getUtxoBlockbookUrl = () =>
@@ -198,17 +203,26 @@ export class SponsorWalletService {
       throw new Error("UTXO sponsor wallet is not configured");
     }
 
-    const placeholder = await this.createSponsorPlaceholder(
+    const placeholderResult = await this.createSponsorPlaceholder(
       transfer.id,
       UTXO_CLAIM_GAS_ACTION,
       sponsorAddress
     );
+    const placeholder = placeholderResult.transaction;
 
     if (placeholder.transaction?.hash) {
       return {
         funded: true,
         status: placeholder.status,
         txid: placeholder.transaction.hash,
+      };
+    }
+
+    if (!placeholderResult.created && placeholder.status === "pending") {
+      return {
+        funded: true,
+        status: "pending",
+        reason: "UTXO claim gas sponsorship is already in progress",
       };
     }
 
@@ -297,7 +311,7 @@ export class SponsorWalletService {
     transferId: string,
     action: SponsorWalletTransactionAction,
     walletId: string
-  ): Promise<ISponsorWalletTransaction> {
+  ): Promise<SponsorPlaceholderResult> {
     const placeholder = new SponsorWalletTransactions({
       transferId,
       action,
@@ -306,21 +320,24 @@ export class SponsorWalletService {
       transaction: {},
     });
 
-    return placeholder.save().catch(async (error) => {
-      if (!isDuplicateKeyError(error)) {
-        throw error;
-      }
+    return placeholder
+      .save()
+      .then((transaction) => ({ created: true, transaction }))
+      .catch(async (error) => {
+        if (!isDuplicateKeyError(error)) {
+          throw error;
+        }
 
-      const duplicate = await SponsorWalletTransactions.findOne({
-        transferId,
-        action,
+        const duplicate = await SponsorWalletTransactions.findOne({
+          transferId,
+          action,
+        });
+        if (!duplicate) {
+          throw error;
+        }
+
+        return { created: false, transaction: duplicate };
       });
-      if (!duplicate) {
-        throw error;
-      }
-
-      return duplicate;
-    });
   }
 
   private async getUtxoAddressBalanceSats(address: string): Promise<number> {

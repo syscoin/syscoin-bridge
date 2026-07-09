@@ -1,3 +1,6 @@
+import { ERC20_MANAGER_CONTRACT_ADDRESS } from "@constants";
+import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
+import SyscoinERC20ManagerABI from "@contexts/Transfer/abi/SyscoinERC20Manager";
 import { ETH_TO_SYS_TRANSFER_STATUS } from "@contexts/Transfer/types";
 import SponsorWalletService from "api/services/sponsor-wallet";
 import { TransferService } from "api/services/transfer";
@@ -5,12 +8,20 @@ import dbConnect from "lib/mongodb";
 import SponsorRateLimit from "models/sponsor-rate-limit";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import { applyApiCors } from "utils/api/cors";
+import web3 from "utils/get-web3";
+import { AbiItem, toWei } from "web3-utils";
 
 const transferService = new TransferService();
 const sponsorWalletService = new SponsorWalletService();
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_IP_RATE_LIMIT = 20;
 const DEFAULT_ADDRESS_RATE_LIMIT = 3;
+const tokenFreezeAbi = SyscoinERC20ManagerABI.find(
+  (item) => item.type === "event" && item.name === "TokenFreeze"
+) as AbiItem | undefined;
+const tokenFreezeSignature = tokenFreezeAbi
+  ? web3.eth.abi.encodeEventSignature(tokenFreezeAbi)
+  : undefined;
 
 const getNumericEnv = (name: string, fallback: number) => {
   const parsed = Number(process.env[name]);
@@ -58,7 +69,41 @@ const consumeRateLimit = async (key: string, limit: number, windowMs: number) =>
   await existing.save();
 };
 
-const assertClaimGasEligible = (
+const normalizeAddress = (address: string) => address.toLowerCase();
+
+const isSuccessfulReceiptStatus = (status: unknown) => {
+  return status === true || status === "0x1" || status === "1" || status === 1;
+};
+
+const getTopicAddress = (topic: string) => {
+  return `0x${topic.slice(-40)}`.toLowerCase();
+};
+
+const topicMatchesAssetGuid = (topic: string) => {
+  try {
+    return BigInt(topic).toString() === SYSX_ASSET_GUID;
+  } catch {
+    return false;
+  }
+};
+
+const getConfirmedFreezeBurnTxHash = (
+  transfer: Awaited<ReturnType<TransferService["getTransfer"]>>
+) => {
+  const confirmedFreezeBurn = transfer.logs.find(
+    (log) =>
+      log.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS &&
+      Boolean(log.payload?.data?.transactionHash)
+  );
+
+  if (!confirmedFreezeBurn) {
+    throw new Error("Freeze and burn must be confirmed before claim gas funding");
+  }
+
+  return confirmedFreezeBurn.payload.data.transactionHash;
+};
+
+const assertClaimGasEligible = async (
   transfer: Awaited<ReturnType<TransferService["getTransfer"]>>
 ) => {
   if (transfer.type !== "nevm-to-sys") {
@@ -69,14 +114,67 @@ const assertClaimGasEligible = (
     throw new Error("Missing transfer addresses");
   }
 
-  const confirmedFreezeBurn = transfer.logs.find(
-    (log) =>
-      log.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS &&
-      Boolean(log.payload?.data?.transactionHash)
-  );
+  if (!ERC20_MANAGER_CONTRACT_ADDRESS) {
+    throw new Error("ERC20 manager contract is not configured");
+  }
 
-  if (!confirmedFreezeBurn) {
-    throw new Error("Freeze and burn must be confirmed before claim gas funding");
+  if (!tokenFreezeAbi || !tokenFreezeSignature) {
+    throw new Error("TokenFreeze event ABI is not configured");
+  }
+
+  const transactionHash = getConfirmedFreezeBurnTxHash(transfer);
+  const [transaction, receipt] = await Promise.all([
+    web3.eth.getTransaction(transactionHash),
+    web3.eth.getTransactionReceipt(transactionHash),
+  ]);
+
+  if (!transaction || !receipt) {
+    throw new Error("Freeze and burn transaction was not found on NEVM");
+  }
+
+  const managerAddress = normalizeAddress(ERC20_MANAGER_CONTRACT_ADDRESS);
+  const nevmAddress = normalizeAddress(transfer.nevmAddress);
+
+  if (
+    !transaction.to ||
+    normalizeAddress(transaction.to) !== managerAddress ||
+    normalizeAddress(transaction.from) !== nevmAddress ||
+    transaction.value !== toWei(transfer.amount.toString(), "ether")
+  ) {
+    throw new Error("Freeze and burn transaction does not match this transfer");
+  }
+
+  if (
+    !isSuccessfulReceiptStatus(receipt.status) ||
+    !receipt.to ||
+    normalizeAddress(receipt.to) !== managerAddress
+  ) {
+    throw new Error("Freeze and burn transaction was not successful");
+  }
+
+  const tokenFreezeLog = receipt.logs.find((log) => {
+    if (
+      !log.address ||
+      log.topics.length < 3 ||
+      normalizeAddress(log.address) !== managerAddress ||
+      log.topics[0] !== tokenFreezeSignature ||
+      !topicMatchesAssetGuid(log.topics[1]) ||
+      getTopicAddress(log.topics[2]) !== nevmAddress
+    ) {
+      return false;
+    }
+
+    const decoded = web3.eth.abi.decodeLog(
+      tokenFreezeAbi.inputs?.filter((input) => !input.indexed) ?? [],
+      log.data,
+      []
+    ) as { syscoinAddr?: string };
+
+    return decoded.syscoinAddr === transfer.utxoAddress;
+  });
+
+  if (!tokenFreezeLog) {
+    throw new Error("Freeze and burn event does not match this transfer");
   }
 };
 
@@ -133,7 +231,7 @@ const handler: NextApiHandler = async (
     await dbConnect();
 
     const transfer = await transferService.getTransfer(id);
-    assertClaimGasEligible(transfer);
+    await assertClaimGasEligible(transfer);
     await applySponsorRateLimits(req, transfer);
     const result = await sponsorWalletService.sponsorUtxoClaimGas(transfer);
 

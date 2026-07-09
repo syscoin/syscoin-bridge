@@ -270,6 +270,37 @@ describe("SponsorWalletService", () => {
         status: "reserved",
       });
     });
+
+    it("returns in-progress when a duplicate placeholder wins the race", async () => {
+      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
+      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
+      SponsorWalletTransactionsMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          status: "pending",
+          transaction: {},
+        });
+      SponsorWalletTransactionsMock.mockImplementationOnce(function (
+        this: any,
+        data: any
+      ) {
+        Object.assign(this, data);
+        this.save = jest.fn().mockRejectedValue({ code: 11000 });
+      });
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ balance: "0" }),
+      });
+
+      const service = new SponsorWalletService();
+
+      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toEqual({
+        funded: true,
+        status: "pending",
+        reason: "UTXO claim gas sponsorship is already in progress",
+      });
+      expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateSponsorWalletTransactionStatus", () => {
