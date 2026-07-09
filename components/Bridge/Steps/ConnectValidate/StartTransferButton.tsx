@@ -1,4 +1,4 @@
-import { MIN_AMOUNT } from "@constants";
+import { MIN_AMOUNT, MIN_GAS_AMOUNT } from "@constants";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { ITransfer } from "@contexts/Transfer/types";
 import { CheckCircleOutline } from "@mui/icons-material";
@@ -47,19 +47,22 @@ export const ConnectValidateStartTransferButton: React.FC<{
 
   const foundationFundingAvailable =
     isEnabled("foundationFundingAvailable") && transfer.type === "sys-to-nevm";
+  const utxoClaimGasSponsorshipAvailable =
+    isEnabled("foundationFundingAvailable") && transfer.type === "nevm-to-sys";
 
   const isNevmNotEnoughGas =
     !foundationFundingAvailable &&
     Boolean(nevmAddress) &&
     nevmBalance.isFetched &&
     nevmBalance.data !== undefined &&
-    nevmBalance.data < MIN_AMOUNT;
+    nevmBalance.data < MIN_GAS_AMOUNT;
 
   const isUtxoNotEnoughGas =
+    !utxoClaimGasSponsorshipAvailable &&
     Boolean(utxoXpub) &&
     utxoBalance.isFetched &&
     utxoBalance.data !== undefined &&
-    utxoBalance.data < MIN_AMOUNT;
+    utxoBalance.data < MIN_GAS_AMOUNT;
 
   const isSysxNotEnoughBalance =
     useSysx &&
@@ -82,6 +85,12 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
   const isReady =
     isUtxoValid && isNevmValid && isAmountValid && balanceFetched && isValid;
+  const willSponsorUtxoClaimGas =
+    utxoClaimGasSponsorshipAvailable &&
+    Boolean(utxoXpub) &&
+    utxoBalance.isFetched &&
+    utxoBalance.data !== undefined &&
+    utxoBalance.data < MIN_GAS_AMOUNT;
   return (
     <>
       {isReady && (
@@ -94,6 +103,14 @@ export const ConnectValidateStartTransferButton: React.FC<{
       )}
       {isUtxoNotEnoughGas && (
         <ErrorMessage message="UTXO: Not enough funds for gas" />
+      )}
+      {willSponsorUtxoClaimGas && (
+        <Box sx={{ display: "flex", mb: 2 }}>
+          <Typography variant="body1">
+            UTXO: Bridge will fund the minimal claim gas needed to complete the
+            transfer.
+          </Typography>
+        </Box>
       )}
       {isSysxNotEnoughBalance && (
         <ErrorMessage message="UTXO: Not enough SYSX" />

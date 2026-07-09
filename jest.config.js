@@ -9,5 +9,5 @@ module.exports = {
   testEnvironment: "node",
   roots: ['<rootDir>'],
   modulePaths: [compilerOptions.baseUrl], // <-- This will be set to 'baseUrl' value
-  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths /*, { prefix: '<rootDir>/' } */),
+  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' }),
 }

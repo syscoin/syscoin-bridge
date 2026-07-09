@@ -5,7 +5,7 @@ import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
 import { ITransfer } from "@contexts/Transfer/types";
 import { useNevmBalance } from "utils/balance-hooks";
-import { MIN_AMOUNT } from "@constants";
+import { MIN_GAS_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import { useConnectedWallet } from "@contexts/ConnectedWallet/useConnectedWallet";
 import React from "react";
@@ -15,7 +15,7 @@ type NEVMConnectProps = {
   setNevm: (nevm: { address: string }) => void;
 };
 
-const minAmount = MIN_AMOUNT;
+const minAmount = MIN_GAS_AMOUNT;
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const { account, connect, isWrongChain, switchToMainnet } = useNEVM();

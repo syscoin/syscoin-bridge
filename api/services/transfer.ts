@@ -1,4 +1,4 @@
-import { ITransfer } from "@contexts/Transfer/types";
+import { COMMON_STATUS, ITransfer } from "@contexts/Transfer/types";
 import TransferModel from "models/transfer";
 import { SponsorWalletService } from "./sponsor-wallet";
 
@@ -42,6 +42,17 @@ export class TransferService {
       if (hash) {
         await this.sponsorWalletService.updateSponsorWalletTransactionStatus(
           hash
+        );
+      }
+    }
+    const sponsorClaimGasLog = transfer.logs.find(
+      (log) => log.status === COMMON_STATUS.SPONSOR_CLAIM_GAS
+    );
+    if (sponsorClaimGasLog) {
+      const { tx } = sponsorClaimGasLog.payload.data;
+      if (tx) {
+        await this.sponsorWalletService.updateUtxoSponsorWalletTransactionStatus(
+          tx
         );
       }
     }

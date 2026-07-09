@@ -1,4 +1,5 @@
 export const MIN_AMOUNT = 0.01;
+export const MIN_GAS_AMOUNT = 0.001;
 export const DEFAULT_GAS_LIMIT = 120_000;
 
 const isSys5Enabled = process.env.SYS5_ENABLED !== "false";

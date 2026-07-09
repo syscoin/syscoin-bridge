@@ -33,7 +33,12 @@ export const useUtxoBalance = (
     ["utxo", "balance", xpub, address, assetGuid],
     async () => {
       if (!xpub || isValidEthereumAddress(xpub)) return Promise.resolve(0);
-      const url = constants!.explorer.utxo + "/api/v2/xpub/" + xpub;
+      const details = assetGuid && address ? "tokenBalances" : "basic";
+      const url =
+        constants!.explorer.utxo +
+        "/api/v2/xpub/" +
+        xpub +
+        `?details=${details}`;
       const balanceInText = await fetch(url)
         .then((res) => res.json())
         .then((res: BalanceResp) => {
