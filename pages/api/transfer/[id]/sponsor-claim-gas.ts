@@ -7,6 +7,7 @@ import { TransferService } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 import SponsorRateLimit from "models/sponsor-rate-limit";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
+import satoshibitcoin from "satoshi-bitcoin";
 import { applyApiCors } from "utils/api/cors";
 import web3 from "utils/get-web3";
 import { AbiItem, toWei } from "web3-utils";
@@ -164,6 +165,9 @@ const assertClaimGasEligible = async (
   }
 
   const amountWei = toWei(transfer.amount.toString(), "ether");
+  const amountSats = Math.ceil(
+    satoshibitcoin.toSatoshi(transfer.amount.toString())
+  ).toString();
   const transactionHash = getConfirmedFreezeBurnTxHash(transfer);
   const [transaction, receipt] = await Promise.all([
     web3.eth.getTransaction(transactionHash),
@@ -213,7 +217,7 @@ const assertClaimGasEligible = async (
     ) as { satoshiValue?: string; syscoinAddr?: string };
 
     return (
-      decoded.satoshiValue?.toString() === amountWei &&
+      decoded.satoshiValue?.toString() === amountSats &&
       decoded.syscoinAddr === transfer.utxoAddress
     );
   });

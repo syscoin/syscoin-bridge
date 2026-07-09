@@ -276,9 +276,7 @@ export class SponsorWalletService {
     }
 
     const targetAmountSats = this.getUtxoClaimGasAmountSats();
-    const balanceSats = await this.getUtxoAddressBalanceSats(
-      transfer.utxoAddress
-    );
+    const balanceSats = await this.getUtxoClaimGasBalanceSats(transfer);
 
     if (balanceSats >= targetAmountSats) {
       return {
@@ -379,6 +377,33 @@ export class SponsorWalletService {
     const balance = Number.parseInt(data.balance ?? "0", 10);
 
     return Number.isFinite(balance) ? balance : 0;
+  }
+
+  private async getUtxoXpubBalanceSats(xpub: string): Promise<number> {
+    const response = await fetch(`${getUtxoBlockbookUrl()}/api/v2/xpub/${xpub}`);
+
+    if (!response.ok) {
+      throw new Error("Unable to fetch UTXO wallet balance");
+    }
+
+    const data = (await response.json()) as { balance?: string };
+    const balance = Number.parseInt(data.balance ?? "0", 10);
+
+    return Number.isFinite(balance) ? balance : 0;
+  }
+
+  private async getUtxoClaimGasBalanceSats(
+    transfer: ITransfer
+  ): Promise<number> {
+    if (transfer.utxoXpub) {
+      return this.getUtxoXpubBalanceSats(transfer.utxoXpub);
+    }
+
+    if (!transfer.utxoAddress) {
+      throw new Error("Missing UTXO address");
+    }
+
+    return this.getUtxoAddressBalanceSats(transfer.utxoAddress);
   }
 
   private getUtxoClaimGasAmountSats() {

@@ -187,6 +187,9 @@ describe("SponsorWalletService", () => {
         balanceSats: 100_000,
         reason: "Destination UTXO address already has claim gas",
       });
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/v2/xpub/xpub")
+      );
     });
 
     it("reserves a specific sponsor UTXO for claim gas funding", async () => {
