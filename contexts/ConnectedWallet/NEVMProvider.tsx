@@ -14,6 +14,9 @@ interface INEVMContext {
   balance?: string;
   isTestnet: boolean;
   chainId?: string;
+  expectedChainId: string;
+  isExpectedChain: boolean;
+  isWrongChain: boolean;
   switchToMainnet: () => void;
   sendTransaction: (transactionConfig: TransactionConfig) => Promise<string>;
   signMessage: (message: string) => Promise<string>;
@@ -142,6 +145,14 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
       refetchOnWindowFocus: true 
     }
   );
+  const expectedChainId = constants?.chain_id ?? MAINNET_CHAIN_ID;
+  const normalizedChainId =
+    typeof chainId.data === "string" ? chainId.data.toLowerCase() : undefined;
+  const normalizedExpectedChainId = expectedChainId.toLowerCase();
+  const isExpectedChain = normalizedChainId === normalizedExpectedChainId;
+  const isWrongChain = Boolean(
+    normalizedChainId && normalizedChainId !== normalizedExpectedChainId
+  );
 
   const sendTransaction = (config: TransactionConfig) => {
     return window.ethereum.request({
@@ -218,6 +229,9 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         sendTransaction,
         balance: balance.data,
         isTestnet: !!isTestnet,
+        expectedChainId,
+        isExpectedChain,
+        isWrongChain,
         switchToMainnet,
         connect,
         chainId: chainId.isSuccess && chainId.data ? chainId.data : undefined,

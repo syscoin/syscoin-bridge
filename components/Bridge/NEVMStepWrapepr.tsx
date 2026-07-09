@@ -1,6 +1,5 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { useConstants } from "@contexts/useConstants";
 import { Button } from "@mui/material";
 import { isValidEthereumAddress } from "@sidhujag/sysweb3-utils";
 import { useTransfer } from "./context/TransferContext";
@@ -14,9 +13,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   const { version, isBitcoinBased, switchTo, isEVMInjected } =
     usePaliWalletV2();
 
-  const { constants } = useConstants();
-
-  const { connect, account, chainId, switchToMainnet } = useNEVM();
+  const { connect, account, isExpectedChain, switchToMainnet } = useNEVM();
   const { transfer } = useTransfer();
   const nevmAccount = account ?? transfer.nevmAddress ?? "";
   const hasNevmAccount = nevmAccount !== "";
@@ -55,7 +52,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
     );
   }
 
-  if (chainId !== constants?.chain_id) {
+  if (!isExpectedChain) {
     return (
       <Button variant="contained" onClick={switchToMainnet}>
         Switch to NEVM Network
