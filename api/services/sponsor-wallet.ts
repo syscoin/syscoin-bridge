@@ -236,7 +236,6 @@ export class SponsorWalletService {
         targetAmountSats,
         reservation.utxo
       );
-      await this.markSponsorUtxoSpent(reservation.key);
 
       placeholder.transaction = {
         hash: txid,
@@ -246,6 +245,7 @@ export class SponsorWalletService {
       };
       placeholder.status = "pending";
       await placeholder.save();
+      await this.markSponsorUtxoSpent(reservation.key);
 
       return {
         funded: true,
