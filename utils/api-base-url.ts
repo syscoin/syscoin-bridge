@@ -1,9 +1,20 @@
-const normalizedBaseUrl = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
-  /\/$/,
-  ""
-);
+const stripTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
 
-export const API_BASE_URL = normalizedBaseUrl;
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    return "";
+  }
+
+  return stripTrailingSlashes(process.env.NEXT_PUBLIC_API_BASE_URL || "");
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 type BuildApiUrlOptions = {
   fallbackOrigin?: string;
@@ -14,7 +25,7 @@ export const buildApiUrl = (
   options?: BuildApiUrlOptions
 ): string => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const baseUrl = API_BASE_URL || options?.fallbackOrigin || "";
+  const baseUrl = getApiBaseUrl() || options?.fallbackOrigin || "";
 
   if (!baseUrl) {
     return normalizedPath;

@@ -90,9 +90,9 @@ export const getServerSideProps: GetServerSideProps = withSessionSsr(
     }
 
     const forwardedProto = req.headers["x-forwarded-proto"];
-    const protocol = Array.isArray(forwardedProto)
-      ? forwardedProto[0]
-      : forwardedProto || "http";
+    const protocol = (
+      Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
+    )?.split(",")[0]?.trim() || "http";
     const host = req.headers.host || "localhost:3000";
     const fallbackOrigin = `${protocol}://${host}`;
     const queryString = searchParams.toString();
