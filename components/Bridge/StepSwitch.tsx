@@ -15,14 +15,22 @@ import BridgeStepGenerateProofs from "./Steps/GenerateProofs";
 import BridgeStepMintSysx from "./Steps/MintSysx";
 import BridgeStepSubmitProofs from "./Steps/SubmitProofs";
 import { useTransfer } from "./context/TransferContext";
+import type { ConnectValidateDraft } from "./Steps/ConnectValidate";
 
-const BridgeStepSwitch = () => {
+type BridgeStepSwitchProps = {
+  onConnectValidateDraftChange?: (draft: ConnectValidateDraft) => void;
+};
+
+const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
+  onConnectValidateDraftChange,
+}) => {
   const { transfer } = useTransfer();
   if (transfer.type === "nevm-to-sys") {
     if (transfer.status === COMMON_STATUS.INITIALIZE) {
       return (
         <BridgeConnectValidateStep
           successStatus={ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS}
+          onDraftChange={onConnectValidateDraftChange}
         />
       );
     } else if (transfer.status === ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS) {
@@ -86,6 +94,7 @@ const BridgeStepSwitch = () => {
     return (
       <BridgeConnectValidateStep
         successStatus={SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS}
+        onDraftChange={onConnectValidateDraftChange}
       />
     );
   } else if (transfer.status === SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS) {

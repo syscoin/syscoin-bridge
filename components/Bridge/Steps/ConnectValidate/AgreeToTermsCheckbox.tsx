@@ -6,18 +6,29 @@ import {
   Link as MUILink,
 } from "@mui/material";
 import Link from "next/link";
-import { useFormContext } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 
 export const ConnectValidateAgreeToTermsCheckbox = () => {
-  const { register } = useFormContext();
+  const { control } = useFormContext();
   return (
     <Box>
       <FormControlLabel
         control={
-          <Checkbox
-            {...register("agreedToTerms", { required: true })}
-            color="primary"
-          ></Checkbox>
+          <Controller
+            name="agreedToTerms"
+            control={control}
+            rules={{ required: true }}
+            render={({ field }) => (
+              <Checkbox
+                checked={Boolean(field.value)}
+                color="primary"
+                inputRef={field.ref}
+                name={field.name}
+                onBlur={field.onBlur}
+                onChange={(event) => field.onChange(event.target.checked)}
+              />
+            )}
+          />
         }
         label={
           <Typography variant="body1">

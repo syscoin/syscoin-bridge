@@ -80,39 +80,89 @@ type ConnectValidateFormData = {
   utxoAssetType?: "sys" | "sysx";
 };
 
+export type ConnectValidateDraft = {
+  amount?: number;
+  nevmAddress: string;
+  utxoAddress: string;
+  utxoXpub: string;
+  utxoAssetType?: "sys" | "sysx";
+};
+
 type BridgeConnectValidateStepProps = {
   successStatus: TransferStatus;
+  onDraftChange?: (draft: ConnectValidateDraft) => void;
+};
+
+const parseTransferAmount = (amount: string) => {
+  const parsedAmount = Number(amount);
+
+  return Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0.1;
+};
+
+const hasDraftFormValues = (
+  amount: string,
+  utxoAssetType?: "sys" | "sysx"
+) => {
+  const parsedAmount = Number(amount);
+
+  return (
+    (Number.isFinite(parsedAmount) && parsedAmount > 0) ||
+    Boolean(utxoAssetType)
+  );
 };
 
 const BridgeConnectValidateStep: React.FC<
   BridgeConnectValidateStepProps
-> = ({ successStatus }) => {
+> = ({ successStatus, onDraftChange }) => {
   const { replace } = useRouter();
   const { transfer, isSaving, saveTransfer } = useTransfer();
   const { isLoading } = usePaliWalletV2();
   const form = useForm<ConnectValidateFormData>({
     mode: "all",
     values: {
-      amount: 0.1,
+      amount: parseTransferAmount(transfer.amount),
       nevmAddress: transfer.nevmAddress || "",
       utxoAddress: transfer.utxoAddress || "",
       utxoXpub: transfer.utxoXpub || "",
       agreedToTerms: false,
-      utxoAssetType: undefined,
+      utxoAssetType: transfer.utxoAssetType,
     },
   });
 
   const { handleSubmit, watch, reset } = form;
 
+  const amount = watch("amount");
   const utxoAddress = watch("utxoAddress");
   const utxoXpub = watch("utxoXpub");
   const utxoAssetType = watch("utxoAssetType");
 
   const nevmAddress = watch("nevmAddress");
 
+  useEffect(() => {
+    onDraftChange?.({
+      amount: Number.isFinite(amount) ? amount : undefined,
+      nevmAddress,
+      utxoAddress,
+      utxoXpub,
+      utxoAssetType,
+    });
+  }, [
+    amount,
+    nevmAddress,
+    onDraftChange,
+    utxoAddress,
+    utxoAssetType,
+    utxoXpub,
+  ]);
+
   // Reset form when transfer ID changes (e.g., starting a new transfer)
   useEffect(() => {
-    if (transfer.status === "initialize" && !transfer.nevmAddress && !transfer.utxoAddress) {
+    if (
+      transfer.status === "initialize" &&
+      !transfer.nevmAddress &&
+      !transfer.utxoAddress &&
+      !hasDraftFormValues(transfer.amount, transfer.utxoAssetType)
+    ) {
       reset({
         amount: 0.1,
         nevmAddress: "",
@@ -122,7 +172,15 @@ const BridgeConnectValidateStep: React.FC<
         utxoAssetType: undefined,
       });
     }
-  }, [transfer.id, transfer.status, transfer.nevmAddress, transfer.utxoAddress, reset]);
+  }, [
+    reset,
+    transfer.amount,
+    transfer.id,
+    transfer.nevmAddress,
+    transfer.status,
+    transfer.utxoAddress,
+    transfer.utxoAssetType,
+  ]);
 
   const utxoBalance = useUtxoBalance(utxoXpub);
   const sysxBalance = useUtxoBalance(utxoXpub, {
