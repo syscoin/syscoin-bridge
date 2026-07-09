@@ -192,7 +192,7 @@ export class SponsorWalletService {
       sponsorAddress,
       sourceTxHash
     );
-    const placeholder = placeholderResult.transaction;
+    let placeholder = placeholderResult.transaction;
 
     if (placeholder.transaction?.hash) {
       return {
@@ -208,6 +208,24 @@ export class SponsorWalletService {
         status: "pending",
         reason: "UTXO claim gas sponsorship is already in progress",
       };
+    }
+
+    if (!placeholderResult.created && placeholder.status === "failed") {
+      const retryPlaceholder = await this.acquireFailedSponsorPlaceholder(
+        transfer.id,
+        UTXO_CLAIM_GAS_ACTION,
+        sourceTxHash
+      );
+
+      if (!retryPlaceholder) {
+        return {
+          funded: true,
+          status: "pending",
+          reason: "UTXO claim gas sponsorship is already in progress",
+        };
+      }
+
+      placeholder = retryPlaceholder;
     }
 
     let reservation: { key: string; utxo: SponsorUtxo } | undefined;
@@ -403,6 +421,31 @@ export class SponsorWalletService {
 
         return { created: false, transaction: duplicate };
       });
+  }
+
+  private async acquireFailedSponsorPlaceholder(
+    transferId: string,
+    action: SponsorWalletTransactionAction,
+    sourceTxHash?: string
+  ): Promise<ISponsorWalletTransaction | null> {
+    return SponsorWalletTransactions.findOneAndUpdate(
+      {
+        action,
+        status: "failed",
+        "transaction.hash": { $exists: false },
+        $or: [
+          { transferId },
+          ...(sourceTxHash ? [{ sourceTxHash }] : []),
+        ],
+      },
+      {
+        $set: {
+          status: "pending",
+          transaction: {},
+        },
+      },
+      { new: true }
+    );
   }
 
   private async getUtxoAddressBalanceSats(address: string): Promise<number> {

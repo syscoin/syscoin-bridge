@@ -29,6 +29,7 @@ jest.mock("models/sponsor-wallet-transactions", () => {
     this.save = jest.fn().mockResolvedValue(this);
   });
   Model.findOne = jest.fn();
+  Model.findOneAndUpdate = jest.fn();
   Model.find = jest.fn();
   Model.aggregate = jest.fn();
   return {
@@ -323,6 +324,55 @@ describe("SponsorWalletService", () => {
         status: "pending",
         reason: "UTXO claim gas sponsorship is already in progress",
       });
+      expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
+    });
+
+    it("returns in-progress when a failed placeholder retry lock is already taken", async () => {
+      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
+      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
+      SponsorWalletTransactionsMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          status: "failed",
+          transaction: {},
+        });
+      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValue(null);
+      SponsorWalletTransactionsMock.mockImplementationOnce(function (
+        this: any,
+        data: any
+      ) {
+        Object.assign(this, data);
+        this.save = jest.fn().mockRejectedValue({ code: 11000 });
+      });
+      (global.fetch as jest.Mock).mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ balance: "0" }),
+      });
+
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, "0xburn")
+      ).resolves.toEqual({
+        funded: true,
+        status: "pending",
+        reason: "UTXO claim gas sponsorship is already in progress",
+      });
+      expect(SponsorWalletTransactionsMock.findOneAndUpdate).toHaveBeenCalledWith(
+        {
+          action: "utxo-claim-gas",
+          status: "failed",
+          "transaction.hash": { $exists: false },
+          $or: [{ transferId: "transfer-1" }, { sourceTxHash: "0xburn" }],
+        },
+        {
+          $set: {
+            status: "pending",
+            transaction: {},
+          },
+        },
+        { new: true }
+      );
       expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
     });
 
