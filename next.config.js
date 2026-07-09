@@ -45,12 +45,14 @@ const nextConfig = {
       return [];
     }
 
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${API_PROXY_TARGET}/api/:path*`,
-      },
-    ];
+    return {
+      beforeFiles: [
+        {
+          source: "/api/:path*",
+          destination: `${API_PROXY_TARGET}/api/:path*`,
+        },
+      ],
+    };
   },
 };
 
