@@ -11,6 +11,7 @@ import { useFormContext } from "react-hook-form";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
+import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -25,6 +26,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
   isSaving: boolean;
 }> = ({ isSaving, transfer }) => {
   const { constants } = useConstants();
+  const { isExpectedChain } = useNEVM();
   const {
     watch,
     formState: { errors, isValid },
@@ -64,6 +66,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
     transfer.type === "sys-to-nevm" &&
     sysxBalance.data !== undefined &&
     (sysxBalance.data < MIN_AMOUNT || sysxBalance.data < amount);
+  const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain;
 
   const isUtxoValid =
     isValidSYSAddress(utxoAddress, constants?.isTestnet ? 5700 : 57) &&
@@ -73,6 +76,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
 
   const isNevmValid =
     isValidEthereumAddress(nevmAddress) &&
+    !isNevmWrongNetwork &&
     (!isNevmNotEnoughGas || foundationFundingAvailable);
   const isAmountValid = errors.amount === undefined;
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
@@ -96,6 +100,9 @@ export const ConnectValidateStartTransferButton: React.FC<{
       )}
       {isNevmNotEnoughGas && (
         <ErrorMessage message="NEVM: Not enough funds for gas" />
+      )}
+      {isNevmWrongNetwork && (
+        <ErrorMessage message="NEVM: Wallet must be connected to the NEVM network" />
       )}
       <Button
         sx={{ display: "block" }}
