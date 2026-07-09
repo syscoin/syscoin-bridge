@@ -29,7 +29,7 @@ import {
 import { Web3Provider } from "components/Bridge/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
@@ -69,29 +69,16 @@ const createTransfer = (
 
 const BridgePage: NextPage = () => {
   const { query } = useRouter();
-  const [connectValidateDraft, setConnectValidateDraft] = useState<
-    Partial<ConnectValidateDraft>
-  >({});
+  const connectValidateDraft = useRef<Partial<ConnectValidateDraft>>({});
   // Create a new QueryClient when the transfer ID changes to avoid stale data
   const queryClient = useMemo(() => new QueryClient(), [query.id]);
 
   const handleConnectValidateDraftChange = useCallback(
     (draft: ConnectValidateDraft) => {
-      setConnectValidateDraft((currentDraft) => {
-        const nextDraft = {
-          ...currentDraft,
-          ...draft,
-        };
-
-        const hasChanges =
-          currentDraft.amount !== nextDraft.amount ||
-          currentDraft.nevmAddress !== nextDraft.nevmAddress ||
-          currentDraft.utxoAddress !== nextDraft.utxoAddress ||
-          currentDraft.utxoXpub !== nextDraft.utxoXpub ||
-          currentDraft.utxoAssetType !== nextDraft.utxoAssetType;
-
-        return hasChanges ? nextDraft : currentDraft;
-      });
+      connectValidateDraft.current = {
+        ...connectValidateDraft.current,
+        ...draft,
+      };
     },
     []
   );
@@ -99,12 +86,12 @@ const BridgePage: NextPage = () => {
   const initialTransfer = useMemo(() => {
     const id = query.id;
     if (id === "sys-to-nevm" || id === "nevm-to-sys") {
-      return createTransfer(id, connectValidateDraft);
+      return createTransfer(id, connectValidateDraft.current);
     }
     return {
       id,
     } as ITransfer;
-  }, [connectValidateDraft, query.id]);
+  }, [query.id]);
 
   return (
     <QueryClientProvider client={queryClient}>
