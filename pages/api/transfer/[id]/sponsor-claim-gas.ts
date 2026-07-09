@@ -278,10 +278,10 @@ const handler: NextApiHandler = async (
     const transfer = await transferService.getTransfer(id);
     await assertClaimGasEligible(transfer);
 
-    const existingResult =
-      await sponsorWalletService.getUtxoClaimGasSponsorStatus(transfer.id);
-    if (existingResult) {
-      return res.status(200).json(existingResult);
+    const preflightResult =
+      await sponsorWalletService.getUtxoClaimGasFundingStatus(transfer);
+    if (preflightResult) {
+      return res.status(200).json(preflightResult);
     }
 
     await applySponsorRateLimits(req, transfer);

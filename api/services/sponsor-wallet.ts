@@ -18,6 +18,7 @@ const SUBMIT_PROOFS_ACTION: SponsorWalletTransactionAction = "submit-proofs";
 const UTXO_CLAIM_GAS_ACTION: SponsorWalletTransactionAction = "utxo-claim-gas";
 const DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS = "0.001";
 const DEFAULT_UTXO_FEE_RATE = 10;
+const UTXO_CLAIM_GAS_FEE_BUFFER_SATS = DEFAULT_UTXO_FEE_RATE * 250;
 const UTXO_RESERVATION_LEASE_MS = 5 * 60_000;
 
 type SponsorUtxo = {
@@ -157,29 +158,12 @@ export class SponsorWalletService {
       throw new Error("Missing UTXO address");
     }
 
-    const existingStatus = await this.getUtxoClaimGasSponsorStatus(transfer.id);
-    if (existingStatus) {
-      return existingStatus;
+    const preflightStatus = await this.getUtxoClaimGasFundingStatus(transfer);
+    if (preflightStatus) {
+      return preflightStatus;
     }
 
-    const targetAmountSats = toSats(
-      process.env.UTXO_SPONSOR_CLAIM_GAS_AMOUNT_SYS ??
-        DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS
-    );
-    const balanceSats = await this.getUtxoAddressBalanceSats(
-      transfer.utxoAddress
-    );
-
-    if (balanceSats >= targetAmountSats) {
-      return {
-        funded: false,
-        status: "skipped",
-        amountSats: 0,
-        balanceSats,
-        reason: "Destination UTXO address already has claim gas",
-      };
-    }
-
+    const targetAmountSats = this.getUtxoClaimGasAmountSats();
     const sponsorAddress = process.env.UTXO_SPONSOR_ADDRESS;
     const sponsorWif = process.env.UTXO_SPONSOR_WIF;
 
@@ -212,7 +196,11 @@ export class SponsorWalletService {
 
     let reservation: { key: string; utxo: SponsorUtxo } | undefined;
     try {
-      reservation = await this.reserveSponsorUtxo(sponsorAddress, transfer.id);
+      reservation = await this.reserveSponsorUtxo(
+        sponsorAddress,
+        transfer.id,
+        targetAmountSats + UTXO_CLAIM_GAS_FEE_BUFFER_SATS
+      );
       const txid = await this.sendUtxoClaimGas(
         sponsorAddress,
         sponsorWif,
@@ -236,7 +224,6 @@ export class SponsorWalletService {
         status: "pending",
         txid,
         amountSats: targetAmountSats,
-        balanceSats,
       };
     } catch (error) {
       placeholder.status = "failed";
@@ -270,6 +257,36 @@ export class SponsorWalletService {
         funded: true,
         status: "pending",
         reason: "UTXO claim gas sponsorship is already in progress",
+      };
+    }
+
+    return undefined;
+  }
+
+  public async getUtxoClaimGasFundingStatus(
+    transfer: ITransfer
+  ): Promise<SponsorClaimGasResult | undefined> {
+    const existingStatus = await this.getUtxoClaimGasSponsorStatus(transfer.id);
+    if (existingStatus) {
+      return existingStatus;
+    }
+
+    if (!transfer.utxoAddress) {
+      throw new Error("Missing UTXO address");
+    }
+
+    const targetAmountSats = this.getUtxoClaimGasAmountSats();
+    const balanceSats = await this.getUtxoAddressBalanceSats(
+      transfer.utxoAddress
+    );
+
+    if (balanceSats >= targetAmountSats) {
+      return {
+        funded: false,
+        status: "skipped",
+        amountSats: 0,
+        balanceSats,
+        reason: "Destination UTXO address already has claim gas",
       };
     }
 
@@ -364,6 +381,13 @@ export class SponsorWalletService {
     return Number.isFinite(balance) ? balance : 0;
   }
 
+  private getUtxoClaimGasAmountSats() {
+    return toSats(
+      process.env.UTXO_SPONSOR_CLAIM_GAS_AMOUNT_SYS ??
+        DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS
+    );
+  }
+
   private async sendUtxoClaimGas(
     sponsorAddress: string,
     sponsorWif: string,
@@ -405,12 +429,17 @@ export class SponsorWalletService {
 
   private async reserveSponsorUtxo(
     sponsorAddress: string,
-    transferId: string
+    transferId: string,
+    minValueSats: number
   ): Promise<{ key: string; utxo: SponsorUtxo }> {
     const utxos = await this.getSponsorUtxos(sponsorAddress);
     const expiresAt = new Date(Date.now() + UTXO_RESERVATION_LEASE_MS);
 
     for (const utxo of utxos) {
+      if (Number(utxo.value) < minValueSats) {
+        continue;
+      }
+
       const txid = utxo.txid ?? utxo.txId;
       if (!txid) {
         continue;

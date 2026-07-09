@@ -209,6 +209,7 @@ describe("SponsorWalletService", () => {
           ok: true,
           json: () =>
             Promise.resolve([
+              { txid: "dust-utxo", vout: 2, value: "500" },
               { txid: "large-utxo", vout: 0, value: "2000000" },
               { txid: "small-utxo", vout: 1, value: "1000000" },
             ]),
