@@ -22,7 +22,12 @@ const getAll: NextApiHandler = async (req, res) => {
 };
 
 const handler: NextApiHandler = async (req, res) => {
-  if (applyApiCors(req, res)) {
+  if (
+    applyApiCors(req, res, {
+      allowMethods: ["GET", "OPTIONS"],
+      allowWildcardOrigin: true,
+    })
+  ) {
     return;
   }
 

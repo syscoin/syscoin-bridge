@@ -175,7 +175,7 @@ export const applyApiCors = (
 ) => {
   const {
     allowCredentials = false,
-    allowWildcardOrigin = true,
+    allowWildcardOrigin = false,
     allowMethods = DEFAULT_ALLOWED_METHODS,
     allowHeaders = DEFAULT_ALLOWED_HEADERS,
   } = options;
@@ -197,6 +197,9 @@ export const applyApiCors = (
       "Access-Control-Allow-Headers",
       requestedHeaders || allowHeaders.join(", ")
     );
+    if (allowCredentials && corsOrigin !== "*") {
+      res.setHeader("Access-Control-Allow-Credentials", "true");
+    }
     if (corsOrigin !== "*") {
       appendVaryOrigin(res);
     }

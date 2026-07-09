@@ -2,7 +2,12 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { applyApiCors } from "utils/api/cors";
 
 function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (applyApiCors(req, res)) {
+  if (
+    applyApiCors(req, res, {
+      allowMethods: ["GET", "OPTIONS"],
+      allowWildcardOrigin: true,
+    })
+  ) {
     return;
   }
 
