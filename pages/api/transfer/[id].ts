@@ -36,7 +36,19 @@ const patchRequest = async (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (applyApiCors(req, res)) {
+  const preflightMethod = req.headers["access-control-request-method"];
+  const requestedMethod = Array.isArray(preflightMethod)
+    ? preflightMethod[0]
+    : preflightMethod;
+  const isWriteRequest =
+    req.method === "PATCH" || requestedMethod?.toUpperCase() === "PATCH";
+
+  if (
+    applyApiCors(req, res, {
+      allowMethods: ["GET", "PATCH", "OPTIONS"],
+      allowWildcardOrigin: !isWriteRequest,
+    })
+  ) {
     return;
   }
 

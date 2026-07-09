@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 
 interface ApiCorsOptions {
   allowCredentials?: boolean;
+  allowWildcardOrigin?: boolean;
   allowMethods?: string[];
   allowHeaders?: string[];
 }
@@ -16,8 +17,16 @@ const DEFAULT_ALLOWED_HEADERS = [
 const normalizeHeaderValue = (value?: string | string[]) =>
   Array.isArray(value) ? value[0] : value;
 
+const stripTrailingSlashes = (value: string) => {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") {
+    end -= 1;
+  }
+  return value.slice(0, end);
+};
+
 const normalizeOrigin = (origin: string) =>
-  origin.trim().replace(/\/+$/, "").toLowerCase();
+  stripTrailingSlashes(origin.trim()).toLowerCase();
 
 const firstForwardedValue = (value?: string) => value?.split(",")[0]?.trim();
 
@@ -79,7 +88,8 @@ const isSameOriginRequest = (req: NextApiRequest, origin: string) => {
     );
   }
 
-  if (req.socket.encrypted) {
+  const socket = req.socket as typeof req.socket & { encrypted?: boolean };
+  if (socket.encrypted) {
     return requestOrigin.protocol === "https:";
   }
 
@@ -128,31 +138,34 @@ const appendVaryOrigin = (res: NextApiResponse) => {
   }
 };
 
-const resolveAllowedOrigin = (
+const resolveCorsOrigin = (
   req: NextApiRequest,
   requestOrigin: string | undefined,
-  allowCredentials: boolean
-) => {
+  allowCredentials: boolean,
+  allowWildcardOrigin: boolean
+): { allowed: boolean; corsOrigin: string | null } => {
   if (!requestOrigin) {
-    return null;
+    return { allowed: true, corsOrigin: null };
   }
 
   const normalizedRequestOrigin = normalizeOrigin(requestOrigin);
 
   if (isSameOriginRequest(req, normalizedRequestOrigin)) {
-    return normalizedRequestOrigin;
+    return { allowed: true, corsOrigin: null };
   }
 
   const allowedOrigins = getAllowedOrigins().map((origin) =>
     origin === "*" ? origin : normalizeOrigin(origin)
   );
   if (allowedOrigins.includes("*")) {
-    return allowCredentials ? null : "*";
+    return allowCredentials || !allowWildcardOrigin
+      ? { allowed: false, corsOrigin: null }
+      : { allowed: true, corsOrigin: "*" };
   }
 
   return allowedOrigins.includes(normalizedRequestOrigin)
-    ? normalizedRequestOrigin
-    : null;
+    ? { allowed: true, corsOrigin: normalizedRequestOrigin }
+    : { allowed: false, corsOrigin: null };
 };
 
 export const applyApiCors = (
@@ -162,36 +175,35 @@ export const applyApiCors = (
 ) => {
   const {
     allowCredentials = false,
+    allowWildcardOrigin = true,
     allowMethods = DEFAULT_ALLOWED_METHODS,
     allowHeaders = DEFAULT_ALLOWED_HEADERS,
   } = options;
   const requestOrigin = normalizeHeaderValue(req.headers.origin);
-  const allowedOrigin = resolveAllowedOrigin(
+  const { allowed, corsOrigin } = resolveCorsOrigin(
     req,
     requestOrigin,
-    allowCredentials
+    allowCredentials,
+    allowWildcardOrigin
   );
 
-  if (allowedOrigin) {
+  if (corsOrigin) {
     const requestedHeaders = normalizeHeaderValue(
       req.headers["access-control-request-headers"]
     );
-    res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+    res.setHeader("Access-Control-Allow-Origin", corsOrigin);
     res.setHeader("Access-Control-Allow-Methods", allowMethods.join(", "));
     res.setHeader(
       "Access-Control-Allow-Headers",
       requestedHeaders || allowHeaders.join(", ")
     );
-    if (allowCredentials) {
-      res.setHeader("Access-Control-Allow-Credentials", "true");
-    }
-    if (allowedOrigin !== "*") {
+    if (corsOrigin !== "*") {
       appendVaryOrigin(res);
     }
   }
 
   if (req.method === "OPTIONS") {
-    if (!requestOrigin || allowedOrigin) {
+    if (allowed) {
       res.status(204).end();
       return true;
     }
@@ -200,7 +212,7 @@ export const applyApiCors = (
     return true;
   }
 
-  if (requestOrigin && !allowedOrigin) {
+  if (!allowed) {
     res.status(403).json({ message: "Origin not allowed" });
     return true;
   }

@@ -2,7 +2,6 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { createContext, useContext } from "react";
 import { UseMutateFunction, useMutation, useQuery } from "react-query";
 import isTransfer from "utils/isTransfer";
-import { buildApiUrl } from "utils/api-base-url";
 
 export interface ITransferContext {
   transfer: ITransfer;
@@ -21,6 +20,32 @@ type TransferContextProviderProps = {
   transfer: ITransfer;
 };
 
+const isSafeTransferId = (id: string) => {
+  if (!id) {
+    return false;
+  }
+
+  for (const char of id) {
+    const code = char.charCodeAt(0);
+    const isDigit = code >= 48 && code <= 57;
+    const isUppercase = code >= 65 && code <= 90;
+    const isLowercase = code >= 97 && code <= 122;
+    if (!isDigit && !isUppercase && !isLowercase && char !== "-" && char !== "_") {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const buildTransferPath = (id: string) => {
+  if (!isSafeTransferId(id)) {
+    throw new Error("Invalid transfer id");
+  }
+
+  return `/api/transfer/${encodeURIComponent(id)}`;
+};
+
 export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
@@ -28,7 +53,7 @@ export const TransferContextProvider: React.FC<
     ["transfer", initialData.id],
     {
       queryFn: async (): Promise<ITransfer> => {
-        const url = buildApiUrl(`/api/transfer/${initialData.id}`);
+        const url = buildTransferPath(initialData.id);
         const res = await fetch(url);
         const jsonData = await res.json();
         if (isTransfer(jsonData)) {
@@ -45,7 +70,7 @@ export const TransferContextProvider: React.FC<
   const { mutate: saveTransfer, isLoading: isSaving } = useMutation(
     ["transfer", initialData.id],
     async (updatedTransfer: ITransfer) => {
-      const url = buildApiUrl(`/api/transfer/${initialData.id}`);
+      const url = buildTransferPath(initialData.id);
       const res = await fetch(url, {
         method: "PATCH",
         body: JSON.stringify(updatedTransfer),
