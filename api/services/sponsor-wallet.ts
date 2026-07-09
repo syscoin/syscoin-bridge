@@ -212,9 +212,7 @@ export class SponsorWalletService {
       };
     }
 
-    let reservation:
-      | Awaited<ReturnType<typeof this.reserveSponsorUtxo>>
-      | undefined;
+    let reservation: { key: string; utxo: SponsorUtxo } | undefined;
     try {
       reservation = await this.reserveSponsorUtxo(sponsorAddress, transfer.id);
       const txid = await this.sendUtxoClaimGas(

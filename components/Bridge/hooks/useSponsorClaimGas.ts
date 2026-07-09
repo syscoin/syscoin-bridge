@@ -1,6 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import { useMutation } from "react-query";
-import { API_BASE_URL } from "utils/api-base-url";
 
 export type SponsorClaimGasResponse = {
   funded: boolean;
@@ -14,7 +13,7 @@ export type SponsorClaimGasResponse = {
 export const useSponsorClaimGas = (transfer: ITransfer) => {
   return useMutation(["sponsor-claim-gas", transfer.id], async () => {
     const response = await fetch(
-      `${API_BASE_URL}/api/transfer/${transfer.id}/sponsor-claim-gas`,
+      `/api/transfer/${encodeURIComponent(transfer.id)}/sponsor-claim-gas`,
       {
         method: "POST",
       }
