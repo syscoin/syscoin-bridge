@@ -1,4 +1,5 @@
 import { utils as syscoinUtils } from "syscoinjs-lib";
+import { resolveUtxoBlockbookUrl } from "utils/syscoin-urls";
 
 export const CONFIRM_UTXO_TRANSACTION = "Confirm UTXO Transaction";
 export const BURN_SYS_TOKEN_TYPE = "SPTSyscoinBurnToAssetAllocation";
@@ -10,7 +11,7 @@ export const verifyTxTokenTransfer = async (
   tokenType: string
 ) => {
   const rawTransaction = await syscoinUtils.fetchBackendRawTx(
-    process.env.UTXO_RPC_URL!,
+    resolveUtxoBlockbookUrl(process.env.UTXO_RPC_URL)!,
     txId
   );
 

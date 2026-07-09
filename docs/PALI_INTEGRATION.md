@@ -57,8 +57,8 @@ NEVM_EXPLORER=https://explorer.syscoin.org
 NEVM_API_URL=https://explorer.syscoin.org/api  # EVM only
 
 # UTXO Configuration (no API URL needed)
-UTXO_RPC_URL=https://blockbook.syscoin.org
-UTXO_EXPLORER=https://blockbook.syscoin.org
+UTXO_RPC_URL=https://explorer-blockbook.syscoin.org
+UTXO_EXPLORER=https://explorer-blockbook.syscoin.org
 ```
 
 ### Implementation Example

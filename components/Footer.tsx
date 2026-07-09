@@ -9,7 +9,9 @@ const Footer: React.FC = () => {
         <Link href="https://faucet.syscoin.org/">Syscoin faucet</Link>
         <Link href="https://linktr.ee/Syscoin_Platform">Syscoin links</Link>
         <Link href="https://syscoin.readme.io/">Developer Portal</Link>
-        <Link href="https://blockbook.syscoin.org">Syscoin UTXO Explorer</Link>
+        <Link href="https://explorer-blockbook.syscoin.org">
+          Syscoin UTXO Explorer
+        </Link>
         <Link href="https://explorer.syscoin.org">Syscoin NEVM Explorer</Link>
         
         <Link href="https://github.com/syscoin">Syscoin Github</Link>

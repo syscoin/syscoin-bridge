@@ -1,5 +1,6 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { applyApiCors } from "utils/api/cors";
+import { resolveUtxoBlockbookUrl } from "utils/syscoin-urls";
 
 function handler(req: NextApiRequest, res: NextApiResponse) {
   if (
@@ -24,11 +25,11 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
     },
     rpc: {
       nevm: process.env.NEVM_RPC_URL,
-      utxo: process.env.UTXO_RPC_URL,
+      utxo: resolveUtxoBlockbookUrl(process.env.UTXO_RPC_URL),
     },
     explorer: {
       nevm: process.env.NEVM_EXPLORER,
-      utxo: process.env.UTXO_EXPLORER,
+      utxo: resolveUtxoBlockbookUrl(process.env.UTXO_EXPLORER),
     },
     apiUrl: {
       nevm: process.env.NEVM_API_URL || "",  // Only EVM networks use API URLs
