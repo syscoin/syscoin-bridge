@@ -164,10 +164,20 @@ const runWithSysToNevmStateMachine = async (
       if (!nevmBlock) {
         throw new Error("NEVM block not found: " + proof.nevm_blockhash);
       }
+      if (!proof.coinbase) {
+        throw new Error(
+          "SPV proof missing coinbase (update syscoingetspvproof / blockbook)"
+        );
+      }
       const txBytes = `0x${proof.transaction}`;
       const txIndex = proof.index;
       const merkleProof = getProof(proof.siblings, txIndex);
       merkleProof.sibling = merkleProof.sibling.map(
+        (sibling) => `0x${sibling}`
+      );
+      const coinbaseBytes = `0x${proof.coinbase}`;
+      const coinbaseProof = getProof(proof.siblings, 0);
+      coinbaseProof.sibling = coinbaseProof.sibling.map(
         (sibling) => `0x${sibling}`
       );
       const syscoinBlockheader = `0x${proof.header}`;
@@ -177,7 +187,9 @@ const runWithSysToNevmStateMachine = async (
         txBytes,
         txIndex,
         merkleProof.sibling,
-        syscoinBlockheader
+        syscoinBlockheader,
+        coinbaseBytes,
+        coinbaseProof.sibling
       );
 
       const gasPrice = await web3.eth.getGasPrice();
