@@ -49,7 +49,7 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   version: {
     type: String,
     required: true,
-    enum: ["v2"],
+    enum: ["v1", "v2"],
   },
   amount: {
     type: String,
@@ -65,7 +65,6 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   },
   writeTokenHash: {
     type: String,
-    required: true,
     select: false,
   },
 });
