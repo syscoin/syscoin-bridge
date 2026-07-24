@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from "@jest/globals";
 
 const collection: any = {
   indexes: jest.fn(),
@@ -7,6 +14,8 @@ const collection: any = {
 const sponsorWalletTransactions: any = {
   collection,
   createIndexes: jest.fn(),
+  countDocuments: jest.fn(),
+  aggregate: jest.fn(),
 };
 const sponsorUtxoReservation: any = {
   createIndexes: jest.fn(),
@@ -33,9 +42,16 @@ import { ensureSponsorIndexes } from "../ensure-sponsor-indexes";
 describe("ensureSponsorIndexes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.FOUNDATION_FUNDED;
+    sponsorWalletTransactions.countDocuments.mockResolvedValue(0);
+    sponsorWalletTransactions.aggregate.mockResolvedValue([]);
     sponsorWalletTransactions.createIndexes.mockResolvedValue(undefined);
     sponsorUtxoReservation.createIndexes.mockResolvedValue(undefined);
     sponsorRateLimit.createIndexes.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    delete process.env.FOUNDATION_FUNDED;
   });
 
   it("ignores a legacy index already dropped by another cold start", async () => {
@@ -72,6 +88,44 @@ describe("ensureSponsorIndexes", () => {
     collection.dropIndex.mockRejectedValue(databaseError);
 
     await expect(ensureSponsorIndexes()).rejects.toBe(databaseError);
+    expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
+  });
+
+  it("blocks foundation funding until legacy signed rows are reconciled", async () => {
+    process.env.FOUNDATION_FUNDED = "true";
+    sponsorWalletTransactions.countDocuments.mockResolvedValue(1);
+
+    await expect(ensureSponsorIndexes()).rejects.toThrow(
+      "Foundation funding V2 cutover blocked"
+    );
+
+    expect(sponsorWalletTransactions.countDocuments).toHaveBeenCalledWith({
+      "transaction.rawData": { $type: "string" },
+      "transaction.nonce": { $type: "number" },
+      $or: [
+        { action: { $exists: false } },
+        {
+          action: "submit-proofs",
+          sourceTxHash: { $exists: false },
+        },
+        {
+          action: "submit-proofs",
+          sourceTxHash: null,
+        },
+      ],
+    });
+    expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
+  });
+
+  it("blocks foundation funding when legacy rows share a sponsor nonce", async () => {
+    process.env.FOUNDATION_FUNDED = "true";
+    sponsorWalletTransactions.aggregate.mockResolvedValue([
+      { _id: { walletId: "0xSponsor", nonce: 3 }, count: 2 },
+    ]);
+
+    await expect(ensureSponsorIndexes()).rejects.toThrow(
+      "Foundation funding V2 cutover blocked"
+    );
     expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
   });
 });

@@ -46,6 +46,28 @@ Sponsorship is rate-limited by client IP, destination UTXO address, and source N
 
 Sponsor signing keys are configured through deployment secrets/env vars. MongoDB stores sponsorship usage, reservations, and rate-limit state only; it does not store sponsor private keys.
 
+NEVM sponsorship is server-broadcast: the backend durably stores each signed
+transaction, broadcasts it in nonce order, and returns only the accepted hash
+to the browser. Pending raw transactions are replayed by later requests before
+another nonce is signed.
+
+#### Foundation-funded V2 cutover
+
+Treat enabling `FOUNDATION_FUNDED=true` as an atomic V2 backend cutover:
+
+1. Keep funding disabled while all pre-V2/older backend instances are stopped.
+2. Reconcile every legacy signed sponsor row that lacks `action` or
+   `sourceTxHash`. Confirm/broadcast or replace its nonce as appropriate, then
+   archive the row; do not copy it into the V2 sponsor namespace.
+3. Deploy the V2 backend to every instance and allow its MongoDB indexes to be
+   created.
+4. Enable foundation funding only after all instances run the same V2 sponsor
+   protocol.
+
+Startup fails closed when foundation funding is enabled while an unreconciled
+legacy signed row remains. A rolling deployment with old sponsor-signing
+instances is unsupported.
+
 ## How to run
 
 ### Prerequisites

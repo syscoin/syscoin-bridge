@@ -148,6 +148,10 @@ const getConfirmedFreezeBurnTxHash = (
 const assertClaimGasEligible = async (
   transfer: Awaited<ReturnType<TransferService["getTransfer"]>>
 ): Promise<string> => {
+  if (transfer.version !== "v2") {
+    throw new Error("Foundation sponsorship is only available for V2 transfers");
+  }
+
   if (transfer.type !== "nevm-to-sys") {
     throw new Error("Claim gas sponsorship is only available for NEVM to SYS");
   }

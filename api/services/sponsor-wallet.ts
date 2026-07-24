@@ -1,5 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
@@ -31,11 +31,19 @@ const DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS = "0.001";
 const DEFAULT_UTXO_FEE_RATE = 10;
 const UTXO_CLAIM_GAS_FEE_BUFFER_SATS = DEFAULT_UTXO_FEE_RATE * 250;
 const SPONSOR_RESERVATION_LEASE_MS = 5 * 60_000;
+const SPONSOR_PROTOCOL_VERSION = 2;
 
 export class SponsorshipInProgressError extends Error {
   constructor() {
     super("Sponsorship is already in progress");
     this.name = "SponsorshipInProgressError";
+  }
+}
+
+export class SponsorNonceRecoveryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SponsorNonceRecoveryError";
   }
 }
 
@@ -90,17 +98,6 @@ const isDuplicateKeyError = (error: unknown) => {
   );
 };
 
-const getDocumentUpdatedAtMs = (document: unknown) => {
-  const updatedAt = (document as { updatedAt?: Date | string | number })
-    .updatedAt;
-
-  if (!updatedAt) {
-    return undefined;
-  }
-
-  return new Date(updatedAt).getTime();
-};
-
 export class SponsorWalletService {
   public async sponsorTransaction(
     transferId: string,
@@ -130,6 +127,15 @@ export class SponsorWalletService {
     );
 
     if (existingTransaction?.transaction?.hash) {
+      if (
+        action === SUBMIT_PROOFS_ACTION &&
+        existingTransaction.sourceTxHash?.toLowerCase() !== normalizedSource
+      ) {
+        throw new SponsorNonceRecoveryError(
+          "Legacy or mismatched signed sponsorship cannot be reused in V2"
+        );
+      }
+      await this.broadcastSponsorTransaction(existingTransaction);
       return existingTransaction;
     }
 
@@ -154,6 +160,7 @@ export class SponsorWalletService {
     }
 
     const sender = web3.eth.accounts.privateKeyToAccount(privateKey);
+    await this.assertNoUnsafeLegacySponsorTransactions(sender.address);
 
     // Reserve (transferId, action) and (action, sourceTxHash) before nonce /
     // estimate / sign so concurrent aliases of the same burn cannot each mint
@@ -210,8 +217,9 @@ export class SponsorWalletService {
       }
     }
 
+    let committedTransaction: ISponsorWalletTransaction | null = null;
     try {
-      const nonce = await this.getAddressNextNonce(sender.address);
+      const nonce = await this.recoverSponsorNonceQueue(sender.address);
       const gasPrice = await web3.eth.getGasPrice();
       let gas: number;
       try {
@@ -241,21 +249,22 @@ export class SponsorWalletService {
         throw new Error("Raw transaction is undefined");
       }
 
-      placeholder.transaction = {
-        hash: signedTransaction.transactionHash,
-        rawData: signedTransaction.rawTransaction,
-        nonce,
-        confirmedHash: "",
-      };
-      placeholder.status = "pending";
-      if (normalizedSource) {
-        placeholder.sourceTxHash = normalizedSource;
-      }
-      await placeholder.save();
-      return placeholder;
+      committedTransaction = await this.commitSignedSponsorTransaction(
+        placeholder,
+        normalizedSource,
+        signedTransaction.transactionHash,
+        signedTransaction.rawTransaction,
+        nonce
+      );
+      await this.broadcastSponsorTransaction(committedTransaction);
+      return committedTransaction;
     } catch (error) {
-      placeholder.status = "failed";
-      await placeholder.save().catch(() => undefined);
+      if (!committedTransaction) {
+        await this.failSponsorReservation(placeholder);
+      }
+      if (isDuplicateKeyError(error)) {
+        throw new SponsorshipInProgressError();
+      }
       throw error;
     }
   }
@@ -264,6 +273,10 @@ export class SponsorWalletService {
     transfer: ITransfer,
     sourceTxHash?: string
   ): Promise<SponsorClaimGasResult> {
+    if (transfer.version !== "v2") {
+      throw new Error("Foundation sponsorship is only available for V2 transfers");
+    }
+
     if (transfer.type !== "nevm-to-sys") {
       throw new Error("UTXO claim gas sponsorship is only for NEVM to SYS");
     }
@@ -331,12 +344,14 @@ export class SponsorWalletService {
     }
 
     let reservation: { key: string; utxo: SponsorUtxo } | undefined;
+    let transactionSent = false;
     try {
       reservation = await this.reserveSponsorUtxo(
         sponsorAddress,
         transfer.id,
         targetAmountSats + UTXO_CLAIM_GAS_FEE_BUFFER_SATS
       );
+      placeholder = await this.renewSponsorReservation(placeholder);
       const txid = await this.sendUtxoClaimGas(
         sponsorAddress,
         sponsorWif,
@@ -344,15 +359,9 @@ export class SponsorWalletService {
         targetAmountSats,
         reservation.utxo
       );
+      transactionSent = true;
 
-      placeholder.transaction = {
-        hash: txid,
-        rawData: txid,
-        nonce: 0,
-        confirmedHash: "",
-      };
-      placeholder.status = "pending";
-      await placeholder.save();
+      await this.commitUtxoSponsorTransaction(placeholder, txid);
       await this.markSponsorUtxoSpent(reservation.key);
 
       return {
@@ -362,8 +371,9 @@ export class SponsorWalletService {
         amountSats: targetAmountSats,
       };
     } catch (error) {
-      placeholder.status = "failed";
-      await placeholder.save();
+      if (!transactionSent) {
+        await this.failSponsorReservation(placeholder);
+      }
       throw error;
     } finally {
       if (reservation) {
@@ -393,13 +403,31 @@ export class SponsorWalletService {
     }
 
     if (existingTransaction?.status === "pending") {
-      const updatedAtMs = getDocumentUpdatedAtMs(existingTransaction);
-      if (
-        updatedAtMs !== undefined &&
-        Date.now() - updatedAtMs > SPONSOR_RESERVATION_LEASE_MS
-      ) {
-        existingTransaction.status = "failed";
-        await existingTransaction.save();
+      const now = new Date();
+      const leaseCutoff = new Date(Date.now() - SPONSOR_RESERVATION_LEASE_MS);
+      const expired = await SponsorWalletTransactions.findOneAndUpdate(
+        {
+          _id: existingTransaction._id,
+          status: "pending",
+          "transaction.hash": { $exists: false },
+          $or: [
+            { reservationExpiresAt: { $lte: now } },
+            {
+              reservationExpiresAt: { $exists: false },
+              updatedAt: { $lte: leaseCutoff },
+            },
+          ],
+        },
+        {
+          $set: { status: "failed" },
+          $unset: {
+            reservationOwner: "",
+            reservationExpiresAt: "",
+          },
+        },
+        { new: true }
+      );
+      if (expired) {
         return undefined;
       }
 
@@ -511,13 +539,19 @@ export class SponsorWalletService {
     walletId: string,
     sourceTxHash?: string
   ): Promise<SponsorPlaceholderResult> {
+    const reservationOwner = randomUUID();
     const placeholder = new SponsorWalletTransactions({
       transferId,
       action,
       sourceTxHash,
+      sponsorProtocolVersion: SPONSOR_PROTOCOL_VERSION,
       walletId,
       status: "pending",
       transaction: {},
+      reservationOwner,
+      reservationExpiresAt: new Date(
+        Date.now() + SPONSOR_RESERVATION_LEASE_MS
+      ),
     });
 
     return placeholder
@@ -548,6 +582,7 @@ export class SponsorWalletService {
     action: SponsorWalletTransactionAction,
     sourceTxHash?: string
   ): Promise<ISponsorWalletTransaction | null> {
+    const reservationOwner = randomUUID();
     return SponsorWalletTransactions.findOneAndUpdate(
       {
         action,
@@ -562,6 +597,11 @@ export class SponsorWalletService {
         $set: {
           status: "pending",
           transaction: {},
+          sponsorProtocolVersion: SPONSOR_PROTOCOL_VERSION,
+          reservationOwner,
+          reservationExpiresAt: new Date(
+            Date.now() + SPONSOR_RESERVATION_LEASE_MS
+          ),
         },
       },
       { new: true }
@@ -573,30 +613,341 @@ export class SponsorWalletService {
     action: SponsorWalletTransactionAction,
     sourceTxHash?: string
   ): Promise<ISponsorWalletTransaction | null> {
-    const leaseCutoff = new Date(
-      Date.now() - SPONSOR_RESERVATION_LEASE_MS
-    );
+    const now = new Date();
+    const leaseCutoff = new Date(Date.now() - SPONSOR_RESERVATION_LEASE_MS);
+    const reservationOwner = randomUUID();
 
     return SponsorWalletTransactions.findOneAndUpdate(
       {
         action,
         status: "pending",
         "transaction.hash": { $exists: false },
-        updatedAt: { $lte: leaseCutoff },
-        $or: [
-          { transferId },
-          ...(sourceTxHash ? [{ sourceTxHash }] : []),
+        $and: [
+          {
+            $or: [
+              { transferId },
+              ...(sourceTxHash ? [{ sourceTxHash }] : []),
+            ],
+          },
+          {
+            $or: [
+              { reservationExpiresAt: { $lte: now } },
+              {
+                reservationExpiresAt: { $exists: false },
+                updatedAt: { $lte: leaseCutoff },
+              },
+            ],
+          },
         ],
       },
       {
         $set: {
           status: "pending",
           transaction: {},
-          updatedAt: new Date(),
+          sponsorProtocolVersion: SPONSOR_PROTOCOL_VERSION,
+          reservationOwner,
+          reservationExpiresAt: new Date(
+            Date.now() + SPONSOR_RESERVATION_LEASE_MS
+          ),
+          updatedAt: now,
         },
       },
       { new: true }
     );
+  }
+
+  private async assertNoUnsafeLegacySponsorTransactions(walletId: string) {
+    const unsafeRows = await SponsorWalletTransactions.countDocuments({
+      walletId,
+      "transaction.rawData": { $type: "string" },
+      "transaction.nonce": { $type: "number" },
+      $or: [
+        { action: { $exists: false } },
+        {
+          action: SUBMIT_PROOFS_ACTION,
+          sourceTxHash: { $exists: false },
+        },
+        {
+          action: SUBMIT_PROOFS_ACTION,
+          sourceTxHash: null,
+        },
+      ],
+    });
+
+    if (unsafeRows > 0) {
+      throw new SponsorNonceRecoveryError(
+        "Foundation funding blocked: reconcile legacy signed sponsor rows before V2 sponsorship"
+      );
+    }
+  }
+
+  private async commitSignedSponsorTransaction(
+    placeholder: ISponsorWalletTransaction,
+    sourceTxHash: string | undefined,
+    transactionHash: string,
+    rawTransaction: string,
+    nonce: number
+  ): Promise<ISponsorWalletTransaction> {
+    if (!placeholder.reservationOwner) {
+      throw new SponsorshipInProgressError();
+    }
+
+    const committed = await SponsorWalletTransactions.findOneAndUpdate(
+      {
+        _id: placeholder._id,
+        status: "pending",
+        reservationOwner: placeholder.reservationOwner,
+        reservationExpiresAt: { $gt: new Date() },
+        "transaction.hash": { $exists: false },
+      },
+      {
+        $set: {
+          sourceTxHash,
+          sponsorProtocolVersion: SPONSOR_PROTOCOL_VERSION,
+          status: "pending",
+          transaction: {
+            hash: transactionHash,
+            rawData: rawTransaction,
+            nonce,
+            confirmedHash: "",
+          },
+        },
+        $unset: {
+          reservationOwner: "",
+          reservationExpiresAt: "",
+        },
+      },
+      { new: true }
+    );
+
+    if (!committed) {
+      throw new SponsorshipInProgressError();
+    }
+
+    return committed;
+  }
+
+  private async renewSponsorReservation(
+    placeholder: ISponsorWalletTransaction
+  ): Promise<ISponsorWalletTransaction> {
+    if (!placeholder.reservationOwner) {
+      throw new SponsorshipInProgressError();
+    }
+
+    const renewed = await SponsorWalletTransactions.findOneAndUpdate(
+      {
+        _id: placeholder._id,
+        status: "pending",
+        reservationOwner: placeholder.reservationOwner,
+        reservationExpiresAt: { $gt: new Date() },
+        "transaction.hash": { $exists: false },
+      },
+      {
+        $set: {
+          reservationExpiresAt: new Date(
+            Date.now() + SPONSOR_RESERVATION_LEASE_MS
+          ),
+        },
+      },
+      { new: true }
+    );
+
+    if (!renewed) {
+      throw new SponsorshipInProgressError();
+    }
+
+    return renewed;
+  }
+
+  private async commitUtxoSponsorTransaction(
+    placeholder: ISponsorWalletTransaction,
+    transactionHash: string
+  ): Promise<ISponsorWalletTransaction> {
+    if (!placeholder.reservationOwner) {
+      throw new SponsorshipInProgressError();
+    }
+
+    const committed = await SponsorWalletTransactions.findOneAndUpdate(
+      {
+        _id: placeholder._id,
+        status: "pending",
+        reservationOwner: placeholder.reservationOwner,
+        "transaction.hash": { $exists: false },
+      },
+      {
+        $set: {
+          status: "pending",
+          transaction: {
+            hash: transactionHash,
+            rawData: transactionHash,
+            nonce: 0,
+            confirmedHash: "",
+          },
+        },
+        $unset: {
+          reservationOwner: "",
+          reservationExpiresAt: "",
+        },
+      },
+      { new: true }
+    );
+
+    if (!committed) {
+      throw new SponsorshipInProgressError();
+    }
+
+    return committed;
+  }
+
+  private async failSponsorReservation(
+    placeholder: ISponsorWalletTransaction
+  ): Promise<void> {
+    if (!placeholder.reservationOwner) {
+      return;
+    }
+
+    await SponsorWalletTransactions.updateOne(
+      {
+        _id: placeholder._id,
+        reservationOwner: placeholder.reservationOwner,
+        "transaction.hash": { $exists: false },
+      },
+      {
+        $set: { status: "failed" },
+        $unset: {
+          reservationOwner: "",
+          reservationExpiresAt: "",
+        },
+      }
+    ).catch(() => undefined);
+  }
+
+  private async recoverSponsorNonceQueue(walletId: string): Promise<number> {
+    let pendingNonce = await web3.eth.getTransactionCount(walletId, "pending");
+    const pendingTransactions = await SponsorWalletTransactions.find({
+      action: SUBMIT_PROOFS_ACTION,
+      walletId,
+      status: { $in: ["pending", "failed"] },
+      sourceTxHash: { $type: "string" },
+      "transaction.rawData": { $type: "string" },
+      "transaction.nonce": { $gte: pendingNonce },
+    }).sort({ "transaction.nonce": 1 });
+
+    for (const pendingTransaction of pendingTransactions) {
+      const storedNonce = pendingTransaction.transaction.nonce;
+      if (storedNonce < pendingNonce) {
+        continue;
+      }
+      if (storedNonce > pendingNonce) {
+        throw new SponsorNonceRecoveryError(
+          `Sponsor nonce recovery blocked: missing durable transaction for nonce ${pendingNonce}`
+        );
+      }
+
+      await this.broadcastSponsorTransaction(pendingTransaction);
+      const refreshedNonce = await web3.eth.getTransactionCount(
+        walletId,
+        "pending"
+      );
+      if (refreshedNonce <= storedNonce) {
+        throw new SponsorshipInProgressError();
+      }
+      pendingNonce = refreshedNonce;
+    }
+
+    return pendingNonce;
+  }
+
+  private async broadcastSponsorTransaction(
+    sponsorTransaction: ISponsorWalletTransaction
+  ): Promise<void> {
+    const { hash, rawData, nonce } = sponsorTransaction.transaction ?? {};
+    if (
+      !hash ||
+      !rawData ||
+      typeof nonce !== "number" ||
+      !sponsorTransaction.walletId
+    ) {
+      throw new SponsorNonceRecoveryError(
+        "Signed sponsor transaction is incomplete and cannot be broadcast"
+      );
+    }
+
+    await SponsorWalletTransactions.updateOne(
+      { _id: sponsorTransaction._id, "transaction.hash": hash },
+      { $inc: { broadcastAttempts: 1 } }
+    );
+
+    try {
+      await this.sendRawSponsorTransaction(rawData, hash);
+    } catch (error) {
+      const [knownTransaction, pendingNonce] = await Promise.all([
+        web3.eth.getTransaction(hash).catch(() => undefined),
+        web3.eth
+          .getTransactionCount(sponsorTransaction.walletId, "pending")
+          .catch(() => undefined),
+      ]);
+      if (knownTransaction) {
+        // Re-broadcasts are idempotent; an "already known" RPC error is safe.
+      } else if (pendingNonce !== undefined && pendingNonce > nonce) {
+        throw new SponsorNonceRecoveryError(
+          `Sponsor transaction ${hash} was replaced at nonce ${nonce}; manual reconciliation is required`
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    await SponsorWalletTransactions.updateOne(
+      { _id: sponsorTransaction._id, "transaction.hash": hash },
+      { $set: { broadcastAt: new Date(), status: "pending" } }
+    );
+  }
+
+  private async sendRawSponsorTransaction(
+    rawTransaction: string,
+    expectedHash: string
+  ): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (callback: () => void) => {
+        if (!settled) {
+          settled = true;
+          callback();
+        }
+      };
+
+      try {
+        const promiEvent = web3.eth.sendSignedTransaction(rawTransaction);
+        promiEvent
+          .once("transactionHash", (value: string | { hash?: string }) => {
+            const hash = typeof value === "string" ? value : value?.hash;
+            if (!hash || hash.toLowerCase() !== expectedHash.toLowerCase()) {
+              finish(() =>
+                reject(
+                  new Error(
+                    "Sponsor RPC returned an unexpected transaction hash"
+                  )
+                )
+              );
+              return;
+            }
+            finish(resolve);
+          })
+          .on("error", (error: Error) => finish(() => reject(error)));
+        void promiEvent.catch((error: Error) =>
+          finish(() => reject(error))
+        );
+      } catch (error) {
+        finish(() =>
+          reject(
+            error instanceof Error
+              ? error
+              : new Error("Unable to broadcast sponsor transaction")
+          )
+        );
+      }
+    });
   }
 
   private async getUtxoAddressBalanceSats(address: string): Promise<number> {
@@ -747,24 +1098,6 @@ export class SponsorWalletService {
     return [...utxos].sort((a, b) => Number(a.value) - Number(b.value));
   }
 
-  private async getAddressNextNonce(address: string): Promise<number> {
-    // Ignore reservation placeholders (transaction: {}) so an empty nonce field
-    // cannot collapse internalNonce to undefined/NaN.
-    const [lastTransaction] = await SponsorWalletTransactions.find({
-      walletId: address,
-      "transaction.nonce": { $type: "number" },
-    })
-      .sort({ "transaction.nonce": -1 })
-      .limit(1);
-
-    const pendingNonce = await web3.eth.getTransactionCount(address, "pending");
-
-    const internalNonce = lastTransaction
-      ? lastTransaction.transaction.nonce
-      : -1;
-
-    return pendingNonce > internalNonce ? pendingNonce : internalNonce + 1;
-  }
 }
 
 export default SponsorWalletService;

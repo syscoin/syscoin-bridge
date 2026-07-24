@@ -49,7 +49,58 @@ const dropConflictingSourceTxHashIndexes = async () => {
   }
 };
 
+const assertFoundationFundingCutoverIsSafe = async () => {
+  if (process.env.FOUNDATION_FUNDED !== "true") {
+    return;
+  }
+
+  const unsafeLegacySignedRows =
+    await SponsorWalletTransactions.countDocuments({
+      "transaction.rawData": { $type: "string" },
+      "transaction.nonce": { $type: "number" },
+      $or: [
+        { action: { $exists: false } },
+        {
+          action: "submit-proofs",
+          sourceTxHash: { $exists: false },
+        },
+        {
+          action: "submit-proofs",
+          sourceTxHash: null,
+        },
+      ],
+    });
+  const duplicateSignedNonces = await SponsorWalletTransactions.aggregate([
+    {
+      $match: {
+        action: "submit-proofs",
+        walletId: { $type: "string" },
+        "transaction.rawData": { $type: "string" },
+        "transaction.nonce": { $type: "number" },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          walletId: "$walletId",
+          nonce: "$transaction.nonce",
+        },
+        count: { $sum: 1 },
+      },
+    },
+    { $match: { count: { $gt: 1 } } },
+    { $limit: 1 },
+  ]);
+
+  if (unsafeLegacySignedRows > 0 || duplicateSignedNonces.length > 0) {
+    throw new Error(
+      "Foundation funding V2 cutover blocked: reconcile legacy signed sponsor rows with missing identity or duplicate nonces before enabling FOUNDATION_FUNDED"
+    );
+  }
+};
+
 export const ensureSponsorIndexes = async () => {
+  await assertFoundationFundingCutoverIsSafe();
   await dropConflictingSourceTxHashIndexes();
   await Promise.all([
     SponsorWalletTransactions.createIndexes(),
