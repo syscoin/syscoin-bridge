@@ -74,7 +74,9 @@ jest.mock("syscoinjs-lib", () => ({
 import SponsorWalletTransactions from "models/sponsor-wallet-transactions";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
-import SponsorWalletService from "../sponsor-wallet";
+import SponsorWalletService, {
+  syscoinTxIdFromWitnessStrippedHex,
+} from "../sponsor-wallet";
 
 const SponsorWalletTransactionsMock = SponsorWalletTransactions as any;
 const SponsorUtxoReservationMock = SponsorUtxoReservation as any;
@@ -104,7 +106,31 @@ describe("SponsorWalletService", () => {
     global.fetch = jest.fn();
   });
 
+  describe("syscoinTxIdFromWitnessStrippedHex", () => {
+    it("hashes witness-stripped bytes to a display-order txid", () => {
+      const a = syscoinTxIdFromWitnessStrippedHex("00");
+      const b = syscoinTxIdFromWitnessStrippedHex("0x00");
+      expect(a).toMatch(/^[0-9a-f]{64}$/);
+      expect(a).toBe(b);
+      expect(() => syscoinTxIdFromWitnessStrippedHex("")).toThrow(
+        "Invalid witness-stripped transaction hex"
+      );
+    });
+  });
+
   describe("sponsorTransaction", () => {
+    it("requires sourceTxHash for submit-proofs", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      const service = new SponsorWalletService();
+      await expect(
+        service.sponsorTransaction("transfer-1", {
+          to: "0xRelay",
+          data: "0xdata",
+          value: 0,
+        })
+      ).rejects.toThrow("sourceTxHash is required");
+    });
+
     it("signs NEVM sponsor transactions from the configured env private key", async () => {
       process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
       const signTransaction = jest.fn(() =>
@@ -129,13 +155,20 @@ describe("SponsorWalletService", () => {
       const service = new SponsorWalletService();
 
       await expect(
-        service.sponsorTransaction("transfer-1", {
-          to: "0xRelay",
-          data: "0xdata",
-          value: 0,
-        })
+        service.sponsorTransaction(
+          "transfer-1",
+          {
+            to: "0xRelay",
+            data: "0xdata",
+            value: 0,
+          },
+          "submit-proofs",
+          "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
+        )
       ).resolves.toMatchObject({
         walletId: "0xSponsor",
+        sourceTxHash:
+          "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899",
         transaction: {
           hash: "0xhash",
           rawData: "0xsigned",
@@ -153,6 +186,37 @@ describe("SponsorWalletService", () => {
           nonce: 3,
         })
       );
+    });
+
+    it("returns an existing sponsorship for the same source tx under another transferId", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      const signTransaction = jest.fn();
+      mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
+        address: "0xSponsor",
+        signTransaction,
+      });
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+        transferId: "transfer-alias-a",
+        action: "submit-proofs",
+        sourceTxHash: "deadbeef",
+        status: "pending",
+        transaction: { hash: "0xalready", rawData: "0xraw", nonce: 1 },
+      });
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-alias-b",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "DEADBEEF"
+        )
+      ).resolves.toMatchObject({
+        transferId: "transfer-alias-a",
+        transaction: { hash: "0xalready" },
+      });
+      expect(signTransaction).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.estimateGas).not.toHaveBeenCalled();
     });
 
     it("refuses to sponsor when gas estimation fails", async () => {
@@ -173,11 +237,16 @@ describe("SponsorWalletService", () => {
       const service = new SponsorWalletService();
 
       await expect(
-        service.sponsorTransaction("transfer-1", {
-          to: "0xRelay",
-          data: "0xdata",
-          value: 0,
-        })
+        service.sponsorTransaction(
+          "transfer-1",
+          {
+            to: "0xRelay",
+            data: "0xdata",
+            value: 0,
+          },
+          "submit-proofs",
+          "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
+        )
       ).rejects.toThrow("execution reverted");
     });
   });

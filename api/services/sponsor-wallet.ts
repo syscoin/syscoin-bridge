@@ -1,4 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
+import { createHash } from "crypto";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
@@ -12,6 +13,19 @@ import {
   resolveUtxoBlockbookUrl,
 } from "utils/syscoin-urls";
 import { TransactionConfig } from "web3-core";
+
+/** Bitcoin/Syscoin txid (display hex) from witness-stripped serialization. */
+export function syscoinTxIdFromWitnessStrippedHex(txHex: string): string {
+  const hex = txHex.startsWith("0x") ? txHex.slice(2) : txHex;
+  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
+    throw new Error("Invalid witness-stripped transaction hex");
+  }
+  const preimage = Buffer.from(hex, "hex");
+  const hash = createHash("sha256")
+    .update(createHash("sha256").update(preimage).digest())
+    .digest();
+  return Buffer.from(hash).reverse().toString("hex");
+}
 
 const SUBMIT_PROOFS_ACTION: SponsorWalletTransactionAction = "submit-proofs";
 const UTXO_CLAIM_GAS_ACTION: SponsorWalletTransactionAction = "utxo-claim-gas";
@@ -86,14 +100,35 @@ export class SponsorWalletService {
   public async sponsorTransaction(
     transferId: string,
     transactionConfig: Omit<TransactionConfig, "nonce">,
-    action: SponsorWalletTransactionAction = SUBMIT_PROOFS_ACTION
+    action: SponsorWalletTransactionAction = SUBMIT_PROOFS_ACTION,
+    sourceTxHash?: string
   ): Promise<ISponsorWalletTransaction> {
+    if (action === SUBMIT_PROOFS_ACTION) {
+      if (!sourceTxHash) {
+        throw new Error(
+          "sourceTxHash is required for submit-proofs sponsorship"
+        );
+      }
+    }
+
+    const normalizedSource = sourceTxHash?.toLowerCase();
+
     const existingTransaction = await SponsorWalletTransactions.findOne({
-      transferId: transferId,
-      $or: [{ action }, { action: { $exists: false } }],
+      action,
+      $or: [
+        { transferId },
+        ...(normalizedSource ? [{ sourceTxHash: normalizedSource }] : []),
+      ],
     });
 
-    if (existingTransaction) {
+    if (existingTransaction?.transaction?.hash) {
+      return existingTransaction;
+    }
+
+    if (
+      existingTransaction?.status === "pending" &&
+      !existingTransaction.transaction?.hash
+    ) {
       return existingTransaction;
     }
 
@@ -103,64 +138,96 @@ export class SponsorWalletService {
     }
 
     const sender = web3.eth.accounts.privateKeyToAccount(privateKey);
-    const nonce = await this.getAddressNextNonce(sender.address);
 
-    const gasPrice = await web3.eth.getGasPrice();
-    let gas: number;
+    // Reserve (transferId, action) and (action, sourceTxHash) before nonce /
+    // estimate / sign so concurrent aliases of the same burn cannot each mint
+    // a sponsor signature.
+    const placeholderResult = await this.createSponsorPlaceholder(
+      transferId,
+      action,
+      sender.address,
+      normalizedSource
+    );
+    let placeholder = placeholderResult.transaction;
+
+    if (placeholder.transaction?.hash) {
+      return placeholder;
+    }
+
+    if (!placeholderResult.created && placeholder.status === "pending") {
+      return placeholder;
+    }
+
+    if (!placeholderResult.created && placeholder.status === "failed") {
+      const retryPlaceholder = await this.acquireFailedSponsorPlaceholder(
+        transferId,
+        action,
+        normalizedSource
+      );
+      if (!retryPlaceholder) {
+        const inFlight = await SponsorWalletTransactions.findOne({
+          action,
+          $or: [
+            { transferId },
+            ...(normalizedSource ? [{ sourceTxHash: normalizedSource }] : []),
+          ],
+        });
+        if (inFlight) {
+          return inFlight;
+        }
+        throw new Error("Sponsorship reservation conflict");
+      }
+      placeholder = retryPlaceholder;
+    }
+
     try {
-      gas = await web3.eth.estimateGas({
+      const nonce = await this.getAddressNextNonce(sender.address);
+      const gasPrice = await web3.eth.getGasPrice();
+      let gas: number;
+      try {
+        gas = await web3.eth.estimateGas({
+          ...transactionConfig,
+          from: sender.address,
+        });
+      } catch (e) {
+        console.error("estimateGas error", e);
+        throw e instanceof Error
+          ? e
+          : new Error("Gas estimation failed; refusing to sponsor transaction");
+      }
+
+      const signedTransaction = await sender.signTransaction({
         ...transactionConfig,
         from: sender.address,
+        gasPrice: web3.utils.toHex(gasPrice),
+        gas: web3.utils.toHex(gas),
+        nonce,
       });
-    } catch (e) {
-      console.error("estimateGas error", e);
-      throw e instanceof Error
-        ? e
-        : new Error("Gas estimation failed; refusing to sponsor transaction");
-    }
 
-    const signedTransaction = await sender.signTransaction({
-      ...transactionConfig,
-      from: sender.address,
-      gasPrice: web3.utils.toHex(gasPrice),
-      gas: web3.utils.toHex(gas),
-      nonce,
-    });
+      if (
+        signedTransaction.rawTransaction === undefined ||
+        signedTransaction.transactionHash === undefined
+      ) {
+        throw new Error("Raw transaction is undefined");
+      }
 
-    if (
-      signedTransaction.rawTransaction === undefined ||
-      signedTransaction.transactionHash === undefined
-    ) {
-      throw new Error("Raw transaction is undefined");
-    }
-
-    let walletTransaction = new SponsorWalletTransactions({
-      transferId: transferId,
-      action,
-      walletId: sender.address,
-      transaction: {
+      placeholder.transaction = {
         hash: signedTransaction.transactionHash,
         rawData: signedTransaction.rawTransaction,
-        nonce: nonce,
-      },
-      status: "pending",
-    });
-
-    return walletTransaction.save().catch(async (error) => {
-      if (!isDuplicateKeyError(error)) {
-        throw error;
+        nonce,
+        confirmedHash: "",
+      };
+      placeholder.status = "pending";
+      if (normalizedSource) {
+        placeholder.sourceTxHash = normalizedSource;
       }
-
-      const duplicate = await SponsorWalletTransactions.findOne({
-        transferId,
-        $or: [{ action }, { action: { $exists: false } }],
-      });
-      if (!duplicate) {
-        throw error;
-      }
-
-      return duplicate;
-    });
+      await placeholder.save();
+      return placeholder;
+    } catch (error) {
+      placeholder.status = "failed";
+      await placeholder.save().catch(() => undefined);
+      throw error;
+    }
   }
 
   public async sponsorUtxoClaimGas(

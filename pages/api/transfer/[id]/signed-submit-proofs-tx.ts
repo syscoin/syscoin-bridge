@@ -1,6 +1,8 @@
 import { RELAY_CONTRACT_ADDRESS } from "@constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
-import SponsorWalletService from "api/services/sponsor-wallet";
+import SponsorWalletService, {
+  syscoinTxIdFromWitnessStrippedHex,
+} from "api/services/sponsor-wallet";
 import { TransferService } from "api/services/transfer";
 import { getProof } from "bitcoin-proof";
 import dbConnect from "lib/mongodb";
@@ -73,6 +75,7 @@ const handler: NextApiHandler = async (
     );
 
     const encoded = method.encodeABI();
+    const sourceTxHash = syscoinTxIdFromWitnessStrippedHex(proof.transaction);
 
     const sponsorWalletService = new SponsorWalletService();
 
@@ -82,7 +85,9 @@ const handler: NextApiHandler = async (
         to: RELAY_CONTRACT_ADDRESS,
         data: encoded,
         value: 0,
-      }
+      },
+      "submit-proofs",
+      sourceTxHash
     );
 
     res.status(200).json(sponsoredTransaction.toJSON({ versionKey: false }));

@@ -58,12 +58,13 @@ SponsorWalletTransactionSchema.index(
   { transferId: 1, action: 1 },
   { unique: true }
 );
+// One sponsorship per (action, source chain tx). Required for submit-proofs so
+// the same burn cannot be sponsored under many transferId aliases.
 SponsorWalletTransactionSchema.index(
   { action: 1, sourceTxHash: 1 },
   {
     unique: true,
     partialFilterExpression: {
-      action: "utxo-claim-gas",
       sourceTxHash: { $type: "string" },
     },
   }
