@@ -135,7 +135,11 @@ const runWithSysToNevmStateMachine = async (
       if (proof.result === "") {
         throw new Error("Proof not yet available");
       }
-      const results = JSON.parse(proof.result) as SPVProof;
+      const results = (
+        typeof proof.result === "string"
+          ? JSON.parse(proof.result)
+          : proof.result
+      ) as SPVProof;
       dispatch(
         addLog(
           SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS,
@@ -194,18 +198,22 @@ const runWithSysToNevmStateMachine = async (
 
       const gasPrice = await web3.eth.getGasPrice();
 
-      const gas = await method
-        .estimateGas({ from: fromAccount })
-        .catch((error: Error) => {
-          captureException(error);
-          console.error("Estimate gas error", error);
-        });
+      let gas: number;
+      try {
+        gas = await method.estimateGas({ from: fromAccount });
+      } catch (error) {
+        captureException(error);
+        console.error("Estimate gas error", error);
+        throw error instanceof Error
+          ? error
+          : new Error("Gas estimation failed; refusing to submit relayTx");
+      }
 
       return new Promise((resolve, reject) => {
         method
           .send({
             from: fromAccount,
-            gas: gas ?? 400_000,
+            gas,
             gasPrice,
           })
           .once("transactionHash", (hash: string | any) => {

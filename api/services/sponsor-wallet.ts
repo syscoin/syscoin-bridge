@@ -1,5 +1,5 @@
-import { DEFAULT_GAS_LIMIT } from "@constants";
 import { ITransfer } from "@contexts/Transfer/types";
+import { createHash } from "crypto";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
@@ -14,12 +14,30 @@ import {
 } from "utils/syscoin-urls";
 import { TransactionConfig } from "web3-core";
 
+/** Bitcoin/Syscoin txid (display hex) from witness-stripped serialization. */
+export function syscoinTxIdFromWitnessStrippedHex(txHex: string): string {
+  const hex = txHex.startsWith("0x") ? txHex.slice(2) : txHex;
+  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
+    throw new Error("Invalid witness-stripped transaction hex");
+  }
+  const firstHash = createHash("sha256").update(hex, "hex").digest("hex");
+  const hash = createHash("sha256").update(firstHash, "hex").digest("hex");
+  return hash.match(/.{2}/g)!.reverse().join("");
+}
+
 const SUBMIT_PROOFS_ACTION: SponsorWalletTransactionAction = "submit-proofs";
 const UTXO_CLAIM_GAS_ACTION: SponsorWalletTransactionAction = "utxo-claim-gas";
 const DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS = "0.001";
 const DEFAULT_UTXO_FEE_RATE = 10;
 const UTXO_CLAIM_GAS_FEE_BUFFER_SATS = DEFAULT_UTXO_FEE_RATE * 250;
-const UTXO_RESERVATION_LEASE_MS = 5 * 60_000;
+const SPONSOR_RESERVATION_LEASE_MS = 5 * 60_000;
+
+export class SponsorshipInProgressError extends Error {
+  constructor() {
+    super("Sponsorship is already in progress");
+    this.name = "SponsorshipInProgressError";
+  }
+}
 
 type SponsorUtxo = {
   txid?: string;
@@ -87,15 +105,47 @@ export class SponsorWalletService {
   public async sponsorTransaction(
     transferId: string,
     transactionConfig: Omit<TransactionConfig, "nonce">,
-    action: SponsorWalletTransactionAction = SUBMIT_PROOFS_ACTION
+    action: SponsorWalletTransactionAction = SUBMIT_PROOFS_ACTION,
+    sourceTxHash?: string
   ): Promise<ISponsorWalletTransaction> {
-    const existingTransaction = await SponsorWalletTransactions.findOne({
-      transferId: transferId,
-      $or: [{ action }, { action: { $exists: false } }],
-    });
+    if (action === SUBMIT_PROOFS_ACTION) {
+      if (!sourceTxHash) {
+        throw new Error(
+          "sourceTxHash is required for submit-proofs sponsorship"
+        );
+      }
+    }
 
-    if (existingTransaction) {
+    const normalizedSource = sourceTxHash?.toLowerCase();
+
+    const reservationQuery = {
+      action,
+      $or: [
+        { transferId },
+        ...(normalizedSource ? [{ sourceTxHash: normalizedSource }] : []),
+      ],
+    };
+    const existingTransaction = await SponsorWalletTransactions.findOne(
+      reservationQuery
+    );
+
+    if (existingTransaction?.transaction?.hash) {
       return existingTransaction;
+    }
+
+    let placeholder: ISponsorWalletTransaction | null = null;
+    if (
+      existingTransaction?.status === "pending" &&
+      !existingTransaction.transaction?.hash
+    ) {
+      placeholder = await this.acquireStaleSponsorPlaceholder(
+        transferId,
+        action,
+        normalizedSource
+      );
+      if (!placeholder) {
+        throw new SponsorshipInProgressError();
+      }
     }
 
     const privateKey = process.env.NEVM_SPONSOR_PRIVATE_KEY;
@@ -104,58 +154,110 @@ export class SponsorWalletService {
     }
 
     const sender = web3.eth.accounts.privateKeyToAccount(privateKey);
-    const nonce = await this.getAddressNextNonce(sender.address);
 
-    const gasPrice = await web3.eth.getGasPrice();
-    const gas = await web3.eth
-      .estimateGas({ ...transactionConfig, from: sender.address })
-      .catch((e) => {
-        console.error("estimateGas error", e);
-        return DEFAULT_GAS_LIMIT;
-      });
+    // Reserve (transferId, action) and (action, sourceTxHash) before nonce /
+    // estimate / sign so concurrent aliases of the same burn cannot each mint
+    // a sponsor signature.
+    if (!placeholder) {
+      const placeholderResult = await this.createSponsorPlaceholder(
+        transferId,
+        action,
+        sender.address,
+        normalizedSource
+      );
+      placeholder = placeholderResult.transaction;
 
-    const signedTransaction = await sender.signTransaction({
-      ...transactionConfig,
-      from: sender.address,
-      gasPrice: web3.utils.toHex(gasPrice),
-      gas: web3.utils.toHex(gas),
-      nonce,
-    });
+      if (placeholder.transaction?.hash) {
+        return placeholder;
+      }
 
-    if (
-      signedTransaction.rawTransaction === undefined ||
-      signedTransaction.transactionHash === undefined
-    ) {
-      throw new Error("Raw transaction is undefined");
+      if (!placeholderResult.created && placeholder.status === "pending") {
+        const stalePlaceholder = await this.acquireStaleSponsorPlaceholder(
+          transferId,
+          action,
+          normalizedSource
+        );
+        if (!stalePlaceholder) {
+          throw new SponsorshipInProgressError();
+        }
+        placeholder = stalePlaceholder;
+      }
+
+      if (!placeholderResult.created && placeholder.status === "failed") {
+        const retryPlaceholder = await this.acquireFailedSponsorPlaceholder(
+          transferId,
+          action,
+          normalizedSource
+        );
+        if (!retryPlaceholder) {
+          const inFlight = await SponsorWalletTransactions.findOne(
+            reservationQuery
+          );
+          if (inFlight?.transaction?.hash) {
+            return inFlight;
+          }
+          throw new SponsorshipInProgressError();
+        }
+        placeholder = retryPlaceholder;
+      }
+
+      if (
+        !placeholderResult.created &&
+        placeholder.status !== "pending" &&
+        placeholder.status !== "failed"
+      ) {
+        throw new Error("Sponsorship reservation is incomplete");
+      }
     }
 
-    let walletTransaction = new SponsorWalletTransactions({
-      transferId: transferId,
-      action,
-      walletId: sender.address,
-      transaction: {
+    try {
+      const nonce = await this.getAddressNextNonce(sender.address);
+      const gasPrice = await web3.eth.getGasPrice();
+      let gas: number;
+      try {
+        gas = await web3.eth.estimateGas({
+          ...transactionConfig,
+          from: sender.address,
+        });
+      } catch (e) {
+        console.error("estimateGas error", e);
+        throw e instanceof Error
+          ? e
+          : new Error("Gas estimation failed; refusing to sponsor transaction");
+      }
+
+      const signedTransaction = await sender.signTransaction({
+        ...transactionConfig,
+        from: sender.address,
+        gasPrice: web3.utils.toHex(gasPrice),
+        gas: web3.utils.toHex(gas),
+        nonce,
+      });
+
+      if (
+        signedTransaction.rawTransaction === undefined ||
+        signedTransaction.transactionHash === undefined
+      ) {
+        throw new Error("Raw transaction is undefined");
+      }
+
+      placeholder.transaction = {
         hash: signedTransaction.transactionHash,
         rawData: signedTransaction.rawTransaction,
-        nonce: nonce,
-      },
-      status: "pending",
-    });
-
-    return walletTransaction.save().catch(async (error) => {
-      if (!isDuplicateKeyError(error)) {
-        throw error;
+        nonce,
+        confirmedHash: "",
+      };
+      placeholder.status = "pending";
+      if (normalizedSource) {
+        placeholder.sourceTxHash = normalizedSource;
       }
-
-      const duplicate = await SponsorWalletTransactions.findOne({
-        transferId,
-        $or: [{ action }, { action: { $exists: false } }],
-      });
-      if (!duplicate) {
-        throw error;
-      }
-
-      return duplicate;
-    });
+      await placeholder.save();
+      return placeholder;
+    } catch (error) {
+      placeholder.status = "failed";
+      await placeholder.save().catch(() => undefined);
+      throw error;
+    }
   }
 
   public async sponsorUtxoClaimGas(
@@ -294,7 +396,7 @@ export class SponsorWalletService {
       const updatedAtMs = getDocumentUpdatedAtMs(existingTransaction);
       if (
         updatedAtMs !== undefined &&
-        Date.now() - updatedAtMs > UTXO_RESERVATION_LEASE_MS
+        Date.now() - updatedAtMs > SPONSOR_RESERVATION_LEASE_MS
       ) {
         existingTransaction.status = "failed";
         await existingTransaction.save();
@@ -466,6 +568,37 @@ export class SponsorWalletService {
     );
   }
 
+  private async acquireStaleSponsorPlaceholder(
+    transferId: string,
+    action: SponsorWalletTransactionAction,
+    sourceTxHash?: string
+  ): Promise<ISponsorWalletTransaction | null> {
+    const leaseCutoff = new Date(
+      Date.now() - SPONSOR_RESERVATION_LEASE_MS
+    );
+
+    return SponsorWalletTransactions.findOneAndUpdate(
+      {
+        action,
+        status: "pending",
+        "transaction.hash": { $exists: false },
+        updatedAt: { $lte: leaseCutoff },
+        $or: [
+          { transferId },
+          ...(sourceTxHash ? [{ sourceTxHash }] : []),
+        ],
+      },
+      {
+        $set: {
+          status: "pending",
+          transaction: {},
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+  }
+
   private async getUtxoAddressBalanceSats(address: string): Promise<number> {
     const response = await fetch(
       `${getUtxoBlockbookUrl()}/api/v2/address/${address}?details=basic`
@@ -548,7 +681,7 @@ export class SponsorWalletService {
     minValueSats: number
   ): Promise<{ key: string; utxo: SponsorUtxo }> {
     const utxos = await this.getSponsorUtxos(sponsorAddress);
-    const expiresAt = new Date(Date.now() + UTXO_RESERVATION_LEASE_MS);
+    const expiresAt = new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS);
 
     for (const utxo of utxos) {
       if (Number(utxo.value) < minValueSats) {
@@ -587,7 +720,7 @@ export class SponsorWalletService {
       {
         $set: {
           status: "spent",
-          expiresAt: new Date(Date.now() + UTXO_RESERVATION_LEASE_MS),
+          expiresAt: new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS),
         },
       }
     );
@@ -615,9 +748,14 @@ export class SponsorWalletService {
   }
 
   private async getAddressNextNonce(address: string): Promise<number> {
+    // Ignore reservation placeholders (transaction: {}) so an empty nonce field
+    // cannot collapse internalNonce to undefined/NaN.
     const [lastTransaction] = await SponsorWalletTransactions.find({
       walletId: address,
-    }).sort({ "transaction.nonce": -1 }).limit(1);
+      "transaction.nonce": { $type: "number" },
+    })
+      .sort({ "transaction.nonce": -1 })
+      .limit(1);
 
     const pendingNonce = await web3.eth.getTransactionCount(address, "pending");
 

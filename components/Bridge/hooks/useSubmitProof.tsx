@@ -46,15 +46,21 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
 
     const gasPrice = await web3.eth.getGasPrice();
 
-    const gas = await method.estimateGas().catch((error: Error) => {
+    let gas: number;
+    try {
+      gas = await method.estimateGas({ from: transfer.nevmAddress });
+    } catch (error) {
       console.error("Estimate gas error", error);
-    });
+      throw error instanceof Error
+        ? error
+        : new Error("Gas estimation failed; refusing to submit relayTx");
+    }
 
     return new Promise((resolve, reject) => {
       method
         .send({
           from: transfer.nevmAddress,
-          gas: gas ?? 400_000,
+          gas,
           gasPrice,
         })
         .once("transactionHash", (hash: string | any) => {
