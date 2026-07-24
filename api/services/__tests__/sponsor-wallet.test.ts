@@ -563,24 +563,43 @@ describe("SponsorWalletService", () => {
       expect(mockWeb3.eth.sendSignedTransaction).not.toHaveBeenCalled();
     });
 
-    it("returns an existing sponsorship for the same source tx under another transferId", async () => {
+    it("replays lower nonces before returning an existing sponsorship", async () => {
       process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
       const signTransaction = jest.fn();
       mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
         address: "0xSponsor",
         signTransaction,
       });
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+      const lowerTransaction = {
+        _id: "lower-id",
+        transferId: "transfer-lower",
+        action: "submit-proofs",
+        sourceTxHash: "lower-source",
+        walletId: "0xSponsor",
+        status: "pending",
+        transaction: { hash: "0xlower", rawData: "0xlower-raw", nonce: 1 },
+      };
+      const existingTransaction = {
         _id: "existing-id",
         transferId: "transfer-alias-a",
         action: "submit-proofs",
         sourceTxHash: "deadbeef",
         walletId: "0xSponsor",
-        status: "success",
-        transaction: { hash: "0xalready", rawData: "0xraw", nonce: 1 },
+        status: "pending",
+        transaction: { hash: "0xalready", rawData: "0xraw", nonce: 2 },
+      };
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(
+        existingTransaction
+      );
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () => Promise.resolve([lowerTransaction, existingTransaction]),
       });
-      mockWeb3.eth.sendSignedTransaction.mockImplementation(() =>
-        successfulBroadcast("0xalready")
+      mockWeb3.eth.getTransactionCount
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(3);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation((raw: string) =>
+        successfulBroadcast(raw === "0xlower-raw" ? "0xlower" : "0xalready")
       );
       const service = new SponsorWalletService();
 
@@ -593,15 +612,63 @@ describe("SponsorWalletService", () => {
         )
       ).resolves.toMatchObject({
         transferId: "transfer-alias-a",
-        status: "success",
+        status: "pending",
         transaction: { hash: "0xalready" },
       });
       expect(signTransaction).not.toHaveBeenCalled();
       expect(mockWeb3.eth.estimateGas).not.toHaveBeenCalled();
-      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith("0xraw");
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenNthCalledWith(
+        1,
+        "0xlower-raw"
+      );
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenNthCalledWith(
+        2,
+        "0xraw"
+      );
       expect(SponsorWalletTransactionsMock.updateOne).toHaveBeenLastCalledWith(
         { _id: "existing-id", "transaction.hash": "0xalready" },
         { $set: { broadcastAt: expect.any(Date) } }
+      );
+    });
+
+    it("preserves a successful existing sponsorship without rebroadcasting it", async () => {
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+        _id: "successful-id",
+        transferId: "transfer-successful",
+        action: "submit-proofs",
+        sourceTxHash: "successful-source",
+        walletId: "0xSponsor",
+        status: "success",
+        transaction: {
+          hash: "0xsuccessful",
+          rawData: "0xsuccessful-raw",
+          nonce: 1,
+        },
+      });
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () => Promise.resolve([]),
+      });
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(2);
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-successful",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "successful-source"
+        )
+      ).resolves.toMatchObject({
+        status: "success",
+        transaction: { hash: "0xsuccessful" },
+      });
+
+      expect(mockWeb3.eth.sendSignedTransaction).not.toHaveBeenCalled();
+      expect(SponsorWalletTransactionsMock.updateOne).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          $set: expect.objectContaining({ status: "pending" }),
+        })
       );
     });
 

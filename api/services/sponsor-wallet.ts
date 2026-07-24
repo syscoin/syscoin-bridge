@@ -135,7 +135,12 @@ export class SponsorWalletService {
           "Legacy or mismatched signed sponsorship cannot be reused in V2"
         );
       }
-      await this.broadcastSponsorTransaction(existingTransaction);
+      if (!existingTransaction.walletId) {
+        throw new SponsorNonceRecoveryError(
+          "Signed sponsorship is missing its sponsor wallet identity"
+        );
+      }
+      await this.recoverSponsorNonceQueue(existingTransaction.walletId);
       return existingTransaction;
     }
 
