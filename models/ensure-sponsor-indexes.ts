@@ -2,6 +2,7 @@ import { getV2ActivationBlock } from "api/services/sponsor-eligibility";
 import SponsorRateLimit from "./sponsor-rate-limit";
 import SponsorUtxoReservation from "./sponsor-utxo-reservation";
 import SponsorWalletTransactions from "./sponsor-wallet-transactions";
+import TransferModel from "./transfer";
 
 const hasMongoError = (
   error: unknown,
@@ -101,10 +102,27 @@ const assertFoundationFundingCutoverIsSafe = async () => {
   }
 };
 
+const assertTransferIdsAreUnique = async () => {
+  const duplicateTransferIds = await TransferModel.aggregate([
+    { $match: { id: { $type: "string" } } },
+    { $group: { _id: "$id", count: { $sum: 1 } } },
+    { $match: { count: { $gt: 1 } } },
+    { $limit: 1 },
+  ]);
+
+  if (duplicateTransferIds.length > 0) {
+    throw new Error(
+      "V2 transfer cutover blocked: reconcile duplicate transfer ids before serving public writes"
+    );
+  }
+};
+
 export const ensureSponsorIndexes = async () => {
+  await assertTransferIdsAreUnique();
   await assertFoundationFundingCutoverIsSafe();
   await dropConflictingSourceTxHashIndexes();
   await Promise.all([
+    TransferModel.createIndexes(),
     SponsorWalletTransactions.createIndexes(),
     SponsorUtxoReservation.createIndexes(),
     SponsorRateLimit.createIndexes(),

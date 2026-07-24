@@ -62,11 +62,14 @@ Treat enabling `FOUNDATION_FUNDED=true` as an atomic V2 backend cutover:
 3. Reconcile every legacy signed sponsor row that lacks `action` or
    `sourceTxHash`. Confirm/broadcast or replace its nonce as appropriate, then
    archive the row; do not copy it into the V2 sponsor namespace.
-4. Deploy the V2 backend and frontend together to every instance and allow its
+4. Reconcile duplicate historical transfer IDs. Startup checks for duplicates
+   and synchronously creates the unique transfer-ID index before serving public
+   writes.
+5. Deploy the V2 backend and frontend together to every instance and allow its
    MongoDB indexes to be created. New transfers receive a per-transfer write
    capability; pre-cutover rows without one are intentionally read-only through
    the public API.
-5. Enable foundation funding only after all instances run the same V2 sponsor
+6. Enable foundation funding only after all instances run the same V2 sponsor
    protocol.
 
 Startup fails closed when foundation funding is enabled while an unreconciled

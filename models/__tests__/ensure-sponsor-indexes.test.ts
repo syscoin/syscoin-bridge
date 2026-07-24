@@ -23,6 +23,10 @@ const sponsorUtxoReservation: any = {
 const sponsorRateLimit: any = {
   createIndexes: jest.fn(),
 };
+const transferModel: any = {
+  aggregate: jest.fn(),
+  createIndexes: jest.fn(),
+};
 
 jest.mock("../sponsor-wallet-transactions", () => ({
   __esModule: true,
@@ -36,6 +40,10 @@ jest.mock("../sponsor-rate-limit", () => ({
   __esModule: true,
   default: sponsorRateLimit,
 }));
+jest.mock("../transfer", () => ({
+  __esModule: true,
+  default: transferModel,
+}));
 
 import { ensureSponsorIndexes } from "../ensure-sponsor-indexes";
 
@@ -46,9 +54,12 @@ describe("ensureSponsorIndexes", () => {
     delete process.env.NEVM_V2_ACTIVATION_BLOCK;
     sponsorWalletTransactions.countDocuments.mockResolvedValue(0);
     sponsorWalletTransactions.aggregate.mockResolvedValue([]);
+    collection.indexes.mockResolvedValue([]);
     sponsorWalletTransactions.createIndexes.mockResolvedValue(undefined);
     sponsorUtxoReservation.createIndexes.mockResolvedValue(undefined);
     sponsorRateLimit.createIndexes.mockResolvedValue(undefined);
+    transferModel.aggregate.mockResolvedValue([]);
+    transferModel.createIndexes.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -77,6 +88,7 @@ describe("ensureSponsorIndexes", () => {
     expect(sponsorWalletTransactions.createIndexes).toHaveBeenCalledTimes(1);
     expect(sponsorUtxoReservation.createIndexes).toHaveBeenCalledTimes(1);
     expect(sponsorRateLimit.createIndexes).toHaveBeenCalledTimes(1);
+    expect(transferModel.createIndexes).toHaveBeenCalledTimes(1);
   });
 
   it("does not hide unexpected index cleanup failures", async () => {
@@ -140,6 +152,18 @@ describe("ensureSponsorIndexes", () => {
       "NEVM V2 activation block is not configured"
     );
     expect(sponsorWalletTransactions.countDocuments).not.toHaveBeenCalled();
+    expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
+  });
+
+  it("blocks startup until duplicate transfer ids are reconciled", async () => {
+    transferModel.aggregate.mockResolvedValue([
+      { _id: "duplicate-transfer", count: 2 },
+    ]);
+
+    await expect(ensureSponsorIndexes()).rejects.toThrow(
+      "reconcile duplicate transfer ids"
+    );
+    expect(transferModel.createIndexes).not.toHaveBeenCalled();
     expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
   });
 });
