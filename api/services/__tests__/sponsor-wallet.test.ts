@@ -672,6 +672,65 @@ describe("SponsorWalletService", () => {
       );
     });
 
+    it("recovers and broadcasts a committed duplicate that wins the placeholder race", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      const signTransaction = jest.fn();
+      mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
+        address: "0xSponsor",
+        signTransaction,
+      });
+      const committedDuplicate = {
+        _id: "duplicate-committed-id",
+        transferId: "transfer-duplicate",
+        action: "submit-proofs",
+        sourceTxHash: "duplicate-source",
+        walletId: "0xSponsor",
+        status: "pending",
+        transaction: {
+          hash: "0xduplicate-hash",
+          rawData: "0xduplicate-raw",
+          nonce: 3,
+        },
+      };
+      SponsorWalletTransactionsMock.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(committedDuplicate);
+      SponsorWalletTransactionsMock.mockImplementationOnce(function (
+        this: any,
+        data: any
+      ) {
+        Object.assign(this, data);
+        this.save = jest.fn<any>().mockRejectedValue({ code: 11000 });
+      });
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () => Promise.resolve([committedDuplicate]),
+      });
+      mockWeb3.eth.getTransactionCount
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(4);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation(() =>
+        successfulBroadcast("0xduplicate-hash")
+      );
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-duplicate",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "duplicate-source"
+        )
+      ).resolves.toMatchObject({
+        transaction: { hash: "0xduplicate-hash" },
+      });
+
+      expect(signTransaction).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.estimateGas).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith(
+        "0xduplicate-raw"
+      );
+    });
+
     it("keeps a durable signed row pending when broadcast fails", async () => {
       process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
       const broadcastError = new Error("RPC unavailable");
@@ -1065,6 +1124,10 @@ describe("SponsorWalletService", () => {
         "unsigned-psbt",
         "sponsor-wif"
       );
+      expect(createTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+        SponsorWalletTransactionsMock.findOneAndUpdate.mock
+          .invocationCallOrder[0]
+      );
       expect(
         SponsorWalletTransactionsMock.findOneAndUpdate.mock
           .invocationCallOrder[0]
@@ -1119,6 +1182,71 @@ describe("SponsorWalletService", () => {
       );
       expect(SponsorUtxoReservationMock.deleteOne).toHaveBeenCalledWith({
         key: "small-utxo:1",
+        status: "reserved",
+      });
+    });
+
+    it("releases the reservation when UTXO construction fails before broadcast", async () => {
+      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
+      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      SponsorUtxoReservationMock.create.mockResolvedValue({});
+      SponsorUtxoReservationMock.deleteOne.mockResolvedValue({
+        deletedCount: 1,
+      });
+      (global.fetch as jest.Mock<any>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "0" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "0" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              { txid: "construction-utxo", vout: 0, value: "1000000" },
+            ]),
+        });
+      const constructionError = new Error("Unable to build PSBT");
+      const createTransaction = jest.fn(() =>
+        Promise.reject(constructionError)
+      );
+      const signAndSendWithWIF = jest.fn();
+      SyscoinMock.mockImplementation(() => ({
+        createTransaction,
+        signAndSendWithWIF,
+      }));
+
+      const service = new SponsorWalletService();
+
+      await expect(service.sponsorUtxoClaimGas(transfer)).rejects.toThrow(
+        "Unable to build PSBT"
+      );
+
+      expect(signAndSendWithWIF).not.toHaveBeenCalled();
+      expect(
+        SponsorWalletTransactionsMock.findOneAndUpdate
+      ).not.toHaveBeenCalled();
+      expect(SponsorWalletTransactionsMock.updateOne).toHaveBeenCalledWith(
+        expect.objectContaining({
+          _id: "placeholder-id",
+          reservationOwner: expect.any(String),
+          "transaction.hash": { $exists: false },
+        }),
+        {
+          $set: { status: "failed" },
+          $unset: {
+            reservationOwner: "",
+            reservationExpiresAt: "",
+            reservationPhase: "",
+          },
+        }
+      );
+      expect(SponsorUtxoReservationMock.deleteOne).toHaveBeenCalledWith({
+        key: "construction-utxo:0",
         status: "reserved",
       });
     });

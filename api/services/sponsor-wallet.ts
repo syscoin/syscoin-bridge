@@ -127,20 +127,11 @@ export class SponsorWalletService {
     );
 
     if (existingTransaction?.transaction?.hash) {
-      if (
-        action === SUBMIT_PROOFS_ACTION &&
-        existingTransaction.sourceTxHash?.toLowerCase() !== normalizedSource
-      ) {
-        throw new SponsorNonceRecoveryError(
-          "Legacy or mismatched signed sponsorship cannot be reused in V2"
-        );
-      }
-      if (!existingTransaction.walletId) {
-        throw new SponsorNonceRecoveryError(
-          "Signed sponsorship is missing its sponsor wallet identity"
-        );
-      }
-      await this.recoverSponsorNonceQueue(existingTransaction.walletId);
+      await this.recoverExistingSponsorTransaction(
+        existingTransaction,
+        action,
+        normalizedSource
+      );
       return existingTransaction;
     }
 
@@ -180,6 +171,11 @@ export class SponsorWalletService {
       placeholder = placeholderResult.transaction;
 
       if (placeholder.transaction?.hash) {
+        await this.recoverExistingSponsorTransaction(
+          placeholder,
+          action,
+          normalizedSource
+        );
         return placeholder;
       }
 
@@ -206,6 +202,11 @@ export class SponsorWalletService {
             reservationQuery
           );
           if (inFlight?.transaction?.hash) {
+            await this.recoverExistingSponsorTransaction(
+              inFlight,
+              action,
+              normalizedSource
+            );
             return inFlight;
           }
           throw new SponsorshipInProgressError();
@@ -356,14 +357,17 @@ export class SponsorWalletService {
         transfer.id,
         targetAmountSats + UTXO_CLAIM_GAS_FEE_BUFFER_SATS
       );
-      placeholder = await this.beginUtxoSponsorBroadcast(placeholder);
-      broadcastStarted = true;
-      const txid = await this.sendUtxoClaimGas(
+      const preparedTransaction = await this.prepareUtxoClaimGas(
         sponsorAddress,
-        sponsorWif,
         transfer.utxoAddress,
         targetAmountSats,
         reservation.utxo
+      );
+      placeholder = await this.beginUtxoSponsorBroadcast(placeholder);
+      broadcastStarted = true;
+      const txid = await this.sendPreparedUtxoClaimGas(
+        preparedTransaction,
+        sponsorWif,
       );
 
       await this.commitUtxoSponsorTransaction(placeholder, txid);
@@ -698,6 +702,28 @@ export class SponsorWalletService {
     }
   }
 
+  private async recoverExistingSponsorTransaction(
+    sponsorTransaction: ISponsorWalletTransaction,
+    action: SponsorWalletTransactionAction,
+    normalizedSource?: string
+  ): Promise<void> {
+    if (
+      action === SUBMIT_PROOFS_ACTION &&
+      sponsorTransaction.sourceTxHash?.toLowerCase() !== normalizedSource
+    ) {
+      throw new SponsorNonceRecoveryError(
+        "Legacy or mismatched signed sponsorship cannot be reused in V2"
+      );
+    }
+    if (!sponsorTransaction.walletId) {
+      throw new SponsorNonceRecoveryError(
+        "Signed sponsorship is missing its sponsor wallet identity"
+      );
+    }
+
+    await this.recoverSponsorNonceQueue(sponsorTransaction.walletId);
+  }
+
   private async commitSignedSponsorTransaction(
     placeholder: ISponsorWalletTransaction,
     sourceTxHash: string | undefined,
@@ -1016,13 +1042,12 @@ export class SponsorWalletService {
     );
   }
 
-  private async sendUtxoClaimGas(
+  private async prepareUtxoClaimGas(
     sponsorAddress: string,
-    sponsorWif: string,
     recipientAddress: string,
     amountSats: number,
     sponsorUtxo: SponsorUtxo
-  ): Promise<string> {
+  ): Promise<{ syscoinInstance: any; psbt: any }> {
     const syscoinInstance = new syscoin(
       null,
       getUtxoBlockbookUrl(),
@@ -1045,10 +1070,18 @@ export class SponsorWalletService {
       [sponsorUtxo]
     );
 
-    const signedPsbt = await syscoinInstance.signAndSendWithWIF(
-      result.psbt,
-      sponsorWif
-    );
+    return { syscoinInstance, psbt: result.psbt };
+  }
+
+  private async sendPreparedUtxoClaimGas(
+    preparedTransaction: { syscoinInstance: any; psbt: any },
+    sponsorWif: string
+  ): Promise<string> {
+    const signedPsbt =
+      await preparedTransaction.syscoinInstance.signAndSendWithWIF(
+        preparedTransaction.psbt,
+        sponsorWif
+      );
     const psbt = signedPsbt.psbt ?? signedPsbt;
     const transaction = psbt.extractTransaction();
 
