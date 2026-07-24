@@ -576,7 +576,7 @@ describe("SponsorWalletService", () => {
         action: "submit-proofs",
         sourceTxHash: "deadbeef",
         walletId: "0xSponsor",
-        status: "pending",
+        status: "success",
         transaction: { hash: "0xalready", rawData: "0xraw", nonce: 1 },
       });
       mockWeb3.eth.sendSignedTransaction.mockImplementation(() =>
@@ -593,11 +593,16 @@ describe("SponsorWalletService", () => {
         )
       ).resolves.toMatchObject({
         transferId: "transfer-alias-a",
+        status: "success",
         transaction: { hash: "0xalready" },
       });
       expect(signTransaction).not.toHaveBeenCalled();
       expect(mockWeb3.eth.estimateGas).not.toHaveBeenCalled();
       expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith("0xraw");
+      expect(SponsorWalletTransactionsMock.updateOne).toHaveBeenLastCalledWith(
+        { _id: "existing-id", "transaction.hash": "0xalready" },
+        { $set: { broadcastAt: expect.any(Date) } }
+      );
     });
 
     it("keeps a durable signed row pending when broadcast fails", async () => {
@@ -994,6 +999,10 @@ describe("SponsorWalletService", () => {
         "sponsor-wif"
       );
       expect(
+        SponsorWalletTransactionsMock.findOneAndUpdate.mock
+          .invocationCallOrder[0]
+      ).toBeLessThan(signAndSendWithWIF.mock.invocationCallOrder[0]);
+      expect(
         SponsorWalletTransactionsMock.findOneAndUpdate
       ).toHaveBeenNthCalledWith(
         1,
@@ -1007,6 +1016,7 @@ describe("SponsorWalletService", () => {
         expect.objectContaining({
           $set: {
             reservationExpiresAt: expect.any(Date),
+            reservationPhase: "broadcasting",
           },
         }),
         { new: true }
@@ -1029,6 +1039,7 @@ describe("SponsorWalletService", () => {
           $unset: {
             reservationOwner: "",
             reservationExpiresAt: "",
+            reservationPhase: "",
           },
         }),
         { new: true }
@@ -1167,6 +1178,33 @@ describe("SponsorWalletService", () => {
         },
         { new: true }
       );
+    });
+
+    it("does not retry an expired UTXO reservation with an unknown broadcast outcome", async () => {
+      const broadcastingPlaceholder = {
+        _id: "broadcasting-utxo-placeholder",
+        status: "pending",
+        reservationPhase: "broadcasting",
+        reservationExpiresAt: new Date(Date.now() - 10 * 60_000),
+        transaction: {},
+      };
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(
+        broadcastingPlaceholder
+      );
+
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.getUtxoClaimGasSponsorStatus("transfer-1")
+      ).resolves.toEqual({
+        funded: true,
+        status: "pending",
+        reason:
+          "UTXO sponsorship broadcast outcome requires manual reconciliation",
+      });
+      expect(
+        SponsorWalletTransactionsMock.findOneAndUpdate
+      ).not.toHaveBeenCalled();
     });
   });
 

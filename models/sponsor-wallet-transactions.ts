@@ -17,6 +17,7 @@ export interface ISponsorWalletTransaction extends mongoose.Document {
   status: SponsorWalletTransactionStatus;
   reservationOwner?: string;
   reservationExpiresAt?: Date;
+  reservationPhase?: "reserved" | "broadcasting";
   broadcastAt?: Date;
   broadcastAttempts?: number;
   createdAt: Date;
@@ -63,6 +64,10 @@ const SponsorWalletTransactionSchema =
       },
       reservationExpiresAt: {
         type: Date,
+      },
+      reservationPhase: {
+        type: String,
+        enum: ["reserved", "broadcasting"],
       },
       broadcastAt: {
         type: Date,

@@ -344,14 +344,15 @@ export class SponsorWalletService {
     }
 
     let reservation: { key: string; utxo: SponsorUtxo } | undefined;
-    let transactionSent = false;
+    let broadcastStarted = false;
     try {
       reservation = await this.reserveSponsorUtxo(
         sponsorAddress,
         transfer.id,
         targetAmountSats + UTXO_CLAIM_GAS_FEE_BUFFER_SATS
       );
-      placeholder = await this.renewSponsorReservation(placeholder);
+      placeholder = await this.beginUtxoSponsorBroadcast(placeholder);
+      broadcastStarted = true;
       const txid = await this.sendUtxoClaimGas(
         sponsorAddress,
         sponsorWif,
@@ -359,7 +360,6 @@ export class SponsorWalletService {
         targetAmountSats,
         reservation.utxo
       );
-      transactionSent = true;
 
       await this.commitUtxoSponsorTransaction(placeholder, txid);
       await this.markSponsorUtxoSpent(reservation.key);
@@ -371,7 +371,7 @@ export class SponsorWalletService {
         amountSats: targetAmountSats,
       };
     } catch (error) {
-      if (!transactionSent) {
+      if (!broadcastStarted) {
         await this.failSponsorReservation(placeholder);
       }
       throw error;
@@ -403,6 +403,15 @@ export class SponsorWalletService {
     }
 
     if (existingTransaction?.status === "pending") {
+      if (existingTransaction.reservationPhase === "broadcasting") {
+        return {
+          funded: true,
+          status: "pending",
+          reason:
+            "UTXO sponsorship broadcast outcome requires manual reconciliation",
+        };
+      }
+
       const now = new Date();
       const leaseCutoff = new Date(Date.now() - SPONSOR_RESERVATION_LEASE_MS);
       const expired = await SponsorWalletTransactions.findOneAndUpdate(
@@ -552,6 +561,7 @@ export class SponsorWalletService {
       reservationExpiresAt: new Date(
         Date.now() + SPONSOR_RESERVATION_LEASE_MS
       ),
+      reservationPhase: "reserved",
     });
 
     return placeholder
@@ -602,6 +612,7 @@ export class SponsorWalletService {
           reservationExpiresAt: new Date(
             Date.now() + SPONSOR_RESERVATION_LEASE_MS
           ),
+          reservationPhase: "reserved",
         },
       },
       { new: true }
@@ -649,6 +660,7 @@ export class SponsorWalletService {
           reservationExpiresAt: new Date(
             Date.now() + SPONSOR_RESERVATION_LEASE_MS
           ),
+          reservationPhase: "reserved",
           updatedAt: now,
         },
       },
@@ -715,6 +727,7 @@ export class SponsorWalletService {
         $unset: {
           reservationOwner: "",
           reservationExpiresAt: "",
+          reservationPhase: "",
         },
       },
       { new: true }
@@ -727,7 +740,7 @@ export class SponsorWalletService {
     return committed;
   }
 
-  private async renewSponsorReservation(
+  private async beginUtxoSponsorBroadcast(
     placeholder: ISponsorWalletTransaction
   ): Promise<ISponsorWalletTransaction> {
     if (!placeholder.reservationOwner) {
@@ -747,6 +760,7 @@ export class SponsorWalletService {
           reservationExpiresAt: new Date(
             Date.now() + SPONSOR_RESERVATION_LEASE_MS
           ),
+          reservationPhase: "broadcasting",
         },
       },
       { new: true }
@@ -787,6 +801,7 @@ export class SponsorWalletService {
         $unset: {
           reservationOwner: "",
           reservationExpiresAt: "",
+          reservationPhase: "",
         },
       },
       { new: true }
@@ -817,6 +832,7 @@ export class SponsorWalletService {
         $unset: {
           reservationOwner: "",
           reservationExpiresAt: "",
+          reservationPhase: "",
         },
       }
     ).catch(() => undefined);
@@ -908,7 +924,7 @@ export class SponsorWalletService {
 
     await SponsorWalletTransactions.updateOne(
       { _id: sponsorTransaction._id, "transaction.hash": hash },
-      { $set: { broadcastAt: new Date(), status: "pending" } }
+      { $set: { broadcastAt: new Date() } }
     );
   }
 
