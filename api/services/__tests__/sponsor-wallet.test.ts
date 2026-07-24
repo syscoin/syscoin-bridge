@@ -633,7 +633,7 @@ describe("SponsorWalletService", () => {
     });
 
     it("preserves a successful existing sponsorship without rebroadcasting it", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+      const successfulTransaction = {
         _id: "successful-id",
         transferId: "transfer-successful",
         action: "submit-proofs",
@@ -645,11 +645,18 @@ describe("SponsorWalletService", () => {
           rawData: "0xsuccessful-raw",
           nonce: 1,
         },
-      });
+      };
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(
+        successfulTransaction
+      );
       SponsorWalletTransactionsMock.find.mockReturnValue({
-        sort: () => Promise.resolve([]),
+        sort: () => Promise.resolve([successfulTransaction]),
       });
       mockWeb3.eth.getTransactionCount.mockResolvedValue(2);
+      mockWeb3.eth.getTransaction.mockResolvedValue({
+        hash: "0xsuccessful",
+        nonce: 1,
+      });
       const service = new SponsorWalletService();
 
       await expect(
@@ -665,11 +672,64 @@ describe("SponsorWalletService", () => {
       });
 
       expect(mockWeb3.eth.sendSignedTransaction).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledWith("0xsuccessful");
       expect(SponsorWalletTransactionsMock.updateOne).not.toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
           $set: expect.objectContaining({ status: "pending" }),
         })
+      );
+    });
+
+    it("replays a successful row when the RPC pending nonce rolls back to it", async () => {
+      const successfulTransaction = {
+        _id: "reorged-success-id",
+        transferId: "transfer-reorged-success",
+        action: "submit-proofs",
+        sourceTxHash: "reorged-success-source",
+        walletId: "0xSponsor",
+        status: "success",
+        transaction: {
+          hash: "0xreorged-success",
+          rawData: "0xreorged-success-raw",
+          nonce: 1,
+        },
+      };
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(
+        successfulTransaction
+      );
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () => Promise.resolve([successfulTransaction]),
+      });
+      mockWeb3.eth.getTransactionCount
+        .mockResolvedValueOnce(1)
+        .mockResolvedValueOnce(2);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation(() =>
+        successfulBroadcast("0xreorged-success")
+      );
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-reorged-success",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "reorged-success-source"
+        )
+      ).resolves.toMatchObject({
+        status: "success",
+        transaction: { hash: "0xreorged-success" },
+      });
+
+      expect(SponsorWalletTransactionsMock.find).toHaveBeenCalledWith({
+        action: "submit-proofs",
+        walletId: "0xSponsor",
+        sourceTxHash: { $type: "string" },
+        "transaction.rawData": { $type: "string" },
+        "transaction.nonce": { $type: "number" },
+      });
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith(
+        "0xreorged-success-raw"
       );
     });
 

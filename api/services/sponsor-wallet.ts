@@ -865,7 +865,6 @@ export class SponsorWalletService {
     const pendingTransactions = await SponsorWalletTransactions.find({
       action: SUBMIT_PROOFS_ACTION,
       walletId,
-      status: { $in: ["pending", "failed"] },
       sourceTxHash: { $type: "string" },
       "transaction.rawData": { $type: "string" },
       "transaction.nonce": { $type: "number" },
