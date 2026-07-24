@@ -56,12 +56,17 @@ another nonce is signed.
 Treat enabling `FOUNDATION_FUNDED=true` as an atomic V2 backend cutover:
 
 1. Keep funding disabled while all pre-V2/older backend instances are stopped.
-2. Reconcile every legacy signed sponsor row that lacks `action` or
+2. Configure `NEVM_V2_ACTIVATION_BLOCK` to the immutable first NEVM block
+   eligible for V2 claim-gas sponsorship. Funding fails closed if it is missing
+   or invalid.
+3. Reconcile every legacy signed sponsor row that lacks `action` or
    `sourceTxHash`. Confirm/broadcast or replace its nonce as appropriate, then
    archive the row; do not copy it into the V2 sponsor namespace.
-3. Deploy the V2 backend to every instance and allow its MongoDB indexes to be
-   created.
-4. Enable foundation funding only after all instances run the same V2 sponsor
+4. Deploy the V2 backend and frontend together to every instance and allow its
+   MongoDB indexes to be created. New transfers receive a per-transfer write
+   capability; pre-cutover rows without one are intentionally read-only through
+   the public API.
+5. Enable foundation funding only after all instances run the same V2 sponsor
    protocol.
 
 Startup fails closed when foundation funding is enabled while an unreconciled
@@ -145,6 +150,7 @@ docker build -t syscoin/bridge .
 | `SYS5_ENABLED`                  | Enable Sys5 features                           | true    |
 | `PALI_V2_NEVM_ENABLED`          | Enable Pali V2 NEVM features                    | true    |
 | `FOUNDATION_FUNDED`             | Enable sponsored claim gas for destination-side bridge completion | false   |
+| `NEVM_V2_ACTIVATION_BLOCK`      | First NEVM block eligible for V2 foundation-funded claim gas; required when funding is enabled |         |
 | `NEVM_SPONSOR_PRIVATE_KEY`      | Private key for the NEVM sponsor wallet used to sign sponsored `submit-proofs` transactions |         |
 | `UTXO_SPONSOR_ADDRESS`          | Syscoin UTXO sponsor address used for NEVM-to-UTXO claim gas funding |         |
 | `UTXO_SPONSOR_WIF`              | WIF private key for the UTXO sponsor address    |         |

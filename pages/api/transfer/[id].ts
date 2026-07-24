@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { TransferService } from "api/services/transfer";
+import {
+  TransferService,
+  TransferWriteUnauthorizedError,
+} from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 import { applyApiCors } from "utils/api/cors";
 
@@ -16,21 +19,36 @@ const getRequest = async (req: NextApiRequest, res: NextApiResponse) => {
   return res.status(200).json(transfer);
 };
 
-const patchRequest = async (req: NextApiRequest, res: NextApiResponse) => {
+export const patchRequest = async (
+  req: NextApiRequest,
+  res: NextApiResponse
+) => {
   const id = req.query.id as string;
 
   if (!id) {
     return res.status(400).json({ message: "Missing id" });
   }
+  if (!req.body || req.body.id !== id) {
+    return res.status(400).json({ message: "Transfer id does not match URL" });
+  }
 
   try {
-    const updated = await transferService.upsertTransfer(req.body);
-    res.status(200).json(updated);
+    const authorization = req.headers.authorization;
+    const writeToken =
+      typeof authorization === "string" &&
+      authorization.startsWith("Bearer ")
+        ? authorization.slice("Bearer ".length)
+        : undefined;
+    const updated = await transferService.upsertTransfer(req.body, writeToken);
+    res.status(200).json(updated.transfer);
   } catch (e) {
+    if (e instanceof TransferWriteUnauthorizedError) {
+      return res.status(401).json({ message: e.message });
+    }
     if (e instanceof Error) {
-      res.status(500).json({ message: e.message });
+      return res.status(500).json({ message: e.message });
     } else {
-      res.status(500).json({ message: "Unknown error" });
+      return res.status(500).json({ message: "Unknown error" });
     }
   }
 };

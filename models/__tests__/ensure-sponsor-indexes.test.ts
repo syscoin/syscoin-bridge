@@ -43,6 +43,7 @@ describe("ensureSponsorIndexes", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.FOUNDATION_FUNDED;
+    delete process.env.NEVM_V2_ACTIVATION_BLOCK;
     sponsorWalletTransactions.countDocuments.mockResolvedValue(0);
     sponsorWalletTransactions.aggregate.mockResolvedValue([]);
     sponsorWalletTransactions.createIndexes.mockResolvedValue(undefined);
@@ -52,6 +53,7 @@ describe("ensureSponsorIndexes", () => {
 
   afterEach(() => {
     delete process.env.FOUNDATION_FUNDED;
+    delete process.env.NEVM_V2_ACTIVATION_BLOCK;
   });
 
   it("ignores a legacy index already dropped by another cold start", async () => {
@@ -93,6 +95,7 @@ describe("ensureSponsorIndexes", () => {
 
   it("blocks foundation funding until legacy signed rows are reconciled", async () => {
     process.env.FOUNDATION_FUNDED = "true";
+    process.env.NEVM_V2_ACTIVATION_BLOCK = "100";
     sponsorWalletTransactions.countDocuments.mockResolvedValue(1);
 
     await expect(ensureSponsorIndexes()).rejects.toThrow(
@@ -119,6 +122,7 @@ describe("ensureSponsorIndexes", () => {
 
   it("blocks foundation funding when legacy rows share a sponsor nonce", async () => {
     process.env.FOUNDATION_FUNDED = "true";
+    process.env.NEVM_V2_ACTIVATION_BLOCK = "100";
     sponsorWalletTransactions.aggregate.mockResolvedValue([
       { _id: { walletId: "0xSponsor", nonce: 3 }, count: 2 },
     ]);
@@ -126,6 +130,16 @@ describe("ensureSponsorIndexes", () => {
     await expect(ensureSponsorIndexes()).rejects.toThrow(
       "Foundation funding V2 cutover blocked"
     );
+    expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
+  });
+
+  it("blocks foundation funding when the V2 activation block is absent", async () => {
+    process.env.FOUNDATION_FUNDED = "true";
+
+    await expect(ensureSponsorIndexes()).rejects.toThrow(
+      "NEVM V2 activation block is not configured"
+    );
+    expect(sponsorWalletTransactions.countDocuments).not.toHaveBeenCalled();
     expect(sponsorWalletTransactions.createIndexes).not.toHaveBeenCalled();
   });
 });

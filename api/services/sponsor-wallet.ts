@@ -1,5 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
@@ -13,17 +13,8 @@ import {
   resolveUtxoBlockbookUrl,
 } from "utils/syscoin-urls";
 import { TransactionConfig } from "web3-core";
-
-/** Bitcoin/Syscoin txid (display hex) from witness-stripped serialization. */
-export function syscoinTxIdFromWitnessStrippedHex(txHex: string): string {
-  const hex = txHex.startsWith("0x") ? txHex.slice(2) : txHex;
-  if (!hex || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
-    throw new Error("Invalid witness-stripped transaction hex");
-  }
-  const firstHash = createHash("sha256").update(hex, "hex").digest("hex");
-  const hash = createHash("sha256").update(firstHash, "hex").digest("hex");
-  return hash.match(/.{2}/g)!.reverse().join("");
-}
+import { assertV2ActivationBlock } from "./sponsor-eligibility";
+export { syscoinTxIdFromWitnessStrippedHex } from "utils/syscoin-txid";
 
 const SUBMIT_PROOFS_ACTION: SponsorWalletTransactionAction = "submit-proofs";
 const UTXO_CLAIM_GAS_ACTION: SponsorWalletTransactionAction = "utxo-claim-gas";
@@ -277,11 +268,10 @@ export class SponsorWalletService {
 
   public async sponsorUtxoClaimGas(
     transfer: ITransfer,
-    sourceTxHash?: string
+    sourceTxHash: string | undefined,
+    sourceBlockNumber: number | string | bigint
   ): Promise<SponsorClaimGasResult> {
-    if (transfer.version !== "v2") {
-      throw new Error("Foundation sponsorship is only available for V2 transfers");
-    }
+    assertV2ActivationBlock(sourceBlockNumber);
 
     if (transfer.type !== "nevm-to-sys") {
       throw new Error("UTXO claim gas sponsorship is only for NEVM to SYS");

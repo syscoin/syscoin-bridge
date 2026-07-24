@@ -1,3 +1,4 @@
+import { getV2ActivationBlock } from "api/services/sponsor-eligibility";
 import SponsorRateLimit from "./sponsor-rate-limit";
 import SponsorUtxoReservation from "./sponsor-utxo-reservation";
 import SponsorWalletTransactions from "./sponsor-wallet-transactions";
@@ -53,6 +54,7 @@ const assertFoundationFundingCutoverIsSafe = async () => {
   if (process.env.FOUNDATION_FUNDED !== "true") {
     return;
   }
+  getV2ActivationBlock();
 
   const unsafeLegacySignedRows =
     await SponsorWalletTransactions.countDocuments({

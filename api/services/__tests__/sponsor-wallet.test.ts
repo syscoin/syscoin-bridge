@@ -153,6 +153,7 @@ describe("SponsorWalletService", () => {
     delete process.env.UTXO_SPONSOR_ADDRESS;
     delete process.env.UTXO_SPONSOR_WIF;
     delete process.env.FOUNDATION_FUNDED;
+    process.env.NEVM_V2_ACTIVATION_BLOCK = "1";
     global.fetch = jest.fn() as any;
   });
 
@@ -933,14 +934,13 @@ describe("SponsorWalletService", () => {
   });
 
   describe("sponsorUtxoClaimGas", () => {
-    it("rejects legacy bridge transfers", async () => {
+    it("rejects claim gas for a pre-activation source block", async () => {
+      process.env.NEVM_V2_ACTIVATION_BLOCK = "100";
       const service = new SponsorWalletService();
 
       await expect(
-        service.sponsorUtxoClaimGas({ ...transfer, version: "v1" })
-      ).rejects.toThrow(
-        "Foundation sponsorship is only available for V2 transfers"
-      );
+        service.sponsorUtxoClaimGas(transfer, undefined, 99)
+      ).rejects.toThrow("before the V2 activation block");
       expect(SponsorWalletTransactionsMock.findOne).not.toHaveBeenCalled();
     });
 
@@ -952,7 +952,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toEqual({
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).resolves.toEqual({
         funded: true,
         status: "pending",
         txid: "utxo-txid",
@@ -988,7 +990,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toEqual({
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).resolves.toEqual({
         funded: false,
         status: "skipped",
         amountSats: 0,
@@ -1017,7 +1021,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toEqual({
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).resolves.toEqual({
         funded: false,
         status: "skipped",
         amountSats: 0,
@@ -1095,7 +1101,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toMatchObject(
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).resolves.toMatchObject(
         {
           funded: true,
           status: "pending",
@@ -1231,7 +1239,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).rejects.toThrow(
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).rejects.toThrow(
         "Unable to build PSBT"
       );
 
@@ -1304,7 +1314,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).rejects.toThrow(
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).rejects.toThrow(
         "Broadcast response lost"
       );
 
@@ -1347,7 +1359,9 @@ describe("SponsorWalletService", () => {
 
       const service = new SponsorWalletService();
 
-      await expect(service.sponsorUtxoClaimGas(transfer)).resolves.toEqual({
+      await expect(
+        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+      ).resolves.toEqual({
         funded: true,
         status: "pending",
         reason: "UTXO claim gas sponsorship is already in progress",
@@ -1380,7 +1394,7 @@ describe("SponsorWalletService", () => {
       const service = new SponsorWalletService();
 
       await expect(
-        service.sponsorUtxoClaimGas(transfer, "0xburn")
+        service.sponsorUtxoClaimGas(transfer, "0xburn", 1)
       ).resolves.toEqual({
         funded: true,
         status: "pending",

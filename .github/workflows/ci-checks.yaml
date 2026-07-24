@@ -31,5 +31,7 @@ jobs:
         run: yarn
       - name: Lint Code
         run: yarn lint
+      - name: Run Tests
+        run: yarn test --runInBand
       - name: Build Application
         run: yarn build

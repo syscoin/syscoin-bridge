@@ -3,8 +3,8 @@ import relayAbi from "@contexts/Transfer/relay-abi";
 import SponsorWalletService, {
   SponsorNonceRecoveryError,
   SponsorshipInProgressError,
-  syscoinTxIdFromWitnessStrippedHex,
 } from "api/services/sponsor-wallet";
+import { getCanonicalChainLockedProof } from "api/services/sponsor-proof";
 import { TransferService } from "api/services/transfer";
 import { getProof } from "bitcoin-proof";
 import dbConnect from "lib/mongodb";
@@ -48,7 +48,9 @@ const handler: NextApiHandler = async (
     if (!generatedProofLog) {
       throw new Error("Proofs not generated");
     }
-    const proof = generatedProofLog.payload.data as SPVProof;
+    const submittedProof = generatedProofLog.payload.data as SPVProof;
+    const { proof, sourceTxHash } =
+      await getCanonicalChainLockedProof(submittedProof);
     const nevmBlock = await web3.eth.getBlock(`0x${proof.nevm_blockhash}`);
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
@@ -80,8 +82,6 @@ const handler: NextApiHandler = async (
     );
 
     const encoded = method.encodeABI();
-    const sourceTxHash = syscoinTxIdFromWitnessStrippedHex(proof.transaction);
-
     const sponsorWalletService = new SponsorWalletService();
 
     const sponsoredTransaction = await sponsorWalletService.sponsorTransaction(
