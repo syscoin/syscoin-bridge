@@ -333,6 +333,126 @@ describe("SponsorWalletService", () => {
       ).toBeLessThan(signTransaction.mock.invocationCallOrder[0]);
     });
 
+    it("fails closed when the chain advanced past an unknown durable transaction", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      const signTransaction = jest.fn();
+      mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
+        address: "0xSponsor",
+        signTransaction,
+      });
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(8);
+      mockWeb3.eth.getTransaction.mockResolvedValue(undefined);
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () =>
+          Promise.resolve([
+            {
+              _id: "replaced-id",
+              action: "submit-proofs",
+              walletId: "0xSponsor",
+              sourceTxHash: "replaced-source",
+              status: "pending",
+              transaction: {
+                hash: "0xreplaced-hash",
+                rawData: "0xreplaced-raw",
+                nonce: 7,
+                confirmedHash: "",
+              },
+            },
+          ]),
+      });
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-after-replacement",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "new-source"
+        )
+      ).rejects.toThrow(
+        "Sponsor transaction 0xreplaced-hash was replaced at nonce 7"
+      );
+
+      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledWith(
+        "0xreplaced-hash"
+      );
+      expect(signTransaction).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.sendSignedTransaction).not.toHaveBeenCalled();
+    });
+
+    it("allows a known durable lower nonce before signing the chain nonce", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      const signTransaction = jest.fn(() =>
+        Promise.resolve({
+          rawTransaction: "0xnext-raw",
+          transactionHash: "0xnext-hash",
+        })
+      );
+      mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
+        address: "0xSponsor",
+        signTransaction,
+      });
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(8);
+      mockWeb3.eth.getTransaction.mockResolvedValue({
+        hash: "0xknown-hash",
+        nonce: 7,
+      });
+      mockWeb3.eth.getGasPrice.mockResolvedValue("100");
+      mockWeb3.eth.estimateGas.mockResolvedValue(120_000);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation(() =>
+        successfulBroadcast("0xnext-hash")
+      );
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () =>
+          Promise.resolve([
+            {
+              _id: "known-id",
+              action: "submit-proofs",
+              walletId: "0xSponsor",
+              sourceTxHash: "known-source",
+              status: "pending",
+              transaction: {
+                hash: "0xknown-hash",
+                rawData: "0xknown-raw",
+                nonce: 7,
+                confirmedHash: "",
+              },
+            },
+          ]),
+      });
+      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValue({
+        _id: "next-id",
+        action: "submit-proofs",
+        walletId: "0xSponsor",
+        sourceTxHash: "new-source",
+        status: "pending",
+        transaction: {
+          hash: "0xnext-hash",
+          rawData: "0xnext-raw",
+          nonce: 8,
+          confirmedHash: "",
+        },
+      });
+      const service = new SponsorWalletService();
+
+      await service.sponsorTransaction(
+        "transfer-known-lower",
+        { to: "0xRelay", data: "0xdata", value: 0 },
+        "submit-proofs",
+        "new-source"
+      );
+
+      expect(signTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ nonce: 8 })
+      );
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith(
+        "0xnext-raw"
+      );
+    });
+
     it("fails closed instead of signing across a durable nonce gap", async () => {
       process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
       const signTransaction = jest.fn();

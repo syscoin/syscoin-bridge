@@ -830,12 +830,20 @@ export class SponsorWalletService {
       status: { $in: ["pending", "failed"] },
       sourceTxHash: { $type: "string" },
       "transaction.rawData": { $type: "string" },
-      "transaction.nonce": { $gte: pendingNonce },
+      "transaction.nonce": { $type: "number" },
     }).sort({ "transaction.nonce": 1 });
 
     for (const pendingTransaction of pendingTransactions) {
       const storedNonce = pendingTransaction.transaction.nonce;
       if (storedNonce < pendingNonce) {
+        const knownTransaction = await web3.eth.getTransaction(
+          pendingTransaction.transaction.hash
+        );
+        if (!knownTransaction) {
+          throw new SponsorNonceRecoveryError(
+            `Sponsor transaction ${pendingTransaction.transaction.hash} was replaced at nonce ${storedNonce}; manual reconciliation is required`
+          );
+        }
         continue;
       }
       if (storedNonce > pendingNonce) {
