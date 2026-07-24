@@ -1,4 +1,3 @@
-import { DEFAULT_GAS_LIMIT } from "@constants";
 import { ITransfer } from "@contexts/Transfer/types";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import SponsorWalletTransactions, {
@@ -107,12 +106,18 @@ export class SponsorWalletService {
     const nonce = await this.getAddressNextNonce(sender.address);
 
     const gasPrice = await web3.eth.getGasPrice();
-    const gas = await web3.eth
-      .estimateGas({ ...transactionConfig, from: sender.address })
-      .catch((e) => {
-        console.error("estimateGas error", e);
-        return DEFAULT_GAS_LIMIT;
+    let gas: number;
+    try {
+      gas = await web3.eth.estimateGas({
+        ...transactionConfig,
+        from: sender.address,
       });
+    } catch (e) {
+      console.error("estimateGas error", e);
+      throw e instanceof Error
+        ? e
+        : new Error("Gas estimation failed; refusing to sponsor transaction");
+    }
 
     const signedTransaction = await sender.signTransaction({
       ...transactionConfig,

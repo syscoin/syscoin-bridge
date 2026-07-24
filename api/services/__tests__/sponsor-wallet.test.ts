@@ -154,6 +154,32 @@ describe("SponsorWalletService", () => {
         })
       );
     });
+
+    it("refuses to sponsor when gas estimation fails", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
+        address: "0xSponsor",
+        signTransaction: jest.fn(),
+      });
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(3);
+      mockWeb3.eth.getGasPrice.mockResolvedValue("100");
+      mockWeb3.eth.estimateGas.mockRejectedValue(new Error("execution reverted"));
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () => ({
+          limit: () => Promise.resolve([]),
+        }),
+      });
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction("transfer-1", {
+          to: "0xRelay",
+          data: "0xdata",
+          value: 0,
+        })
+      ).rejects.toThrow("execution reverted");
+    });
   });
 
   describe("sponsorUtxoClaimGas", () => {
