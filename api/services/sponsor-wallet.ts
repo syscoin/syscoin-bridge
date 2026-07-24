@@ -687,9 +687,14 @@ export class SponsorWalletService {
   }
 
   private async getAddressNextNonce(address: string): Promise<number> {
+    // Ignore reservation placeholders (transaction: {}) so an empty nonce field
+    // cannot collapse internalNonce to undefined/NaN.
     const [lastTransaction] = await SponsorWalletTransactions.find({
       walletId: address,
-    }).sort({ "transaction.nonce": -1 }).limit(1);
+      "transaction.nonce": { $type: "number" },
+    })
+      .sort({ "transaction.nonce": -1 })
+      .limit(1);
 
     const pendingNonce = await web3.eth.getTransactionCount(address, "pending");
 

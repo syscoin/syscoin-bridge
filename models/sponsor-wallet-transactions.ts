@@ -60,9 +60,11 @@ SponsorWalletTransactionSchema.index(
 );
 // One sponsorship per (action, source chain tx). Required for submit-proofs so
 // the same burn cannot be sponsored under many transferId aliases.
+// Named explicitly; ensureSponsorIndexes drops prior same-key variants.
 SponsorWalletTransactionSchema.index(
   { action: 1, sourceTxHash: 1 },
   {
+    name: "action_1_sourceTxHash_1_v2",
     unique: true,
     partialFilterExpression: {
       sourceTxHash: { $type: "string" },
