@@ -1132,6 +1132,14 @@ describe("SponsorWalletService", () => {
         SponsorWalletTransactionsMock.findOneAndUpdate.mock
           .invocationCallOrder[0]
       ).toBeLessThan(signAndSendWithWIF.mock.invocationCallOrder[0]);
+      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenNthCalledWith(
+        1,
+        { key: "small-utxo:1", status: "reserved" },
+        {
+          $set: { status: "broadcasting" },
+          $unset: { expiresAt: "" },
+        }
+      );
       expect(
         SponsorWalletTransactionsMock.findOneAndUpdate
       ).toHaveBeenNthCalledWith(
@@ -1174,16 +1182,17 @@ describe("SponsorWalletService", () => {
         }),
         { new: true }
       );
-      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenCalledWith(
-        { key: "small-utxo:1" },
-        expect.objectContaining({
-          $set: expect.objectContaining({ status: "spent" }),
-        })
+      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenNthCalledWith(
+        2,
+        { key: "small-utxo:1", status: "broadcasting" },
+        {
+          $set: {
+            status: "spent",
+            expiresAt: expect.any(Date),
+          },
+        }
       );
-      expect(SponsorUtxoReservationMock.deleteOne).toHaveBeenCalledWith({
-        key: "small-utxo:1",
-        status: "reserved",
-      });
+      expect(SponsorUtxoReservationMock.deleteOne).not.toHaveBeenCalled();
     });
 
     it("releases the reservation when UTXO construction fails before broadcast", async () => {
@@ -1249,6 +1258,70 @@ describe("SponsorWalletService", () => {
         key: "construction-utxo:0",
         status: "reserved",
       });
+    });
+
+    it("retains the specific UTXO when broadcast outcome is unknown", async () => {
+      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
+      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValueOnce({
+        _id: "placeholder-id",
+        reservationOwner: "utxo-owner",
+        reservationPhase: "broadcasting",
+        status: "pending",
+        transaction: {},
+      });
+      SponsorUtxoReservationMock.create.mockResolvedValue({});
+      SponsorUtxoReservationMock.updateOne.mockResolvedValue({
+        modifiedCount: 1,
+      });
+      (global.fetch as jest.Mock<any>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "0" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ balance: "0" }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              { txid: "ambiguous-utxo", vout: 0, value: "1000000" },
+            ]),
+        });
+      const createTransaction = jest.fn(() =>
+        Promise.resolve({ psbt: "unsigned-psbt" })
+      );
+      const signAndSendWithWIF = jest.fn(() =>
+        Promise.reject(new Error("Broadcast response lost"))
+      );
+      SyscoinMock.mockImplementation(() => ({
+        createTransaction,
+        signAndSendWithWIF,
+      }));
+
+      const service = new SponsorWalletService();
+
+      await expect(service.sponsorUtxoClaimGas(transfer)).rejects.toThrow(
+        "Broadcast response lost"
+      );
+
+      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenCalledWith(
+        { key: "ambiguous-utxo:0", status: "reserved" },
+        {
+          $set: { status: "broadcasting" },
+          $unset: { expiresAt: "" },
+        }
+      );
+      expect(SponsorUtxoReservationMock.deleteOne).not.toHaveBeenCalled();
+      expect(SponsorWalletTransactionsMock.updateOne).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          $set: expect.objectContaining({ status: "failed" }),
+        })
+      );
     });
 
     it("returns in-progress when a duplicate placeholder wins the race", async () => {

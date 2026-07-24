@@ -364,6 +364,7 @@ export class SponsorWalletService {
         reservation.utxo
       );
       placeholder = await this.beginUtxoSponsorBroadcast(placeholder);
+      await this.markSponsorUtxoBroadcasting(reservation.key);
       broadcastStarted = true;
       const txid = await this.sendPreparedUtxoClaimGas(
         preparedTransaction,
@@ -385,7 +386,7 @@ export class SponsorWalletService {
       }
       throw error;
     } finally {
-      if (reservation) {
+      if (reservation && !broadcastStarted) {
         await this.releaseSponsorUtxoReservation(reservation.key);
       }
     }
@@ -1128,8 +1129,8 @@ export class SponsorWalletService {
   }
 
   private async markSponsorUtxoSpent(key: string) {
-    await SponsorUtxoReservation.updateOne(
-      { key },
+    const result = await SponsorUtxoReservation.updateOne(
+      { key, status: "broadcasting" },
       {
         $set: {
           status: "spent",
@@ -1137,6 +1138,22 @@ export class SponsorWalletService {
         },
       }
     );
+    if (result.modifiedCount !== 1) {
+      throw new Error("UTXO sponsor reservation was lost after broadcast");
+    }
+  }
+
+  private async markSponsorUtxoBroadcasting(key: string) {
+    const result = await SponsorUtxoReservation.updateOne(
+      { key, status: "reserved" },
+      {
+        $set: { status: "broadcasting" },
+        $unset: { expiresAt: "" },
+      }
+    );
+    if (result.modifiedCount !== 1) {
+      throw new SponsorshipInProgressError();
+    }
   }
 
   private async releaseSponsorUtxoReservation(key: string) {
