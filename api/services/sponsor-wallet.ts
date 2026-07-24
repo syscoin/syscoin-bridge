@@ -20,11 +20,9 @@ export function syscoinTxIdFromWitnessStrippedHex(txHex: string): string {
   if (!hex || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) {
     throw new Error("Invalid witness-stripped transaction hex");
   }
-  const preimage = Buffer.from(hex, "hex");
-  const hash = createHash("sha256")
-    .update(createHash("sha256").update(preimage).digest())
-    .digest();
-  return Buffer.from(hash).reverse().toString("hex");
+  const firstHash = createHash("sha256").update(hex, "hex").digest("hex");
+  const hash = createHash("sha256").update(firstHash, "hex").digest("hex");
+  return hash.match(/.{2}/g)!.reverse().join("");
 }
 
 const SUBMIT_PROOFS_ACTION: SponsorWalletTransactionAction = "submit-proofs";
@@ -32,7 +30,14 @@ const UTXO_CLAIM_GAS_ACTION: SponsorWalletTransactionAction = "utxo-claim-gas";
 const DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS = "0.001";
 const DEFAULT_UTXO_FEE_RATE = 10;
 const UTXO_CLAIM_GAS_FEE_BUFFER_SATS = DEFAULT_UTXO_FEE_RATE * 250;
-const UTXO_RESERVATION_LEASE_MS = 5 * 60_000;
+const SPONSOR_RESERVATION_LEASE_MS = 5 * 60_000;
+
+export class SponsorshipInProgressError extends Error {
+  constructor() {
+    super("Sponsorship is already in progress");
+    this.name = "SponsorshipInProgressError";
+  }
+}
 
 type SponsorUtxo = {
   txid?: string;
@@ -113,23 +118,34 @@ export class SponsorWalletService {
 
     const normalizedSource = sourceTxHash?.toLowerCase();
 
-    const existingTransaction = await SponsorWalletTransactions.findOne({
+    const reservationQuery = {
       action,
       $or: [
         { transferId },
         ...(normalizedSource ? [{ sourceTxHash: normalizedSource }] : []),
       ],
-    });
+    };
+    const existingTransaction = await SponsorWalletTransactions.findOne(
+      reservationQuery
+    );
 
     if (existingTransaction?.transaction?.hash) {
       return existingTransaction;
     }
 
+    let placeholder: ISponsorWalletTransaction | null = null;
     if (
       existingTransaction?.status === "pending" &&
       !existingTransaction.transaction?.hash
     ) {
-      return existingTransaction;
+      placeholder = await this.acquireStaleSponsorPlaceholder(
+        transferId,
+        action,
+        normalizedSource
+      );
+      if (!placeholder) {
+        throw new SponsorshipInProgressError();
+      }
     }
 
     const privateKey = process.env.NEVM_SPONSOR_PRIVATE_KEY;
@@ -142,42 +158,56 @@ export class SponsorWalletService {
     // Reserve (transferId, action) and (action, sourceTxHash) before nonce /
     // estimate / sign so concurrent aliases of the same burn cannot each mint
     // a sponsor signature.
-    const placeholderResult = await this.createSponsorPlaceholder(
-      transferId,
-      action,
-      sender.address,
-      normalizedSource
-    );
-    let placeholder = placeholderResult.transaction;
-
-    if (placeholder.transaction?.hash) {
-      return placeholder;
-    }
-
-    if (!placeholderResult.created && placeholder.status === "pending") {
-      return placeholder;
-    }
-
-    if (!placeholderResult.created && placeholder.status === "failed") {
-      const retryPlaceholder = await this.acquireFailedSponsorPlaceholder(
+    if (!placeholder) {
+      const placeholderResult = await this.createSponsorPlaceholder(
         transferId,
         action,
+        sender.address,
         normalizedSource
       );
-      if (!retryPlaceholder) {
-        const inFlight = await SponsorWalletTransactions.findOne({
-          action,
-          $or: [
-            { transferId },
-            ...(normalizedSource ? [{ sourceTxHash: normalizedSource }] : []),
-          ],
-        });
-        if (inFlight) {
-          return inFlight;
-        }
-        throw new Error("Sponsorship reservation conflict");
+      placeholder = placeholderResult.transaction;
+
+      if (placeholder.transaction?.hash) {
+        return placeholder;
       }
-      placeholder = retryPlaceholder;
+
+      if (!placeholderResult.created && placeholder.status === "pending") {
+        const stalePlaceholder = await this.acquireStaleSponsorPlaceholder(
+          transferId,
+          action,
+          normalizedSource
+        );
+        if (!stalePlaceholder) {
+          throw new SponsorshipInProgressError();
+        }
+        placeholder = stalePlaceholder;
+      }
+
+      if (!placeholderResult.created && placeholder.status === "failed") {
+        const retryPlaceholder = await this.acquireFailedSponsorPlaceholder(
+          transferId,
+          action,
+          normalizedSource
+        );
+        if (!retryPlaceholder) {
+          const inFlight = await SponsorWalletTransactions.findOne(
+            reservationQuery
+          );
+          if (inFlight?.transaction?.hash) {
+            return inFlight;
+          }
+          throw new SponsorshipInProgressError();
+        }
+        placeholder = retryPlaceholder;
+      }
+
+      if (
+        !placeholderResult.created &&
+        placeholder.status !== "pending" &&
+        placeholder.status !== "failed"
+      ) {
+        throw new Error("Sponsorship reservation is incomplete");
+      }
     }
 
     try {
@@ -366,7 +396,7 @@ export class SponsorWalletService {
       const updatedAtMs = getDocumentUpdatedAtMs(existingTransaction);
       if (
         updatedAtMs !== undefined &&
-        Date.now() - updatedAtMs > UTXO_RESERVATION_LEASE_MS
+        Date.now() - updatedAtMs > SPONSOR_RESERVATION_LEASE_MS
       ) {
         existingTransaction.status = "failed";
         await existingTransaction.save();
@@ -538,6 +568,37 @@ export class SponsorWalletService {
     );
   }
 
+  private async acquireStaleSponsorPlaceholder(
+    transferId: string,
+    action: SponsorWalletTransactionAction,
+    sourceTxHash?: string
+  ): Promise<ISponsorWalletTransaction | null> {
+    const leaseCutoff = new Date(
+      Date.now() - SPONSOR_RESERVATION_LEASE_MS
+    );
+
+    return SponsorWalletTransactions.findOneAndUpdate(
+      {
+        action,
+        status: "pending",
+        "transaction.hash": { $exists: false },
+        updatedAt: { $lte: leaseCutoff },
+        $or: [
+          { transferId },
+          ...(sourceTxHash ? [{ sourceTxHash }] : []),
+        ],
+      },
+      {
+        $set: {
+          status: "pending",
+          transaction: {},
+          updatedAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+  }
+
   private async getUtxoAddressBalanceSats(address: string): Promise<number> {
     const response = await fetch(
       `${getUtxoBlockbookUrl()}/api/v2/address/${address}?details=basic`
@@ -620,7 +681,7 @@ export class SponsorWalletService {
     minValueSats: number
   ): Promise<{ key: string; utxo: SponsorUtxo }> {
     const utxos = await this.getSponsorUtxos(sponsorAddress);
-    const expiresAt = new Date(Date.now() + UTXO_RESERVATION_LEASE_MS);
+    const expiresAt = new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS);
 
     for (const utxo of utxos) {
       if (Number(utxo.value) < minValueSats) {
@@ -659,7 +720,7 @@ export class SponsorWalletService {
       {
         $set: {
           status: "spent",
-          expiresAt: new Date(Date.now() + UTXO_RESERVATION_LEASE_MS),
+          expiresAt: new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS),
         },
       }
     );

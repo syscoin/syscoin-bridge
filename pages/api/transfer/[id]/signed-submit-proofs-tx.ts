@@ -1,6 +1,7 @@
 import { RELAY_CONTRACT_ADDRESS } from "@constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
 import SponsorWalletService, {
+  SponsorshipInProgressError,
   syscoinTxIdFromWitnessStrippedHex,
 } from "api/services/sponsor-wallet";
 import { TransferService } from "api/services/transfer";
@@ -96,7 +97,9 @@ const handler: NextApiHandler = async (
     if (e instanceof Error) {
       message = e.message;
     }
-    res.status(500).json({ message });
+    res
+      .status(e instanceof SponsorshipInProgressError ? 409 : 500)
+      .json({ message });
   }
 };
 

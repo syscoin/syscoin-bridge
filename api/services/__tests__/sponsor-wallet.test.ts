@@ -4,13 +4,13 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 const mockWeb3 = {
   eth: {
     accounts: {
-      privateKeyToAccount: jest.fn(),
+      privateKeyToAccount: jest.fn<any>(),
     },
-    getBalance: jest.fn(),
-    getGasPrice: jest.fn(),
-    estimateGas: jest.fn(),
-    getTransactionCount: jest.fn(),
-    getTransactionReceipt: jest.fn(),
+    getBalance: jest.fn<any>(),
+    getGasPrice: jest.fn<any>(),
+    estimateGas: jest.fn<any>(),
+    getTransactionCount: jest.fn<any>(),
+    getTransactionReceipt: jest.fn<any>(),
   },
   utils: {
     fromWei: jest.fn(),
@@ -26,7 +26,7 @@ jest.mock("utils/get-web3", () => ({
 jest.mock("models/sponsor-wallet-transactions", () => {
   const Model: any = jest.fn(function (this: any, data: any) {
     Object.assign(this, data);
-    this.save = jest.fn().mockResolvedValue(this);
+    this.save = jest.fn<any>().mockResolvedValue(this);
   });
   Model.findOne = jest.fn();
   Model.findOneAndUpdate = jest.fn();
@@ -81,7 +81,7 @@ import SponsorWalletService, {
 const SponsorWalletTransactionsMock = SponsorWalletTransactions as any;
 const SponsorUtxoReservationMock = SponsorUtxoReservation as any;
 const SyscoinMock = syscoin as jest.Mock;
-const fetchBackendRawTxMock = syscoinUtils.fetchBackendRawTx as jest.Mock;
+const fetchBackendRawTxMock = syscoinUtils.fetchBackendRawTx as jest.Mock<any>;
 
 const transfer: ITransfer = {
   id: "transfer-1",
@@ -103,7 +103,7 @@ describe("SponsorWalletService", () => {
     delete process.env.NEVM_SPONSOR_PRIVATE_KEY;
     delete process.env.UTXO_SPONSOR_ADDRESS;
     delete process.env.UTXO_SPONSOR_WIF;
-    global.fetch = jest.fn();
+    global.fetch = jest.fn() as any;
   });
 
   describe("syscoinTxIdFromWitnessStrippedHex", () => {
@@ -219,6 +219,99 @@ describe("SponsorWalletService", () => {
       expect(mockWeb3.eth.estimateGas).not.toHaveBeenCalled();
     });
 
+    it("rejects an unsigned sponsorship that is still in progress", async () => {
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+        transferId: "transfer-alias-a",
+        action: "submit-proofs",
+        sourceTxHash: "deadbeef",
+        status: "pending",
+        updatedAt: new Date(),
+        transaction: {},
+      });
+      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValue(null);
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-alias-b",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "DEADBEEF"
+        )
+      ).rejects.toThrow("Sponsorship is already in progress");
+      expect(mockWeb3.eth.accounts.privateKeyToAccount).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.estimateGas).not.toHaveBeenCalled();
+    });
+
+    it("reacquires and signs a stale unsigned sponsorship", async () => {
+      process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
+      const signTransaction = jest.fn(() =>
+        Promise.resolve({
+          rawTransaction: "0xsigned",
+          transactionHash: "0xhash",
+        })
+      );
+      const stalePlaceholder = {
+        transferId: "transfer-1",
+        action: "submit-proofs",
+        sourceTxHash: "deadbeef",
+        walletId: "0xSponsor",
+        status: "pending",
+        updatedAt: new Date(Date.now() - 10 * 60_000),
+        transaction: {},
+        save: jest.fn<any>().mockResolvedValue(undefined),
+      };
+      mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
+        address: "0xSponsor",
+        signTransaction,
+      });
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(3);
+      mockWeb3.eth.getGasPrice.mockResolvedValue("100");
+      mockWeb3.eth.estimateGas.mockResolvedValue(120_000);
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(stalePlaceholder);
+      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValue(
+        stalePlaceholder
+      );
+      SponsorWalletTransactionsMock.find.mockReturnValue({
+        sort: () => ({
+          limit: () => Promise.resolve([]),
+        }),
+      });
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.sponsorTransaction(
+          "transfer-1",
+          { to: "0xRelay", data: "0xdata", value: 0 },
+          "submit-proofs",
+          "DEADBEEF"
+        )
+      ).resolves.toMatchObject({
+        transaction: {
+          hash: "0xhash",
+          rawData: "0xsigned",
+          nonce: 3,
+        },
+      });
+      expect(SponsorWalletTransactionsMock.findOneAndUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "submit-proofs",
+          status: "pending",
+          "transaction.hash": { $exists: false },
+          updatedAt: { $lte: expect.any(Date) },
+        }),
+        expect.objectContaining({
+          $set: expect.objectContaining({
+            status: "pending",
+            transaction: {},
+            updatedAt: expect.any(Date),
+          }),
+        }),
+        { new: true }
+      );
+      expect(signTransaction).toHaveBeenCalledTimes(1);
+    });
+
     it("refuses to sponsor when gas estimation fails", async () => {
       process.env.NEVM_SPONSOR_PRIVATE_KEY = "nevm-private-key";
       mockWeb3.eth.accounts.privateKeyToAccount.mockReturnValue({
@@ -289,7 +382,7 @@ describe("SponsorWalletService", () => {
 
     it("skips funding when the destination already has enough claim gas", async () => {
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock<any>).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ balance: "100000" }),
       });
@@ -313,7 +406,7 @@ describe("SponsorWalletService", () => {
 
     it("skips funding when the wallet xpub has enough claim gas", async () => {
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      (global.fetch as jest.Mock)
+      (global.fetch as jest.Mock<any>)
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ balance: "0" }),
@@ -351,7 +444,7 @@ describe("SponsorWalletService", () => {
       SponsorUtxoReservationMock.deleteOne.mockResolvedValue({
         deletedCount: 0,
       });
-      (global.fetch as jest.Mock)
+      (global.fetch as jest.Mock<any>)
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ balance: "0" }),
@@ -441,9 +534,9 @@ describe("SponsorWalletService", () => {
         data: any
       ) {
         Object.assign(this, data);
-        this.save = jest.fn().mockRejectedValue({ code: 11000 });
+        this.save = jest.fn<any>().mockRejectedValue({ code: 11000 });
       });
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock<any>).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ balance: "0" }),
       });
@@ -473,9 +566,9 @@ describe("SponsorWalletService", () => {
         data: any
       ) {
         Object.assign(this, data);
-        this.save = jest.fn().mockRejectedValue({ code: 11000 });
+        this.save = jest.fn<any>().mockRejectedValue({ code: 11000 });
       });
-      (global.fetch as jest.Mock).mockResolvedValue({
+      (global.fetch as jest.Mock<any>).mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ balance: "0" }),
       });
@@ -512,7 +605,7 @@ describe("SponsorWalletService", () => {
         status: "pending",
         transaction: {},
         updatedAt: new Date(Date.now() - 10 * 60_000),
-        save: jest.fn().mockResolvedValue(undefined),
+        save: jest.fn<any>().mockResolvedValue(undefined),
       };
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(stalePlaceholder);
 
@@ -531,7 +624,7 @@ describe("SponsorWalletService", () => {
       const record = {
         status: "pending",
         transaction: { hash: "0xabc", confirmedHash: "" },
-        save: jest.fn().mockResolvedValue(undefined),
+        save: jest.fn<any>().mockResolvedValue(undefined),
       };
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(record);
       mockWeb3.eth.getTransactionReceipt.mockResolvedValue({
@@ -557,7 +650,7 @@ describe("SponsorWalletService", () => {
       const record = {
         status: "pending",
         transaction: { hash: "utxo-txid", confirmedHash: "" },
-        save: jest.fn().mockResolvedValue(undefined),
+        save: jest.fn<any>().mockResolvedValue(undefined),
       };
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(record);
       fetchBackendRawTxMock.mockResolvedValue({ txid: "utxo-txid" });
