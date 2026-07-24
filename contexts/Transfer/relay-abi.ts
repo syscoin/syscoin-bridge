@@ -28,6 +28,16 @@ export const relayAbi: AbiItem[] = [
         name: "_syscoinBlockHeader",
         type: "bytes",
       },
+      {
+        internalType: "bytes",
+        name: "_coinbaseTxBytes",
+        type: "bytes",
+      },
+      {
+        internalType: "uint256[]",
+        name: "_coinbaseSiblings",
+        type: "uint256[]",
+      },
     ],
     name: "relayTx",
     outputs: [

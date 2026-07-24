@@ -1,6 +1,8 @@
 declare module "syscoinjs-lib" {
   interface SPVProof {
     transaction: string;
+    /** Witness-stripped coinbase hex for same-depth Merkle checks */
+    coinbase: string;
     blockhash: string;
     header: string;
     siblings: string[];
