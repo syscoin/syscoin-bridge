@@ -51,7 +51,7 @@ const createTransfer = (
   draft: Partial<ConnectValidateDraft> = {}
 ): ITransfer => ({
   amount: "0",
-  id: `${Date.now()}`,
+  id: crypto.randomUUID(),
   type,
   status: COMMON_STATUS.INITIALIZE,
   logs: [],

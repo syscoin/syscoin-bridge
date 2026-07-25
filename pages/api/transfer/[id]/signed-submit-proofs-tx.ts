@@ -1,9 +1,10 @@
 import { RELAY_CONTRACT_ADDRESS } from "@constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
 import SponsorWalletService, {
+  SponsorNonceRecoveryError,
   SponsorshipInProgressError,
-  syscoinTxIdFromWitnessStrippedHex,
 } from "api/services/sponsor-wallet";
+import { getCanonicalChainLockedProof } from "api/services/sponsor-proof";
 import { TransferService } from "api/services/transfer";
 import { getProof } from "bitcoin-proof";
 import dbConnect from "lib/mongodb";
@@ -38,13 +39,18 @@ const handler: NextApiHandler = async (
     }
     await dbConnect();
     const transfer = await transferService.getTransfer(id as string);
+    if (transfer.version !== "v2") {
+      throw new Error("Foundation sponsorship is only available for V2 transfers");
+    }
     const generatedProofLog = transfer.logs.find(
       (a) => a.status === "generate-proofs"
     );
     if (!generatedProofLog) {
       throw new Error("Proofs not generated");
     }
-    const proof = generatedProofLog.payload.data as SPVProof;
+    const submittedProof = generatedProofLog.payload.data as SPVProof;
+    const { proof, sourceTxHash } =
+      await getCanonicalChainLockedProof(submittedProof);
     const nevmBlock = await web3.eth.getBlock(`0x${proof.nevm_blockhash}`);
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
@@ -76,8 +82,6 @@ const handler: NextApiHandler = async (
     );
 
     const encoded = method.encodeABI();
-    const sourceTxHash = syscoinTxIdFromWitnessStrippedHex(proof.transaction);
-
     const sponsorWalletService = new SponsorWalletService();
 
     const sponsoredTransaction = await sponsorWalletService.sponsorTransaction(
@@ -91,15 +95,25 @@ const handler: NextApiHandler = async (
       sourceTxHash
     );
 
-    res.status(200).json(sponsoredTransaction.toJSON({ versionKey: false }));
+    res.status(200).json({
+      status: sponsoredTransaction.status,
+      transaction: {
+        hash: sponsoredTransaction.transaction.hash,
+        confirmedHash: sponsoredTransaction.transaction.confirmedHash,
+      },
+    });
   } catch (e) {
     let message = "Unknown error";
     if (e instanceof Error) {
       message = e.message;
     }
-    res
-      .status(e instanceof SponsorshipInProgressError ? 409 : 500)
-      .json({ message });
+    const status =
+      e instanceof SponsorshipInProgressError
+        ? 409
+        : e instanceof SponsorNonceRecoveryError
+          ? 503
+          : 500;
+    res.status(status).json({ message });
   }
 };
 

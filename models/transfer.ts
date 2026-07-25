@@ -1,7 +1,10 @@
 import { ITransfer, ITransferLog } from "@contexts/Transfer/types";
 import mongoose from "mongoose";
 
-export type Transfer = mongoose.Document & ITransfer;
+export type Transfer = mongoose.Document &
+  ITransfer & {
+    writeTokenHash?: string;
+  };
 
 const TransferLogSchema = new mongoose.Schema<ITransferLog>({
   date: {
@@ -18,6 +21,8 @@ const TransferLogSchema = new mongoose.Schema<ITransferLog>({
 const TransferSchema = new mongoose.Schema<Transfer>({
   id: {
     type: String,
+    required: true,
+    unique: true,
   },
   type: {
     type: String,
@@ -43,6 +48,8 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   },
   version: {
     type: String,
+    required: true,
+    enum: ["v1", "v2"],
   },
   amount: {
     type: String,
@@ -55,6 +62,10 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   },
   utxoAssetType: {
     type: String,
+  },
+  writeTokenHash: {
+    type: String,
+    select: false,
   },
 });
 

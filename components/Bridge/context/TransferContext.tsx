@@ -46,6 +46,17 @@ const buildTransferPath = (id: string) => {
   return `/api/transfer/${encodeURIComponent(id)}`;
 };
 
+const getOrCreateTransferWriteToken = (id: string) => {
+  const storageKey = `transfer-write-token-${id}`;
+  const existing = localStorage.getItem(storageKey);
+  if (existing) {
+    return existing;
+  }
+  const writeToken = crypto.randomUUID();
+  localStorage.setItem(storageKey, writeToken);
+  return writeToken;
+};
+
 export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
@@ -71,11 +82,13 @@ export const TransferContextProvider: React.FC<
     ["transfer", initialData.id],
     async (updatedTransfer: ITransfer) => {
       const url = buildTransferPath(initialData.id);
+      const writeToken = getOrCreateTransferWriteToken(initialData.id);
       const res = await fetch(url, {
         method: "PATCH",
         body: JSON.stringify(updatedTransfer),
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${writeToken}`,
         },
       });
       const jsonData = await res.json();

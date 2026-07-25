@@ -3,6 +3,7 @@ import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import SyscoinERC20ManagerABI from "@contexts/Transfer/abi/SyscoinERC20Manager";
 import { ETH_TO_SYS_TRANSFER_STATUS } from "@contexts/Transfer/types";
 import SponsorWalletService from "api/services/sponsor-wallet";
+import { assertV2ActivationBlock } from "api/services/sponsor-eligibility";
 import { TransferService } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 import SponsorRateLimit from "models/sponsor-rate-limit";
@@ -145,9 +146,9 @@ const getConfirmedFreezeBurnTxHash = (
   return confirmedFreezeBurn.payload.data.transactionHash.toLowerCase();
 };
 
-const assertClaimGasEligible = async (
+export const assertClaimGasEligible = async (
   transfer: Awaited<ReturnType<TransferService["getTransfer"]>>
-): Promise<string> => {
+): Promise<{ blockNumber: number; transactionHash: string }> => {
   if (transfer.type !== "nevm-to-sys") {
     throw new Error("Claim gas sponsorship is only available for NEVM to SYS");
   }
@@ -181,6 +182,7 @@ const assertClaimGasEligible = async (
   if (!transaction || !receipt) {
     throw new Error("Freeze and burn transaction was not found on NEVM");
   }
+  assertV2ActivationBlock(receipt.blockNumber);
 
   const managerAddress = normalizeAddress(ERC20_MANAGER_CONTRACT_ADDRESS);
   const nevmAddress = normalizeAddress(transfer.nevmAddress);
@@ -230,7 +232,10 @@ const assertClaimGasEligible = async (
     throw new Error("Freeze and burn event does not match this transfer");
   }
 
-  return transactionHash;
+  return {
+    blockNumber: receipt.blockNumber,
+    transactionHash,
+  };
 };
 
 const applySponsorRateLimits = async (
@@ -286,7 +291,10 @@ const handler: NextApiHandler = async (
     await dbConnect();
 
     const transfer = await transferService.getTransfer(id);
-    const freezeBurnTxHash = await assertClaimGasEligible(transfer);
+    const {
+      blockNumber: freezeBurnBlockNumber,
+      transactionHash: freezeBurnTxHash,
+    } = await assertClaimGasEligible(transfer);
 
     const preflightResult =
       await sponsorWalletService.getUtxoClaimGasFundingStatus(
@@ -300,7 +308,8 @@ const handler: NextApiHandler = async (
     await applySponsorRateLimits(req, transfer);
     const result = await sponsorWalletService.sponsorUtxoClaimGas(
       transfer,
-      freezeBurnTxHash
+      freezeBurnTxHash,
+      freezeBurnBlockNumber
     );
 
     return res.status(200).json(result);

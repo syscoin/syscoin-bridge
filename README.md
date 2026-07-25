@@ -46,6 +46,36 @@ Sponsorship is rate-limited by client IP, destination UTXO address, and source N
 
 Sponsor signing keys are configured through deployment secrets/env vars. MongoDB stores sponsorship usage, reservations, and rate-limit state only; it does not store sponsor private keys.
 
+NEVM sponsorship is server-broadcast: the backend durably stores each signed
+transaction, broadcasts it in nonce order, and returns only the accepted hash
+to the browser. Pending raw transactions are replayed by later requests before
+another nonce is signed.
+
+#### Foundation-funded V2 cutover
+
+Treat enabling `FOUNDATION_FUNDED=true` as an atomic V2 backend cutover:
+
+1. Keep funding disabled while all pre-V2/older backend instances are stopped.
+2. Configure `NEVM_V2_ACTIVATION_BLOCK` to the immutable first NEVM block
+   eligible for V2 claim-gas sponsorship. Funding fails closed if it is missing
+   or invalid.
+3. Reconcile every legacy signed sponsor row that lacks `action` or
+   `sourceTxHash`. Confirm/broadcast or replace its nonce as appropriate, then
+   archive the row; do not copy it into the V2 sponsor namespace.
+4. Reconcile duplicate historical transfer IDs. Startup checks for duplicates
+   and synchronously creates the unique transfer-ID index before serving public
+   writes.
+5. Deploy the V2 backend and frontend together to every instance and allow its
+   MongoDB indexes to be created. New transfers receive a per-transfer write
+   capability; pre-cutover rows without one are intentionally read-only through
+   the public API.
+6. Enable foundation funding only after all instances run the same V2 sponsor
+   protocol.
+
+Startup fails closed when foundation funding is enabled while an unreconciled
+legacy signed row remains. A rolling deployment with old sponsor-signing
+instances is unsupported.
+
 ## How to run
 
 ### Prerequisites
@@ -123,6 +153,7 @@ docker build -t syscoin/bridge .
 | `SYS5_ENABLED`                  | Enable Sys5 features                           | true    |
 | `PALI_V2_NEVM_ENABLED`          | Enable Pali V2 NEVM features                    | true    |
 | `FOUNDATION_FUNDED`             | Enable sponsored claim gas for destination-side bridge completion | false   |
+| `NEVM_V2_ACTIVATION_BLOCK`      | First NEVM block eligible for V2 foundation-funded claim gas; required when funding is enabled |         |
 | `NEVM_SPONSOR_PRIVATE_KEY`      | Private key for the NEVM sponsor wallet used to sign sponsored `submit-proofs` transactions |         |
 | `UTXO_SPONSOR_ADDRESS`          | Syscoin UTXO sponsor address used for NEVM-to-UTXO claim gas funding |         |
 | `UTXO_SPONSOR_WIF`              | WIF private key for the UTXO sponsor address    |         |

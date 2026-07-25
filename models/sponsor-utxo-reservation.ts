@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 
-export type SponsorUtxoReservationStatus = "reserved" | "spent" | "released";
+export type SponsorUtxoReservationStatus =
+  | "reserved"
+  | "broadcasting"
+  | "spent"
+  | "released";
 
 export interface ISponsorUtxoReservation extends mongoose.Document {
   key: string;
@@ -8,7 +12,7 @@ export interface ISponsorUtxoReservation extends mongoose.Document {
   txid: string;
   vout: number;
   status: SponsorUtxoReservationStatus;
-  expiresAt: Date;
+  expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,7 +44,6 @@ const SponsorUtxoReservationSchema =
       },
       expiresAt: {
         type: Date,
-        required: true,
       },
     },
     { timestamps: true }

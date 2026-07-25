@@ -12,8 +12,14 @@ export interface ISponsorWalletTransaction extends mongoose.Document {
   transferId: string;
   action: SponsorWalletTransactionAction;
   sourceTxHash?: string;
+  sponsorProtocolVersion?: number;
   walletId: string;
   status: SponsorWalletTransactionStatus;
+  reservationOwner?: string;
+  reservationExpiresAt?: Date;
+  reservationPhase?: "reserved" | "broadcasting";
+  broadcastAt?: Date;
+  broadcastAttempts?: number;
   createdAt: Date;
   updatedAt: Date;
   transaction: {
@@ -39,6 +45,9 @@ const SponsorWalletTransactionSchema =
       sourceTxHash: {
         type: String,
       },
+      sponsorProtocolVersion: {
+        type: Number,
+      },
       walletId: {
         type: String,
       },
@@ -49,6 +58,23 @@ const SponsorWalletTransactionSchema =
       transaction: {
         type: Object,
         default: {},
+      },
+      reservationOwner: {
+        type: String,
+      },
+      reservationExpiresAt: {
+        type: Date,
+      },
+      reservationPhase: {
+        type: String,
+        enum: ["reserved", "broadcasting"],
+      },
+      broadcastAt: {
+        type: Date,
+      },
+      broadcastAttempts: {
+        type: Number,
+        default: 0,
       },
     },
     { timestamps: true }
@@ -68,6 +94,21 @@ SponsorWalletTransactionSchema.index(
     unique: true,
     partialFilterExpression: {
       sourceTxHash: { $type: "string" },
+    },
+  }
+);
+// Serialize NEVM sponsor nonce commits across concurrent API workers. A raw
+// transaction must be durable under this index before the server broadcasts it.
+SponsorWalletTransactionSchema.index(
+  { walletId: 1, "transaction.nonce": 1 },
+  {
+    name: "walletId_1_transaction_nonce_1_submit_proofs_v2",
+    unique: true,
+    partialFilterExpression: {
+      action: "submit-proofs",
+      sponsorProtocolVersion: 2,
+      walletId: { $type: "string" },
+      "transaction.nonce": { $type: "number" },
     },
   }
 );
