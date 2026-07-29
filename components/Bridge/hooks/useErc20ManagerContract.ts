@@ -14,7 +14,7 @@ export const useErc20ManagerContract = () => {
         SyscoinERC20ManagerABI,
         flags.isEnabled("isSys5Enabled")
           ? constants?.contracts.ecr20ManagerContract.address
-          : "0x7904299b3D3dC1b03d1DdEb45E9fDF3576aCBd5f"
+          : "0x28bD37C0926575f2568ea8f297c0745EF16174Ab"
       ),
     [web3, flags, constants?.contracts.ecr20ManagerContract.address]
   );
