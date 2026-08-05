@@ -47,6 +47,19 @@ export const normalizeEvmChainId = (chainId: unknown) => {
   return `0x${numericChainId.toString(16)}`;
 };
 
+export const resolveExpectedEvmChainId = (
+  configuredChainId: unknown,
+  defaultChainId: unknown
+) => {
+  const isMissing =
+    configuredChainId === undefined ||
+    configuredChainId === null ||
+    (typeof configuredChainId === "string" &&
+      configuredChainId.trim() === "");
+
+  return normalizeEvmChainId(isMissing ? defaultChainId : configuredChainId);
+};
+
 export const isSyscoinTestnetHost = (hostname?: string | null) => {
   const normalizedHostname = hostname?.split(":")[0].toLowerCase();
 

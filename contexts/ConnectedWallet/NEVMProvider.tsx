@@ -13,14 +13,17 @@ import {
   isNevmQueryReady,
   isPaliV2UtxoMode,
 } from "@contexts/PaliWallet/network-query-policy";
-import { normalizeEvmChainId } from "utils/network-config";
+import {
+  normalizeEvmChainId,
+  resolveExpectedEvmChainId,
+} from "utils/network-config";
 
 interface INEVMContext {
   account?: string;
   balance?: string;
   isTestnet: boolean;
   chainId?: string;
-  expectedChainId: string;
+  expectedChainId?: string;
   isExpectedChain: boolean;
   isWrongChain: boolean;
   switchToMainnet: () => void;
@@ -171,12 +174,17 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     }
   );
   const refetchChainId = chainId.refetch;
-  const expectedChainId =
-    normalizeEvmChainId(constants?.chain_id) ?? MAINNET_CHAIN_ID;
+  const expectedChainId = resolveExpectedEvmChainId(
+    constants?.chain_id,
+    MAINNET_CHAIN_ID
+  );
   const normalizedChainId = normalizeEvmChainId(chainId.data);
-  const isExpectedChain = normalizedChainId === expectedChainId;
+  const isExpectedChain = Boolean(
+    expectedChainId && normalizedChainId === expectedChainId
+  );
   const isWrongChain = Boolean(
     isEnabled &&
+      expectedChainId &&
       normalizedChainId &&
       normalizedChainId !== expectedChainId
   );
@@ -189,6 +197,13 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const switchToMainnet = () => {
+    if (!expectedChainId) {
+      const error = new Error("Configured NEVM chain ID is invalid");
+      captureException(error);
+      console.error(error.message);
+      return;
+    }
+
     window.ethereum
       .request({
         method: "wallet_switchEthereumChain",

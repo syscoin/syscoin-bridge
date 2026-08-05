@@ -18,7 +18,13 @@ type NEVMConnectProps = {
 const minAmount = MIN_GAS_AMOUNT;
 
 const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
-  const { account, connect, isWrongChain, switchToMainnet } = useNEVM();
+  const {
+    account,
+    connect,
+    expectedChainId,
+    isWrongChain,
+    switchToMainnet,
+  } = useNEVM();
   const { isEnabled } = useFeatureFlags();
   const {
     changeAccount,
@@ -46,6 +52,10 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
 
   const allowChange = transfer.status === "initialize";
   const hasNevmAddress = Boolean(transfer.nevmAddress);
+
+  if (!expectedChainId) {
+    return <Alert severity="error">NEVM network is not configured</Alert>;
+  }
   
   // If the address is already set but the user switched to a wrong EVM chain, prompt to switch back
   if (hasNevmAddress && isWrongChain) {
