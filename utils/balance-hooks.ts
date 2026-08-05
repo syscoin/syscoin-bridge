@@ -1,6 +1,6 @@
 import { useConstants } from "@contexts/useConstants";
 import { isValidEthereumAddress } from "@sidhujag/sysweb3-utils";
-import { useWeb3 } from "components/Bridge/context/Web";
+import Web3 from "web3";
 
 import { useQuery } from "react-query";
 
@@ -66,13 +66,15 @@ export const useUtxoBalance = (
 };
 
 export const useNevmBalance = (address?: string) => {
-  const web3 = useWeb3();
   const { constants } = useConstants();
   return useQuery(
-    ["nevm", "balance", address],
+    ["nevm-rpc", "balance", constants?.rpc.nevm, address],
     async () => {
       if (!address) return Promise.resolve(0);
 
+      // Balance display is read-only and must not wake or switch the injected
+      // wallet when Pali is operating in UTXO mode.
+      const web3 = new Web3(constants!.rpc.nevm);
       let balRpc = await web3.eth
         .getBalance(address)
         .then(parseInt)
@@ -96,7 +98,7 @@ export const useNevmBalance = (address?: string) => {
       return ethBalance;
     },
     {
-      enabled: Boolean(constants),
+      enabled: Boolean(constants?.rpc.nevm),
     }
   );
 };
