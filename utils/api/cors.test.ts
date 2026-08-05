@@ -42,6 +42,7 @@ describe("preview CORS isolation", () => {
   beforeEach(() => {
     process.env.CORS_ALLOWED_ORIGIN = "https://bridge.tanenbaum.io";
     delete process.env.VERCEL_ENV;
+    delete process.env.IS_TESTNET;
   });
 
   it("reflects the request origin only inside a Vercel preview", () => {
@@ -71,6 +72,39 @@ describe("preview CORS isolation", () => {
   it("does not relax origins on the Hetzner backend", () => {
     const { handled, response } = applyWriteCors(
       "https://untrusted.example"
+    );
+
+    expect(handled).toBe(true);
+    expect(response.status).toHaveBeenCalledWith(403);
+  });
+
+  it("allows HTTPS Vercel origins on the testnet backend", () => {
+    process.env.IS_TESTNET = "true";
+    const origin =
+      "https://bridge-testnet-git-feature.example-team.vercel.app";
+    const { handled, response } = applyWriteCors(origin);
+
+    expect(handled).toBe(false);
+    expect(response.setHeader).toHaveBeenCalledWith(
+      "Access-Control-Allow-Origin",
+      origin
+    );
+  });
+
+  it("keeps Vercel preview origins blocked on the mainnet backend", () => {
+    process.env.IS_TESTNET = "false";
+    const { handled, response } = applyWriteCors(
+      "https://bridge-mainnet-git-feature.example-team.vercel.app"
+    );
+
+    expect(handled).toBe(true);
+    expect(response.status).toHaveBeenCalledWith(403);
+  });
+
+  it("rejects hostnames that only contain a Vercel suffix", () => {
+    process.env.IS_TESTNET = "true";
+    const { handled, response } = applyWriteCors(
+      "https://bridge-testnet.vercel.app.evil.example"
     );
 
     expect(handled).toBe(true);

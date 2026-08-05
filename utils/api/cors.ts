@@ -38,6 +38,15 @@ const parseOrigin = (origin: string) => {
   }
 };
 
+const isVercelPreviewOrigin = (origin: string) => {
+  const parsedOrigin = parseOrigin(origin);
+  return (
+    parsedOrigin?.protocol === "https:" &&
+    parsedOrigin.port === "" &&
+    parsedOrigin.hostname.endsWith(".vercel.app")
+  );
+};
+
 const normalizeHost = (host: string) => host.trim().toLowerCase();
 
 const isLocalhostHost = (host: string) => {
@@ -155,9 +164,14 @@ const resolveCorsOrigin = (
   }
 
   // Preview deployments intentionally reflect their request origin so branch
-  // builds can exercise write flows. This never runs on Vercel production or
-  // on the Hetzner backends, where exact origin validation remains mandatory.
-  if (process.env.VERCEL_ENV === "preview") {
+  // builds can exercise write flows. The external Tanenbaum API does the same
+  // only for HTTPS Vercel origins and only when running in testnet mode.
+  // Mainnet backends continue to require an exact configured origin.
+  if (
+    process.env.VERCEL_ENV === "preview" ||
+    (process.env.IS_TESTNET === "true" &&
+      isVercelPreviewOrigin(normalizedRequestOrigin))
+  ) {
     return { allowed: true, corsOrigin: normalizedRequestOrigin };
   }
 

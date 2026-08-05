@@ -192,6 +192,8 @@ container so the existing backup volume remains attached.
 
 When hosting the frontend separately from the backend services, set `NEXT_PUBLIC_API_BASE_URL` to the backend origin (for example, `https://backend.test.com`). All browser and server-side fetches automatically use that base URL when provided, and fall back to the current origin otherwise. The same variable also enables a framework rewrite so hitting `/api/*` on the frontend domain proxies to the backend. This lets a single build work for both combined and split deployments—just omit the variable when the API routes run alongside the frontend.
 
+Vercel testnet previews automatically proxy `/api/*` to `https://bridge-api.tanenbaum.io` when no explicit API base is configured. The testnet backend accepts HTTPS `*.vercel.app` origins for these preview requests. Mainnet previews are never automatically connected to the production backend, and the mainnet backend continues to require an exact `CORS_ALLOWED_ORIGIN` match.
+
 ### Env Files
 
 Next.js automatically loads `.env.local` and `.env` (and env-specific files like `.env.production`).
