@@ -46,8 +46,16 @@ sed 's/^FOUNDATION_FUNDED=false$/FOUNDATION_FUNDED=true/' \
   "$test_dir/valid.env" > "$test_dir/funded.env"
 sh "$validator" "$test_dir/funded.env"
 
+sed "s/^FOUNDATION_FUNDED=false$/FOUNDATION_FUNDED='true'/" \
+  "$test_dir/valid.env" > "$test_dir/quoted-funded.env"
+sh "$validator" "$test_dir/quoted-funded.env"
+
+sed 's/^FOUNDATION_FUNDED=false$/FOUNDATION_FUNDED="true" # enabled/' \
+  "$test_dir/valid.env" > "$test_dir/double-quoted-funded.env"
+sh "$validator" "$test_dir/double-quoted-funded.env"
+
 sed '/^NEVM_V2_ACTIVATION_BLOCK=/d' \
-  "$test_dir/funded.env" > "$test_dir/missing-activation.env"
+  "$test_dir/quoted-funded.env" > "$test_dir/missing-activation.env"
 if sh "$validator" "$test_dir/missing-activation.env" 2>/dev/null; then
   echo "validator accepted funded mode without an activation block" >&2
   exit 1

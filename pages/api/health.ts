@@ -6,7 +6,8 @@ export async function healthRequest(
   res: NextApiResponse
 ) {
   try {
-    await dbConnect();
+    const database = await dbConnect();
+    await database.connection.db.admin().ping();
     return res.status(200).json({ message: "ok" });
   } catch (error) {
     console.error("Database health check failed", error);

@@ -16,6 +16,25 @@ require_env() {
   fi
 }
 
+env_value() {
+  key="$1"
+  value=$(sed -n "s/^${key}=//p" "$env_file" | tail -n 1 | sed \
+    -e 's/^[[:space:]]*//' \
+    -e 's/[[:space:]]#.*$//' \
+    -e 's/[[:space:]]*$//')
+  case "$value" in
+    \"*\")
+      value=${value#\"}
+      value=${value%\"}
+      ;;
+    \'*\')
+      value=${value#\'}
+      value=${value%\'}
+      ;;
+  esac
+  printf '%s\n' "$value"
+}
+
 for key in \
   MONGO_ROOT_USER \
   MONGO_ROOT_PASSWORD \
@@ -31,7 +50,7 @@ if grep -Eq '^ADMIN_API_KEY=.+' "$env_file"; then
   require_env SECRET_COOKIE_PASSWORD
 fi
 
-if grep -Eq '^FOUNDATION_FUNDED=true$' "$env_file"; then
+if [ "$(env_value FOUNDATION_FUNDED)" = "true" ]; then
   for key in \
     NEVM_V2_ACTIVATION_BLOCK \
     NEVM_SPONSOR_PRIVATE_KEY \
