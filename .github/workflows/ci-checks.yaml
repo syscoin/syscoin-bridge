@@ -35,6 +35,7 @@ jobs:
         run: yarn test --runInBand
       - name: Test Deployment Environment Validation
         run: |
+          sh deploy/docker-compose.test.sh
           sh deploy/restore-mongo-env.test.sh
           sh deploy/validate-env.test.sh
       - name: Build Application
