@@ -7,6 +7,7 @@ import { ITransfer } from "contexts/Transfer/types";
 import { NextPage } from "next";
 import { useEffect, useState } from "react";
 import BridgeNewTransferButton from "components/Bridge/NewTransferButton";
+import { readStoredTransfers } from "utils/stored-transfers";
 
 const TransfersPage: NextPage = () => {
   const [items, setItems] = useState<ITransfer[]>([]);
@@ -24,11 +25,7 @@ const TransfersPage: NextPage = () => {
     if (!localStorage) {
       return;
     }
-    setItems(
-      Object.entries(localStorage)
-        .filter(([key]) => key.startsWith("transfer-"))
-        .map(([key, value]) => JSON.parse(value))
-    );
+    setItems(readStoredTransfers(localStorage));
   }, []);
 
   return (
