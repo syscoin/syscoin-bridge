@@ -98,15 +98,18 @@ jobs:
         shell: bash
 
       - name: Deploy Frontend Service
-        uses: appleboy/ssh-action@v0.1.9
+        uses: appleboy/ssh-action@v1.2.5
         env:
           IMAGE_TAG: ${{ steps.read-metadata.outputs.tags }}
         with:
           host: ${{ secrets.HETZNER_STAGING_HOST }}
-          username: root
+          username: ubuntu
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
+            set -e
             export FRONTEND_IMAGE="$(echo ${{ env.IMAGE_TAG }} | cut -d ',' -f 2)"
-            cd /root/bridge
-            docker-compose pull frontend
-            docker-compose up -d frontend
+            sudo env FRONTEND_IMAGE="$FRONTEND_IMAGE" sh -c '
+              cd /root/bridge
+              docker-compose pull frontend
+              docker-compose up -d frontend
+            '
