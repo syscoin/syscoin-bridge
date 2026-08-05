@@ -38,6 +38,16 @@ if sh "$validator" "$test_dir/valid.env" 2>/dev/null; then
   echo "validator accepted admin auth without a cookie secret" >&2
   exit 1
 fi
+
+cp "$test_dir/valid.env" "$test_dir/short-cookie.env"
+cat >> "$test_dir/short-cookie.env" <<'EOF'
+SECRET_COOKIE_PASSWORD=too-short
+EOF
+if sh "$validator" "$test_dir/short-cookie.env" 2>/dev/null; then
+  echo "validator accepted an undersized cookie secret" >&2
+  exit 1
+fi
+
 cat >> "$test_dir/valid.env" <<'EOF'
 SECRET_COOKIE_PASSWORD=at-least-32-characters-long-secret
 EOF

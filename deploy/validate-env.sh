@@ -46,8 +46,13 @@ do
   require_env "$key"
 done
 
-if grep -Eq '^ADMIN_API_KEY=.+' "$env_file"; then
+if [ -n "$(env_value ADMIN_API_KEY)" ]; then
   require_env SECRET_COOKIE_PASSWORD
+  cookie_password=$(env_value SECRET_COOKIE_PASSWORD)
+  if [ "${#cookie_password}" -lt 32 ]; then
+    echo "SECRET_COOKIE_PASSWORD must contain at least 32 characters" >&2
+    exit 1
+  fi
 fi
 
 if [ "$(env_value FOUNDATION_FUNDED)" = "true" ]; then
