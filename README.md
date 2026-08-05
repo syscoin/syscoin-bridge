@@ -144,11 +144,11 @@ generate, replace, or import these files from Vercel. `MONGO_ROOT_USER` and
 derives its internal Mongo URI from those existing credentials when
 `MONGODB_URI` is empty; an explicit URI remains an optional override. Never
 change initialized root credentials or delete/recreate a database volume to
-apply an environment change. If either root setting is absent from a server
-environment file, deployment restores that missing setting from the running
-Mongo container before validation without logging or replacing its value. It
-similarly restores a missing `MONGO_BACKUP_VOLUME` name from the running backup
-container so the existing backup volume remains attached.
+apply an environment change. Before validation, deployment reconciles the root
+settings from the healthy running Mongo container without logging them. It also
+recovers the existing data, configuration, and backup volume names from the
+running containers. All three volumes are then attached as explicit external
+volumes, so Compose never offers to recreate an existing Mongo data volume.
 
 | Name                            | Description                                    | Default |
 | ------------------------------- | ---------------------------------------------- | ------- |
@@ -156,6 +156,8 @@ container so the existing backup volume remains attached.
 | `MONGO_ROOT_PASSWORD`           | Existing Mongo root password used by Docker Compose and URI derivation |         |
 | `MONGO_APP_DB`                  | Mongo application database                    | bridge  |
 | `MONGODB_URI`                   | Optional MongoDB URI override; Docker derives it from the root credentials when omitted |         |
+| `MONGO_DATA_VOLUME`             | Existing external Mongo `/data/db` volume name |         |
+| `MONGO_CONFIG_VOLUME`           | Existing external Mongo `/data/configdb` volume name |         |
 | `MONGO_BACKUP_VOLUME`           | Existing environment-specific external Docker volume for Mongo backups |         |
 | `CONFIRM_TRANSACTION_TIMEOUTS`  | Transaction confirmation timeout               |         |
 | `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer              | 100     |
