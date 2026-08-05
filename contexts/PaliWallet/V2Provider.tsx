@@ -11,6 +11,10 @@ import { PaliWallet } from "./types";
 import MetamaskProvider from "@contexts/Metamask/Provider";
 import { isValidSYSAddress } from "@sidhujag/sysweb3-utils";
 import { useConstants } from "@contexts/useConstants";
+import {
+  getPaliNevmQueryAction,
+  PaliWalletNetworkType,
+} from "./network-query-policy";
 
 export interface ProviderState {
   xpub: string;
@@ -57,8 +61,6 @@ interface Provider {
   isBitcoinBased: () => boolean;
 }
 
-type PaliWalletNetworkType = "bitcoin" | "ethereum";
-
 export interface IPaliWalletV2Context extends IPaliWalletContext {
   chainType: string | undefined;
   isBitcoinBased: boolean;
@@ -80,6 +82,7 @@ export const PaliWalletV2Provider: React.FC<{
   const queryClient = useQueryClient();
   const { constants } = useConstants();
   const isProcessingAccountChange = useRef(false);
+  const networkSwitchTarget = useRef<PaliWalletNetworkType | null>(null);
   
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
@@ -293,7 +296,7 @@ export const PaliWalletV2Provider: React.FC<{
   );
 
   const switchTo = useCallback(
-    (networkType: PaliWalletNetworkType) => {
+    async (networkType: PaliWalletNetworkType) => {
       if (!isInstalled) {
         return Promise.reject("Pali Wallet is not installed");
       }
@@ -308,43 +311,66 @@ export const PaliWalletV2Provider: React.FC<{
         chainId = parseInt(constants?.chain_id ?? "0x39", 16);
       }
 
-      if (networkType === "bitcoin") {
-        return window.pali
-          .request({
+      networkSwitchTarget.current = networkType;
+
+      try {
+        if (networkType === "bitcoin") {
+          // Stop active wallet-backed EVM queries before Pali changes mode.
+          if (
+            getPaliNevmQueryAction(
+              isEVMInjected.data,
+              isBitcoinBased.data,
+              networkType
+            ) === "cancel"
+          ) {
+            await queryClient.cancelQueries(["nevm"]);
+          }
+          await window.pali.request({
             method: "sys_changeUTXOEVM",
             params: [
               {
                 chainId,
               },
             ],
-          })
-          .then(() => {
-            isBitcoinBased.refetch().then(() => {
-              utxoAccount.refetch();
-              accountDetails.refetch();
-            });
           });
-      } else if (networkType === "ethereum") {
-        return window.ethereum
-          .request({
+          await isBitcoinBased.refetch();
+          await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
+          return;
+        }
+
+        if (networkType === "ethereum") {
+          await window.ethereum.request({
             method: "eth_changeUTXOEVM",
             params: [
               {
                 chainId,
               },
             ],
-          })
-          .then(() => {
-            isBitcoinBased.refetch();
           });
+          const { data: bitcoinBased } = await isBitcoinBased.refetch();
+          if (
+            getPaliNevmQueryAction(
+              isEVMInjected.data,
+              bitcoinBased,
+              networkType
+            ) === "refresh"
+          ) {
+            await queryClient.invalidateQueries(["nevm"]);
+          }
+          return;
+        }
+
+        return Promise.reject("Invalid network type");
+      } finally {
+        networkSwitchTarget.current = null;
       }
-      return Promise.reject("Invalid network type");
     },
     [
       finalAccount,
       isBitcoinBased,
       isInstalled,
       queryClient,
+      isEVMInjected.data,
       constants?.chain_id,
       constants?.isTestnet,
     ]
@@ -362,6 +388,32 @@ export const PaliWalletV2Provider: React.FC<{
   useEffect(() => {
     if (!isInstalled || !window.pali) return;
 
+    const refreshQueriesForActiveNetwork = async () => {
+      const currentAction = getPaliNevmQueryAction(
+        isEVMInjected.data,
+        isBitcoinBased.data,
+        networkSwitchTarget.current
+      );
+      if (currentAction === "cancel") {
+        await queryClient.cancelQueries(["nevm"]);
+      }
+
+      const { data: bitcoinBased } = await isBitcoinBased.refetch();
+      const nextAction = getPaliNevmQueryAction(
+        isEVMInjected.data,
+        bitcoinBased,
+        networkSwitchTarget.current
+      );
+      if (nextAction === "refresh") {
+        await queryClient.invalidateQueries(["nevm"]);
+        return;
+      }
+
+      if (nextAction === "cancel" && currentAction !== "cancel") {
+        await queryClient.cancelQueries(["nevm"]);
+      }
+    };
+
     // Handle any account changes (both UTXO and EVM)
     const handleAccountsChanged = () => {
       // Prevent recursive calls
@@ -373,11 +425,22 @@ export const PaliWalletV2Provider: React.FC<{
       
       // Check current network state without refetching
       const isCurrentlyBitcoinBased = isBitcoinBased.data;
-      
-      if (isCurrentlyBitcoinBased) {
+      const nevmQueryAction = getPaliNevmQueryAction(
+        isEVMInjected.data,
+        isCurrentlyBitcoinBased,
+        networkSwitchTarget.current
+      );
+
+      if (nevmQueryAction === "cancel") {
+        void queryClient.cancelQueries(["nevm"]);
+      }
+      if (
+        isCurrentlyBitcoinBased &&
+        networkSwitchTarget.current !== "ethereum"
+      ) {
         utxoAccount.refetch();
         accountDetails.refetch();
-      } else if (isCurrentlyBitcoinBased === false) {
+      } else if (nevmQueryAction === "refresh") {
         // Only invalidate NEVM queries when on EVM network
         queryClient.invalidateQueries(["nevm"]);
       }
@@ -401,15 +464,11 @@ export const PaliWalletV2Provider: React.FC<{
 
         // React to network-type and chain changes instantly
         if (data?.method === 'pali_isBitcoinBased') {
-          // Update UTXO/EVM mode
-          isBitcoinBased.refetch();
-          // NEVM-dependent queries may need invalidation
-          queryClient.invalidateQueries(["nevm"]);
+          void refreshQueriesForActiveNetwork();
         }
 
         if (data?.method === 'pali_chainChanged') {
-          // Invalidate NEVM queries (account/chain/gas/balances) on chain change
-          queryClient.invalidateQueries(["nevm"]);
+          void refreshQueriesForActiveNetwork();
         }
 
         if (data?.method === 'pali_unlockStateChanged') {
@@ -417,15 +476,14 @@ export const PaliWalletV2Provider: React.FC<{
           const unlocked = Boolean(data?.params?.isUnlocked ?? data?.params);
           if (unlocked) {
             // If on UTXO, refresh UTXO account/xpub; if on EVM, invalidate NEVM
-            if (isBitcoinBased.data) {
+            if (
+              isBitcoinBased.data &&
+              networkSwitchTarget.current !== "ethereum"
+            ) {
               utxoAccount.refetch();
               accountDetails.refetch();
-            } else if (isBitcoinBased.data === false) {
-              queryClient.invalidateQueries(["nevm"]);
             } else {
-              // Unknown state: refresh both light-weight queries
-              isBitcoinBased.refetch();
-              queryClient.invalidateQueries(["nevm"]);
+              void refreshQueriesForActiveNetwork();
             }
           }
         }
@@ -439,7 +497,12 @@ export const PaliWalletV2Provider: React.FC<{
     // Also listen for standard ethereum accountsChanged if in EVM mode
     let ethCleanup: (() => void) | undefined;
     
-    if (window.ethereum && isEVMInjected && !isBitcoinBased.data) {
+    if (
+      window.ethereum &&
+      isEVMInjected.data &&
+      isBitcoinBased.isFetched &&
+      !isBitcoinBased.data
+    ) {
       const handleEthAccountsChanged = () => {
         // handleAccountsChanged will handle invalidating NEVM queries
         handleAccountsChanged();
@@ -463,7 +526,13 @@ export const PaliWalletV2Provider: React.FC<{
         ethCleanup();
       }
     };
-  }, [isInstalled, isEVMInjected.data, isBitcoinBased.data, queryClient]); // Dependencies needed for proper cleanup/setup
+  }, [
+    isInstalled,
+    isEVMInjected.data,
+    isBitcoinBased.data,
+    isBitcoinBased.isFetched,
+    queryClient,
+  ]); // Dependencies needed for proper cleanup/setup
 
   const value: IPaliWalletV2Context = useMemo(
     () => ({

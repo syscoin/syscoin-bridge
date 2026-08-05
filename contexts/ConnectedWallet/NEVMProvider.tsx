@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo } from "react";
 import { TransactionConfig } from "web3-core";
 import Web3 from "web3";
 import { NEVMNetwork } from "../Transfer/constants";
@@ -8,6 +8,10 @@ import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { captureException } from "@sentry/nextjs";
 import { useConstants } from "@contexts/useConstants";
+import {
+  isPaliEvmReady,
+  isPaliV2UtxoMode,
+} from "@contexts/PaliWallet/network-query-policy";
 
 interface INEVMContext {
   account?: string;
@@ -34,8 +38,6 @@ type NEVMProviderProps = {
 };
 
 const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
-  const [isChainChangedCallbackSet, setIsChainChangedCallbackSet] =
-    useState(false);
   const { data: isEthereumAvailable } = useQuery(["nevm", "isEthAvailable"], {
     queryFn: () => {
       return typeof window.ethereum !== "undefined";
@@ -45,12 +47,26 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
 
   const metamask = useMetamask();
   const paliWallet = usePaliWallet() as IPaliWalletV2Context;
+  const isPaliEvmProvider =
+    paliWallet.version === "v2" && paliWallet.isEVMInjected;
+  const isPaliOnUtxo = isPaliV2UtxoMode(
+    paliWallet.version,
+    paliWallet.isEVMInjected,
+    paliWallet.isBitcoinBased
+  );
   const isEnabled = useMemo(() => {
     if (!isEthereumAvailable) {
       return false;
     }
+    if (paliWallet.version === "v2" && paliWallet.isLoading) {
+      return false;
+    }
     if (paliWallet.version === "v2" && paliWallet.isEVMInjected) {
-      return true;
+      return isPaliEvmReady(
+        paliWallet.isEVMInjected,
+        paliWallet.isLoading,
+        paliWallet.isBitcoinBased
+      );
     }
     return metamask.isEnabled;
   }, [
@@ -58,6 +74,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     paliWallet.version,
     paliWallet.isEVMInjected,
     paliWallet.isBitcoinBased,
+    paliWallet.isLoading,
     isEthereumAvailable,
   ]);
   const web3 = useMemo(() => {
@@ -119,7 +136,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         throw error; // Re-throw the original error for other errors
       }
     },
-    enabled: Boolean(web3) && isEnabled  && !paliWallet.isBitcoinBased,
+    enabled: Boolean(web3) && isEnabled && !isPaliOnUtxo,
     retry: false, // Don't retry user interaction methods
     refetchOnWindowFocus: false, // Don't refetch on focus
   });
@@ -133,25 +150,31 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         .getBalance(account.data)
         .then((balance) => web3.utils.fromWei(balance || "0"));
     },
-    enabled: Boolean(isEnabled && account.isFetched && account.data),
+    enabled: Boolean(
+      isEnabled && !isPaliOnUtxo && account.isFetched && account.data
+    ),
+    refetchOnWindowFocus: false,
   });
 
   const chainId = useQuery(
     ["nevm", "chainId"],
     async () => window.ethereum.request({ method: "eth_chainId" }),
-    { 
-      enabled: isEnabled && Boolean(account.data), // Only run after account is connected
-      refetchOnMount: true, 
-      refetchOnWindowFocus: true 
+    {
+      enabled: isEnabled && !isPaliOnUtxo && Boolean(account.data),
+      refetchOnMount: true,
+      refetchOnWindowFocus: false,
     }
   );
+  const refetchChainId = chainId.refetch;
   const expectedChainId = constants?.chain_id ?? MAINNET_CHAIN_ID;
   const normalizedChainId =
     typeof chainId.data === "string" ? chainId.data.toLowerCase() : undefined;
   const normalizedExpectedChainId = expectedChainId.toLowerCase();
   const isExpectedChain = normalizedChainId === normalizedExpectedChainId;
   const isWrongChain = Boolean(
-    normalizedChainId && normalizedChainId !== normalizedExpectedChainId
+    isEnabled &&
+      normalizedChainId &&
+      normalizedChainId !== normalizedExpectedChainId
   );
 
   const sendTransaction = (config: TransactionConfig) => {
@@ -214,27 +237,53 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    if (chainId.isFetched && !isChainChangedCallbackSet) {
-      window.ethereum.on("chainChanged", () => {
-        chainId.refetch();
-      });
-      setIsChainChangedCallbackSet(true);
+    if (
+      !isEnabled ||
+      isPaliEvmProvider ||
+      isPaliOnUtxo ||
+      !window.ethereum?.on
+    ) {
+      return;
     }
-  }, [chainId.isFetched, chainId, isChainChangedCallbackSet]);
+
+    const ethereumProvider = window.ethereum as typeof window.ethereum & {
+      removeListener?: (event: string, callback: () => void) => void;
+      off?: (event: string, callback: () => void) => void;
+    };
+    const handleChainChanged = () => {
+      void refetchChainId();
+    };
+
+    ethereumProvider.on("chainChanged", handleChainChanged);
+
+    return () => {
+      if (typeof ethereumProvider.removeListener === "function") {
+        ethereumProvider.removeListener("chainChanged", handleChainChanged);
+      } else if (typeof ethereumProvider.off === "function") {
+        ethereumProvider.off("chainChanged", handleChainChanged);
+      }
+    };
+  }, [isEnabled, isPaliEvmProvider, isPaliOnUtxo, refetchChainId]);
 
   return (
     <NEVMContext.Provider
       value={{
-        account: account.isSuccess && account.data ? account.data : undefined,
+        account:
+          isEnabled && account.isSuccess && account.data
+            ? account.data
+            : undefined,
         sendTransaction,
-        balance: balance.data,
+        balance: isEnabled ? balance.data : undefined,
         isTestnet: !!isTestnet,
         expectedChainId,
         isExpectedChain,
         isWrongChain,
         switchToMainnet,
         connect,
-        chainId: chainId.isSuccess && chainId.data ? chainId.data : undefined,
+        chainId:
+          isEnabled && chainId.isSuccess && chainId.data
+            ? chainId.data
+            : undefined,
         signMessage,
       }}
     >
