@@ -85,6 +85,7 @@ services:
       - ${BRIDGE_ENV_FILE:-.env}
     environment:
       NODE_ENV: production
+      HOSTNAME: 0.0.0.0
     ports:
       - "127.0.0.1:${BRIDGE_HOST_PORT:?BRIDGE_HOST_PORT is required}:3000"
     healthcheck:
