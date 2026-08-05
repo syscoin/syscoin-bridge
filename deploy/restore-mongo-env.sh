@@ -9,16 +9,28 @@ if [ ! -f "$env_file" ]; then
   exit 1
 fi
 
-has_env() {
-  grep -Eq "^${1}=.+" "$env_file"
+env_value() {
+  key="$1"
+  value=$(sed -n "s/^${key}=//p" "$env_file" | tail -n 1 | sed \
+    -e 's/^[[:space:]]*//' \
+    -e 's/[[:space:]]#.*$//' \
+    -e 's/[[:space:]]*$//')
+  case "$value" in
+    \"*\")
+      value=${value#\"}
+      value=${value%\"}
+      ;;
+    \'*\')
+      value=${value#\'}
+      value=${value%\'}
+      ;;
+  esac
+  printf '%s\n' "$value"
 }
 
-if has_env MONGO_ROOT_USER && \
-  has_env MONGO_ROOT_PASSWORD && \
-  has_env MONGO_BACKUP_VOLUME
-then
-  exit 0
-fi
+has_env() {
+  [ -n "$(env_value "$1")" ]
+}
 
 docker_command() {
   if [ "${MONGO_ENV_RESTORE_NO_SUDO:-false}" = "true" ]; then
@@ -41,12 +53,7 @@ find_container() {
       --filter "label=com.docker.compose.project=${project_name}" | head -n 1)
   fi
 
-  if [ -z "$found_container" ]; then
-    echo "Cannot restore Mongo configuration: no running ${service} container found for ${compose_dir}" >&2
-    exit 1
-  fi
-
-  printf '%s\n' "$found_container"
+  [ -n "$found_container" ] && printf '%s\n' "$found_container"
 }
 
 container_env() {
@@ -57,16 +64,22 @@ container_env() {
     awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, ""); print; exit }'
 }
 
-set_missing_env() {
+container_mount() {
+  container_id="$1"
+  destination="$2"
+  docker_command inspect \
+    --format '{{range .Mounts}}{{printf "%s=%s\n" .Destination .Name}}{{end}}' \
+    "$container_id" |
+    awk -F= -v destination="$destination" \
+      '$1 == destination { sub(/^[^=]*=/, ""); print; exit }'
+}
+
+set_env() {
   key="$1"
   value="$2"
 
-  if has_env "$key"; then
-    return
-  fi
-
   if [ -z "$value" ]; then
-    echo "Cannot restore missing backend environment variable: ${key}" >&2
+    echo "Cannot reconcile backend environment variable: ${key}" >&2
     exit 1
   fi
 
@@ -78,20 +91,51 @@ set_missing_env() {
   mv "$tmp_file" "$env_file"
 }
 
-if ! has_env MONGO_ROOT_USER || ! has_env MONGO_ROOT_PASSWORD; then
-  db_container=$(find_container db)
-  set_missing_env MONGO_ROOT_USER \
+require_existing_env() {
+  key="$1"
+  if ! has_env "$key"; then
+    echo "Cannot restore missing backend environment variable without a running container: ${key}" >&2
+    exit 1
+  fi
+}
+
+db_container=$(find_container db || true)
+if [ -n "$db_container" ]; then
+  db_health=$(docker_command inspect \
+    --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
+    "$db_container")
+  if [ "$db_health" != "healthy" ]; then
+    echo "Cannot reconcile Mongo credentials from an unhealthy database container" >&2
+    exit 1
+  fi
+
+  # A healthy initialized Mongo container is authoritative. Reconcile even
+  # nonempty values because stale credentials make the application unhealthy.
+  set_env MONGO_ROOT_USER \
     "$(container_env "$db_container" MONGO_INITDB_ROOT_USERNAME)"
-  set_missing_env MONGO_ROOT_PASSWORD \
+  set_env MONGO_ROOT_PASSWORD \
     "$(container_env "$db_container" MONGO_INITDB_ROOT_PASSWORD)"
+  set_env MONGO_DATA_VOLUME \
+    "$(container_mount "$db_container" /data/db)"
+  set_env MONGO_CONFIG_VOLUME \
+    "$(container_mount "$db_container" /data/configdb)"
+else
+  for key in \
+    MONGO_ROOT_USER \
+    MONGO_ROOT_PASSWORD \
+    MONGO_DATA_VOLUME \
+    MONGO_CONFIG_VOLUME
+  do
+    require_existing_env "$key"
+  done
 fi
 
-if ! has_env MONGO_BACKUP_VOLUME; then
-  backup_container=$(find_container mongo-backup)
-  backup_volume=$(docker_command inspect \
-    --format '{{range .Mounts}}{{if eq .Destination "/backups"}}{{println .Name}}{{end}}{{end}}' \
-    "$backup_container")
-  set_missing_env MONGO_BACKUP_VOLUME "$backup_volume"
+backup_container=$(find_container mongo-backup || true)
+if [ -n "$backup_container" ]; then
+  set_env MONGO_BACKUP_VOLUME \
+    "$(container_mount "$backup_container" /backups)"
+else
+  require_existing_env MONGO_BACKUP_VOLUME
 fi
 
-echo "Restored missing Mongo configuration from the running containers"
+echo "Reconciled Mongo credentials and volume names without recreating data"

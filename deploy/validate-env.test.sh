@@ -10,6 +10,8 @@ cat > "$test_dir/valid.env" <<'EOF'
 MONGO_ROOT_USER=user
 MONGO_ROOT_PASSWORD=password
 MONGO_HOST_PORT=37019
+MONGO_DATA_VOLUME=bridge-data
+MONGO_CONFIG_VOLUME=bridge-config
 MONGO_BACKUP_VOLUME=bridge-backups
 BRIDGE_HOST_PORT=4000
 CORS_ALLOWED_ORIGIN=https://bridge.tanenbaum.io
@@ -28,6 +30,12 @@ fi
 sed '/^MONGO_ROOT_PASSWORD=/d' "$test_dir/valid.env" > "$test_dir/missing-mongo.env"
 if sh "$validator" "$test_dir/missing-mongo.env" 2>/dev/null; then
   echo "validator accepted missing Mongo credentials" >&2
+  exit 1
+fi
+
+sed '/^MONGO_DATA_VOLUME=/d' "$test_dir/valid.env" > "$test_dir/missing-data-volume.env"
+if sh "$validator" "$test_dir/missing-data-volume.env" 2>/dev/null; then
+  echo "validator accepted a missing Mongo data volume" >&2
   exit 1
 fi
 

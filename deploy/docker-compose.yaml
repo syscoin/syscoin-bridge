@@ -105,7 +105,11 @@ services:
 
 volumes:
   db-data:
+    external: true
+    name: ${MONGO_DATA_VOLUME:?MONGO_DATA_VOLUME is required}
   mongo-config:
+    external: true
+    name: ${MONGO_CONFIG_VOLUME:?MONGO_CONFIG_VOLUME is required}
   mongo-backups:
     external: true
     name: ${MONGO_BACKUP_VOLUME:?MONGO_BACKUP_VOLUME is required}

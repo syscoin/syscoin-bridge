@@ -152,7 +152,11 @@ jobs:
             sh ./validate-env.sh .env
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose config --quiet
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose pull syscoin-bridge
-            sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose up -d --remove-orphans --wait --wait-timeout 300
+            if ! sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose up -d --remove-orphans --wait --wait-timeout 300; then
+              sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose ps || true
+              sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose logs --tail=200 syscoin-bridge || true
+              exit 1
+            fi
             container_id=$(sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose ps -q syscoin-bridge)
             test -n "$container_id"
             test "$(sudo docker inspect --format "{{.Config.Image}}" "$container_id")" = "$BRIDGE_IMAGE"
