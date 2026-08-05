@@ -29,7 +29,7 @@ case "$1" in
       *)
         cat <<'ENV'
 MONGO_INITDB_ROOT_USERNAME=existing-user
-MONGO_INITDB_ROOT_PASSWORD=existing-pa$$word#'quoted'
+MONGO_INITDB_ROOT_PASSWORD=existing-pa$$word#'"quoted"\
 ENV
         ;;
     esac
@@ -47,14 +47,16 @@ EOF
 
 PATH="$test_dir/bin:$PATH" MONGO_ENV_RESTORE_NO_SUDO=true \
   sh "$restorer" "$test_dir/missing.env" "$test_dir/compose"
-grep -Fxq "MONGO_ROOT_USER='existing-user'" "$test_dir/missing.env"
-grep -Fxq "MONGO_ROOT_PASSWORD='existing-pa\$\$word#\\'quoted\\''" \
+cat > "$test_dir/expected-password-line" <<'EOF'
+MONGO_ROOT_PASSWORD="existing-pa$$$$word#'\"quoted\"\\"
+EOF
+grep -Fxq 'MONGO_ROOT_USER="existing-user"' "$test_dir/missing.env"
+grep -Fqxf "$test_dir/expected-password-line" "$test_dir/missing.env"
+grep -Fxq 'MONGO_DATA_VOLUME="existing-data-volume"' \
   "$test_dir/missing.env"
-grep -Fxq "MONGO_DATA_VOLUME='existing-data-volume'" \
+grep -Fxq 'MONGO_CONFIG_VOLUME="existing-config-volume"' \
   "$test_dir/missing.env"
-grep -Fxq "MONGO_CONFIG_VOLUME='existing-config-volume'" \
-  "$test_dir/missing.env"
-grep -Fxq "MONGO_BACKUP_VOLUME='existing-backup-volume'" \
+grep -Fxq 'MONGO_BACKUP_VOLUME="existing-backup-volume"' \
   "$test_dir/missing.env"
 if grep -q '^MONGODB_URI=' "$test_dir/missing.env"; then
   echo "restorer unexpectedly added a duplicated MongoDB URI" >&2
@@ -71,14 +73,13 @@ EOF
 
 PATH="$test_dir/bin:$PATH" MONGO_ENV_RESTORE_NO_SUDO=true \
   sh "$restorer" "$test_dir/existing.env" "$test_dir/compose"
-grep -Fxq "MONGO_ROOT_USER='existing-user'" "$test_dir/existing.env"
-grep -Fxq "MONGO_ROOT_PASSWORD='existing-pa\$\$word#\\'quoted\\''" \
+grep -Fxq 'MONGO_ROOT_USER="existing-user"' "$test_dir/existing.env"
+grep -Fqxf "$test_dir/expected-password-line" "$test_dir/existing.env"
+grep -Fxq 'MONGO_DATA_VOLUME="existing-data-volume"' \
   "$test_dir/existing.env"
-grep -Fxq "MONGO_DATA_VOLUME='existing-data-volume'" \
+grep -Fxq 'MONGO_CONFIG_VOLUME="existing-config-volume"' \
   "$test_dir/existing.env"
-grep -Fxq "MONGO_CONFIG_VOLUME='existing-config-volume'" \
-  "$test_dir/existing.env"
-grep -Fxq "MONGO_BACKUP_VOLUME='existing-backup-volume'" \
+grep -Fxq 'MONGO_BACKUP_VOLUME="existing-backup-volume"' \
   "$test_dir/existing.env"
 
 compose_file="$script_dir/docker-compose.yaml"
@@ -109,4 +110,4 @@ then
   echo "restorer accepted credentials from an unhealthy Mongo container" >&2
   exit 1
 fi
-grep -Fxq "MONGO_ROOT_USER='existing-user'" "$test_dir/unhealthy.env"
+grep -Fxq 'MONGO_ROOT_USER="existing-user"' "$test_dir/unhealthy.env"

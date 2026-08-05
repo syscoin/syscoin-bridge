@@ -83,10 +83,13 @@ set_env() {
     exit 1
   fi
 
-  escaped_value=$(printf '%s' "$value" | sed "s/'/\\\\'/g")
+  escaped_value=$(printf '%s' "$value" | sed \
+    -e 's/\\/\\\\/g' \
+    -e 's/"/\\"/g' \
+    -e 's/\$/$$/g')
   tmp_file=$(mktemp "${env_file}.tmp.XXXXXX")
   awk -v key="$key" '$0 !~ "^" key "=" { print }' "$env_file" > "$tmp_file"
-  printf "%s='%s'\n" "$key" "$escaped_value" >> "$tmp_file"
+  printf '%s="%s"\n' "$key" "$escaped_value" >> "$tmp_file"
   chmod 600 "$tmp_file"
   mv "$tmp_file" "$env_file"
 }
