@@ -8,6 +8,12 @@ export const isPaliV2UtxoMode = (
   isBitcoinBased: boolean | undefined
 ) => version === "v2" && Boolean(isEVMInjected) && Boolean(isBitcoinBased);
 
+export const isPaliEvmReady = (
+  isEVMInjected: boolean | undefined,
+  isLoading: boolean,
+  isBitcoinBased: boolean | undefined
+) => Boolean(isEVMInjected) && !isLoading && isBitcoinBased === false;
+
 export const getPaliNevmQueryAction = (
   isEVMInjected: boolean | undefined,
   isBitcoinBased: boolean | undefined,

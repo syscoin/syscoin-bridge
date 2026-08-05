@@ -497,7 +497,12 @@ export const PaliWalletV2Provider: React.FC<{
     // Also listen for standard ethereum accountsChanged if in EVM mode
     let ethCleanup: (() => void) | undefined;
     
-    if (window.ethereum && isEVMInjected && !isBitcoinBased.data) {
+    if (
+      window.ethereum &&
+      isEVMInjected.data &&
+      isBitcoinBased.isFetched &&
+      !isBitcoinBased.data
+    ) {
       const handleEthAccountsChanged = () => {
         // handleAccountsChanged will handle invalidating NEVM queries
         handleAccountsChanged();
@@ -521,7 +526,13 @@ export const PaliWalletV2Provider: React.FC<{
         ethCleanup();
       }
     };
-  }, [isInstalled, isEVMInjected.data, isBitcoinBased.data, queryClient]); // Dependencies needed for proper cleanup/setup
+  }, [
+    isInstalled,
+    isEVMInjected.data,
+    isBitcoinBased.data,
+    isBitcoinBased.isFetched,
+    queryClient,
+  ]); // Dependencies needed for proper cleanup/setup
 
   const value: IPaliWalletV2Context = useMemo(
     () => ({

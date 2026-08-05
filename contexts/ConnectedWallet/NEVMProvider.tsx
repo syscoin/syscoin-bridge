@@ -8,7 +8,10 @@ import { usePaliWallet } from "@contexts/PaliWallet/usePaliWallet";
 import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { captureException } from "@sentry/nextjs";
 import { useConstants } from "@contexts/useConstants";
-import { isPaliV2UtxoMode } from "@contexts/PaliWallet/network-query-policy";
+import {
+  isPaliEvmReady,
+  isPaliV2UtxoMode,
+} from "@contexts/PaliWallet/network-query-policy";
 
 interface INEVMContext {
   account?: string;
@@ -55,8 +58,15 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     if (!isEthereumAvailable) {
       return false;
     }
+    if (paliWallet.version === "v2" && paliWallet.isLoading) {
+      return false;
+    }
     if (paliWallet.version === "v2" && paliWallet.isEVMInjected) {
-      return !isPaliOnUtxo;
+      return isPaliEvmReady(
+        paliWallet.isEVMInjected,
+        paliWallet.isLoading,
+        paliWallet.isBitcoinBased
+      );
     }
     return metamask.isEnabled;
   }, [
@@ -64,7 +74,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     paliWallet.version,
     paliWallet.isEVMInjected,
     paliWallet.isBitcoinBased,
-    isPaliOnUtxo,
+    paliWallet.isLoading,
     isEthereumAvailable,
   ]);
   const web3 = useMemo(() => {
