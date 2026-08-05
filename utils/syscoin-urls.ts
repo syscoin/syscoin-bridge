@@ -9,3 +9,16 @@ export const resolveUtxoBlockbookUrl = (url?: string) => {
 
   return url;
 };
+
+export const firstConfiguredUtxoBlockbookUrl = (
+  ...urls: Array<string | undefined>
+) => {
+  for (const url of urls) {
+    const resolvedUrl = resolveUtxoBlockbookUrl(url);
+    if (resolvedUrl) {
+      return resolvedUrl;
+    }
+  }
+
+  return undefined;
+};

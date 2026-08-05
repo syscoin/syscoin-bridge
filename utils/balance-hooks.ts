@@ -3,6 +3,7 @@ import { isValidEthereumAddress } from "@sidhujag/sysweb3-utils";
 import Web3 from "web3";
 
 import { useQuery } from "react-query";
+import { buildApiUrl } from "./api-base-url";
 
 interface TokenAsset {
   assetGuid: string;
@@ -34,13 +35,16 @@ export const useUtxoBalance = (
     async () => {
       if (!xpub || isValidEthereumAddress(xpub)) return Promise.resolve(0);
       const details = assetGuid && address ? "tokenBalances" : "basic";
-      const url =
-        constants!.explorer.utxo +
-        "/api/v2/xpub/" +
-        xpub +
-        `?details=${details}`;
+      const url = buildApiUrl(
+        `/api/utxo/xpub/${encodeURIComponent(xpub)}?details=${details}`
+      );
       const balanceInText = await fetch(url)
-        .then((res) => res.json())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Unable to load UTXO balance");
+          }
+          return res.json();
+        })
         .then((res: BalanceResp) => {
           if (assetGuid && address) {
             if (!res.tokensAsset) {

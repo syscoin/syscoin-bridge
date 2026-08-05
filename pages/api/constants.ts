@@ -4,7 +4,7 @@ import {
   isSyscoinTestnetHost,
   resolveSyscoinIsTestnet,
 } from "utils/network-config";
-import { resolveUtxoBlockbookUrl } from "utils/syscoin-urls";
+import { firstConfiguredUtxoBlockbookUrl } from "utils/syscoin-urls";
 
 function handler(req: NextApiRequest, res: NextApiResponse) {
   if (
@@ -40,11 +40,19 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
     },
     rpc: {
       nevm: process.env.NEVM_RPC_URL,
-      utxo: resolveUtxoBlockbookUrl(process.env.UTXO_RPC_URL),
+      utxo: firstConfiguredUtxoBlockbookUrl(
+        process.env.UTXO_RPC_URL,
+        process.env.UTXO_EXPLORER,
+        process.env.NEXT_PUBLIC_BLOCKBOOK_API_URL
+      ),
     },
     explorer: {
       nevm: process.env.NEVM_EXPLORER,
-      utxo: resolveUtxoBlockbookUrl(process.env.UTXO_EXPLORER),
+      utxo: firstConfiguredUtxoBlockbookUrl(
+        process.env.UTXO_EXPLORER,
+        process.env.UTXO_RPC_URL,
+        process.env.NEXT_PUBLIC_BLOCKBOOK_API_URL
+      ),
     },
     apiUrl: {
       nevm: process.env.NEVM_API_URL || "",  // Only EVM networks use API URLs
