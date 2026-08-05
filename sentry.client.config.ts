@@ -4,13 +4,18 @@
 
 import * as Sentry from "@sentry/nextjs";
 
+const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+
 Sentry.init({
-  dsn: "https://d879b221f85e415aac923766ae15a127@o4505459060441088.ingest.sentry.io/4505459062865920",
+  dsn,
 
   // Adjust this value in production, or use tracesSampler for greater control
   tracesSampleRate: 1,
 
-  allowUrls: ["https://bridge.syscoin.org/"],
+  allowUrls: [
+    "https://bridge.syscoin.org/",
+    "https://bridge.tanenbaum.io/",
+  ],
 
   // Setting this option to true will print useful information to the console while you're setting up Sentry.
   debug: false,
@@ -29,5 +34,5 @@ Sentry.init({
       blockAllMedia: true,
     }),
   ],
-  enabled: process.env.NODE_ENV !== 'development'
+  enabled: Boolean(dsn) && process.env.NODE_ENV !== "development",
 });

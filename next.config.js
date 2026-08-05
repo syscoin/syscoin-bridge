@@ -4,6 +4,17 @@ const API_PROXY_TARGET = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
   ""
 );
 
+const HOST_API_PROXY_TARGETS = [
+  {
+    host: "bridge.tanenbaum.io",
+    target: "https://bridge-api.tanenbaum.io",
+  },
+  {
+    host: "bridge.syscoin.org",
+    target: "https://bridge-api.syscoin.org",
+  },
+];
+
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
@@ -41,56 +52,66 @@ const nextConfig = {
       "https://github.com/syscoin/syscoin-bridge",
   },
   async rewrites() {
-    if (!API_PROXY_TARGET) {
-      return [];
-    }
+    const beforeFiles = API_PROXY_TARGET
+      ? [
+          {
+            source: "/api/:path*",
+            destination: `${API_PROXY_TARGET}/api/:path*`,
+          },
+        ]
+      : HOST_API_PROXY_TARGETS.map(({ host, target }) => ({
+          source: "/api/:path*",
+          has: [{ type: "host", value: host }],
+          destination: `${target}/api/:path*`,
+        }));
 
     return {
-      beforeFiles: [
-        {
-          source: "/api/:path*",
-          destination: `${API_PROXY_TARGET}/api/:path*`,
-        },
-      ],
+      beforeFiles,
     };
   },
 };
 
 module.exports = nextConfig;
 
-// Injected content via Sentry wizard below
-
-const { withSentryConfig } = require("@sentry/nextjs");
-
-module.exports = withSentryConfig(
-  module.exports,
-  {
-    // For all available options, see:
-    // https://github.com/getsentry/sentry-webpack-plugin#options
-
-    // Suppresses source map uploading logs during build
-    silent: true,
-
-    org: "tedsyscoin",
-    project: "syscoin-bridge",
-  },
-  {
-    // For all available options, see:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-    // Upload a larger set of source maps for prettier stack traces (increases build time)
-    widenClientFileUpload: true,
-
-    // Transpiles SDK to be compatible with IE11 (increases bundle size)
-    transpileClientSDK: true,
-
-    // Routes browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers (increases server load)
-    tunnelRoute: "/monitoring",
-
-    // Hides source maps from generated client bundles
-    hideSourceMaps: true,
-
-    // Automatically tree-shake Sentry logger statements to reduce bundle size
-    disableLogger: true,
-  }
+const sentryBuildConfigured = Boolean(
+  process.env.SENTRY_AUTH_TOKEN &&
+    process.env.SENTRY_ORG &&
+    process.env.SENTRY_PROJECT
 );
+
+if (sentryBuildConfigured) {
+  const { withSentryConfig } = require("@sentry/nextjs");
+
+  module.exports = withSentryConfig(
+    module.exports,
+    {
+      // For all available options, see:
+      // https://github.com/getsentry/sentry-webpack-plugin#options
+
+      // Suppresses source map uploading logs during build
+      silent: true,
+
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+    },
+    {
+      // For all available options, see:
+      // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+
+      // Upload a larger set of source maps for prettier stack traces (increases build time)
+      widenClientFileUpload: true,
+
+      // Transpiles SDK to be compatible with IE11 (increases bundle size)
+      transpileClientSDK: true,
+
+      // Routes browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers (increases server load)
+      tunnelRoute: "/monitoring",
+
+      // Hides source maps from generated client bundles
+      hideSourceMaps: true,
+
+      // Automatically tree-shake Sentry logger statements to reduce bundle size
+      disableLogger: true,
+    }
+  );
+}

@@ -73,16 +73,38 @@ jobs:
           name: metadata
           path: metadata.json
 
-  deploy-staging:
+  deploy-backends:
     needs: docker
-    if: github.ref_name == 'main'
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - name: tanenbaum
+            environment: staging
+            compose_dir: /home/ubuntu/syscoin-bridge-testnet
+            bridge_port: "4000"
+            api_origin: https://bridge-api.tanenbaum.io
+            expected_testnet: "true"
+          - name: mainnet
+            environment: production
+            compose_dir: /home/ubuntu/syscoin-bridge-mainnet
+            bridge_port: "3000"
+            api_origin: https://bridge-api.syscoin.org
+            expected_testnet: "false"
     environment:
-      name: staging
+      name: ${{ matrix.environment }}
+      url: ${{ matrix.api_origin }}
     permissions:
       deployments: write
       contents: read
+      packages: read
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout deployment configuration
+        uses: actions/checkout@v4
+
       - name: Download metadata
         uses: actions/download-artifact@v4
         with:
@@ -93,23 +115,57 @@ jobs:
         id: read-metadata
         run: |
           cd metadata
-          meta=$(cat metadata.json)
-          echo "::set-output name=tags::$(echo "$meta" | jq -r '.target["docker-metadata-action"].tags | join(",")')"
+          image=$(jq -er '.target["docker-metadata-action"].tags[] | select(test(":sha-[0-9a-f]+$"))' metadata.json)
+          echo "image=$image" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - name: Deploy Frontend Service
-        uses: appleboy/ssh-action@v1.2.5
-        env:
-          IMAGE_TAG: ${{ steps.read-metadata.outputs.tags }}
+      - name: Install ${{ matrix.name }} Compose configuration
+        uses: appleboy/scp-action@v1.0.0
         with:
-          host: ${{ secrets.HETZNER_STAGING_HOST }}
+          host: ${{ secrets.HETZNER_HOST || secrets.HETZNER_STAGING_HOST }}
           username: ubuntu
           key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: deploy/docker-compose.yaml
+          target: ${{ matrix.compose_dir }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Deploy ${{ matrix.name }} backend
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          BRIDGE_IMAGE: ${{ steps.read-metadata.outputs.image }}
+          BRIDGE_PORT: ${{ matrix.bridge_port }}
+          COMPOSE_DIR: ${{ matrix.compose_dir }}
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.repository_owner }}
+        with:
+          host: ${{ secrets.HETZNER_HOST || secrets.HETZNER_STAGING_HOST }}
+          username: ubuntu
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: BRIDGE_IMAGE,BRIDGE_PORT,COMPOSE_DIR,GHCR_TOKEN,GHCR_USER
           script: |
-            set -e
-            export FRONTEND_IMAGE="$(echo ${{ env.IMAGE_TAG }} | cut -d ',' -f 2)"
-            sudo env FRONTEND_IMAGE="$FRONTEND_IMAGE" sh -c '
-              cd /root/bridge
-              docker-compose pull frontend
-              docker-compose up -d frontend
-            '
+            set -eu
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io --username "$GHCR_USER" --password-stdin >/dev/null
+            trap 'sudo docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+            cd "$COMPOSE_DIR"
+            grep -Eq '^MONGO_ROOT_USER=.+' .env
+            grep -Eq '^MONGO_ROOT_PASSWORD=.+' .env
+            grep -Eq '^MONGO_HOST_PORT=.+' .env
+            grep -Eq '^MONGO_BACKUP_VOLUME=.+' .env
+            grep -Eq '^BRIDGE_HOST_PORT=.+' .env
+            sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose config --quiet
+            sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose pull syscoin-bridge
+            sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose up -d --remove-orphans --wait --wait-timeout 300
+            container_id=$(sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose ps -q syscoin-bridge)
+            test -n "$container_id"
+            test "$(sudo docker inspect --format "{{.Config.Image}}" "$container_id")" = "$BRIDGE_IMAGE"
+            test "$(curl -fsS "http://127.0.0.1:$BRIDGE_PORT/api/health")" = '{"message":"ok"}'
+
+      - name: Verify ${{ matrix.name }} public API
+        env:
+          API_ORIGIN: ${{ matrix.api_origin }}
+          EXPECTED_TESTNET: ${{ matrix.expected_testnet }}
+        run: |
+          curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 "$API_ORIGIN/api/health"
+          actual_testnet=$(curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 "$API_ORIGIN/api/constants" | jq -r '.isTestnet')
+          test "$actual_testnet" = "$EXPECTED_TESTNET"
