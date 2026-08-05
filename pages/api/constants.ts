@@ -1,5 +1,9 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { applyApiCors } from "utils/api/cors";
+import {
+  isSyscoinTestnetHost,
+  resolveSyscoinIsTestnet,
+} from "utils/network-config";
 import { resolveUtxoBlockbookUrl } from "utils/syscoin-urls";
 
 function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -15,6 +19,17 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ message: "Method not allowed" });
   }
+
+  const chainId = process.env.CHAIN_ID || process.env.NEXT_PUBLIC_CHAIN_ID;
+  const configuredIsTestnet =
+    process.env.IS_TESTNET ?? process.env.NEXT_PUBLIC_IS_TESTNET;
+  const isTestnet = resolveSyscoinIsTestnet({
+    chain_id: chainId,
+    isTestnet:
+      configuredIsTestnet === "true" ||
+      (configuredIsTestnet === undefined &&
+        isSyscoinTestnetHost(req.headers.host)),
+  });
 
   return res.status(200).json({
     contracts: {
@@ -35,8 +50,8 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
       nevm: process.env.NEVM_API_URL || "",  // Only EVM networks use API URLs
       // No UTXO API URL - UTXO networks don't need separate API URLs
     },
-    isTestnet: process.env.IS_TESTNET === "true",
-    chain_id: process.env.CHAIN_ID,
+    isTestnet,
+    chain_id: chainId,
   });
 }
 

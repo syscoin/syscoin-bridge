@@ -5,6 +5,10 @@ import {
 import { useConstants } from "@contexts/useConstants";
 import { Button } from "@mui/material";
 import { isValidSYSAddress } from "@sidhujag/sysweb3-utils";
+import {
+  getSyscoinChainId,
+  resolveSyscoinIsTestnet,
+} from "utils/network-config";
 
 type UTXOStepWrapperProps = {
   children: React.ReactNode;
@@ -28,7 +32,12 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
     return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
   }
 
-  if (!isValidSYSAddress(connectedAccount, constants?.isTestnet ? 5700 : 57)) {
+  if (
+    !isValidSYSAddress(
+      connectedAccount,
+      getSyscoinChainId(resolveSyscoinIsTestnet(constants))
+    )
+  ) {
     return (
       <>
         <Button variant="contained" onClick={changeAccount}>

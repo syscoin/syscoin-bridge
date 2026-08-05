@@ -9,7 +9,8 @@ import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { captureException } from "@sentry/nextjs";
 import { useConstants } from "@contexts/useConstants";
 import {
-  isPaliEvmReady,
+  getNevmAccountRequestMethod,
+  isNevmQueryReady,
   isPaliV2UtxoMode,
 } from "@contexts/PaliWallet/network-query-policy";
 
@@ -54,29 +55,27 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     paliWallet.isEVMInjected,
     paliWallet.isBitcoinBased
   );
-  const isEnabled = useMemo(() => {
-    if (!isEthereumAvailable) {
-      return false;
-    }
-    if (paliWallet.version === "v2" && paliWallet.isLoading) {
-      return false;
-    }
-    if (paliWallet.version === "v2" && paliWallet.isEVMInjected) {
-      return isPaliEvmReady(
+  const isEnabled = useMemo(
+    () =>
+      isNevmQueryReady(
+        isEthereumAvailable,
+        paliWallet.version === "v2",
         paliWallet.isEVMInjected,
         paliWallet.isLoading,
-        paliWallet.isBitcoinBased
-      );
-    }
-    return metamask.isEnabled;
-  }, [
-    metamask.isEnabled,
-    paliWallet.version,
-    paliWallet.isEVMInjected,
-    paliWallet.isBitcoinBased,
-    paliWallet.isLoading,
-    isEthereumAvailable,
-  ]);
+        paliWallet.isBitcoinBased,
+        paliWallet.isSwitchingToUtxo,
+        metamask.isEnabled
+      ),
+    [
+      isEthereumAvailable,
+      metamask.isEnabled,
+      paliWallet.version,
+      paliWallet.isEVMInjected,
+      paliWallet.isBitcoinBased,
+      paliWallet.isLoading,
+      paliWallet.isSwitchingToUtxo,
+    ]
+  );
   const web3 = useMemo(() => {
     if (!isEnabled) {
       return null;
@@ -97,13 +96,18 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     queryFn: async () => {
       try {
         // Double-check we're on EVM network before requesting accounts
-        if (paliWallet.isBitcoinBased) {
+        if (
+          isPaliEvmProvider &&
+          (paliWallet.isBitcoinBased || paliWallet.isSwitchingToUtxo)
+        ) {
           return null; // Don't request ETH accounts when on UTXO
         }
         
         const result: (string | { success: false })[] =
           await window.ethereum.request({
-            method: "eth_requestAccounts",
+            // Account discovery runs automatically, so it must never open a
+            // wallet prompt. The interactive method is reserved for connect().
+            method: getNevmAccountRequestMethod("discover"),
           });
         if (
           result.length > 0 &&
@@ -217,16 +221,26 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const connect = () => {
-    let prePromise = account.isFetched
+    const prePromise = account.data
       ? window.ethereum.request({
           method: "wallet_revokePermissions",
           params: [{ eth_accounts: {} }],
         })
       : Promise.resolve();
 
-    prePromise.then(() => {
-      return account.refetch();
-    });
+    void prePromise
+      .then(() =>
+        window.ethereum.request({
+          method: getNevmAccountRequestMethod("connect"),
+        })
+      )
+      .then(() => account.refetch())
+      .catch((error) => {
+        if (error?.code === 4001) {
+          return;
+        }
+        console.error("Failed to connect EVM account:", error);
+      });
   };
 
   const signMessage = (message: string): Promise<string> => {

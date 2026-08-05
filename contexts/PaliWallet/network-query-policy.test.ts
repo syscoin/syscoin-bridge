@@ -1,11 +1,21 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+  getNevmAccountRequestMethod,
   getPaliNevmQueryAction,
+  isNevmQueryReady,
   isPaliEvmReady,
+  isPaliUtxoQueryReady,
   isPaliV2UtxoMode,
 } from "./network-query-policy";
 
 describe("Pali network query policy", () => {
+  it("only opens the EVM account picker for an explicit connection", () => {
+    expect(getNevmAccountRequestMethod("discover")).toBe("eth_accounts");
+    expect(getNevmAccountRequestMethod("connect")).toBe(
+      "eth_requestAccounts"
+    );
+  });
+
   it("disables the injected EVM provider when Pali v2 is on UTXO", () => {
     expect(isPaliV2UtxoMode("v2", true, true)).toBe(true);
     expect(isPaliV2UtxoMode("v2", true, false)).toBe(false);
@@ -16,7 +26,28 @@ describe("Pali network query policy", () => {
     expect(isPaliEvmReady(true, true, false)).toBe(false);
     expect(isPaliEvmReady(true, false, undefined)).toBe(false);
     expect(isPaliEvmReady(true, false, true)).toBe(false);
+    expect(isPaliEvmReady(true, false, false, true)).toBe(false);
     expect(isPaliEvmReady(true, false, false)).toBe(true);
+  });
+
+  it("only enables automatic UTXO reads on confirmed UTXO mode", () => {
+    expect(isPaliUtxoQueryReady(true, true, true)).toBe(true);
+    expect(isPaliUtxoQueryReady(true, true, false)).toBe(false);
+    expect(isPaliUtxoQueryReady(true, false, true)).toBe(false);
+    expect(isPaliUtxoQueryReady(true, true, undefined)).toBe(false);
+    expect(isPaliUtxoQueryReady(true, true, true, true)).toBe(false);
+  });
+
+  it("keeps MetaMask active during Pali loading and UTXO switches", () => {
+    expect(
+      isNevmQueryReady(true, true, false, true, true, true, true)
+    ).toBe(true);
+  });
+
+  it("blocks injected Pali EVM queries throughout a UTXO switch", () => {
+    expect(
+      isNevmQueryReady(true, true, true, false, false, true, true)
+    ).toBe(false);
   });
 
   it("does not refresh EVM queries while switching to UTXO", () => {
