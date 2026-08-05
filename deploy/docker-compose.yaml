@@ -50,6 +50,7 @@ services:
         while true; do
           ts=$$(date +"%Y-%m-%d_%H-%M-%S")
           outdir="/backups/mongodump_$${BACKUP_DB}_$${ts}"
+          mkdir -p "$${outdir}"
           mongodump \
             --host "$${MONGO_HOST}" --port "$${MONGO_PORT}" \
             --username "$${MONGO_USER}" --password "$${MONGO_PASS}" \
