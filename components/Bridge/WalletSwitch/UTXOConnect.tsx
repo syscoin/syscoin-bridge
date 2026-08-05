@@ -15,6 +15,7 @@ import WalletSwitchCard from "./Card";
 import WalletSwitchConfirmCard from "./ConfirmCard";
 import { MIN_GAS_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
+import { switchToSyscoinThenChangeAccount } from "@contexts/PaliWallet/utxo-network";
 
 export type AssetType = "sys" | "sysx" | "none";
 
@@ -187,9 +188,12 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
     setUtxo({ xpub: xpubAddress, address: connectedAccount });
   };
 
-  const change = () => {
-    !isBitcoinBased ? switchTo("bitcoin") : changeAccount();
-  };
+  const change = () =>
+    switchToSyscoinThenChangeAccount(
+      isBitcoinBased,
+      switchTo,
+      changeAccount
+    );
 
   const hasUtxoAddress = Boolean(transfer.utxoAddress);
 

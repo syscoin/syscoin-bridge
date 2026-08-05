@@ -9,7 +9,7 @@ import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { captureException } from "@sentry/nextjs";
 import { useConstants } from "@contexts/useConstants";
 import {
-  isPaliEvmReady,
+  isNevmQueryReady,
   isPaliV2UtxoMode,
 } from "@contexts/PaliWallet/network-query-policy";
 
@@ -54,29 +54,27 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     paliWallet.isEVMInjected,
     paliWallet.isBitcoinBased
   );
-  const isEnabled = useMemo(() => {
-    if (!isEthereumAvailable) {
-      return false;
-    }
-    if (paliWallet.version === "v2" && paliWallet.isLoading) {
-      return false;
-    }
-    if (paliWallet.version === "v2" && paliWallet.isEVMInjected) {
-      return isPaliEvmReady(
+  const isEnabled = useMemo(
+    () =>
+      isNevmQueryReady(
+        isEthereumAvailable,
+        paliWallet.version === "v2",
         paliWallet.isEVMInjected,
         paliWallet.isLoading,
-        paliWallet.isBitcoinBased
-      );
-    }
-    return metamask.isEnabled;
-  }, [
-    metamask.isEnabled,
-    paliWallet.version,
-    paliWallet.isEVMInjected,
-    paliWallet.isBitcoinBased,
-    paliWallet.isLoading,
-    isEthereumAvailable,
-  ]);
+        paliWallet.isBitcoinBased,
+        paliWallet.isSwitchingToUtxo,
+        metamask.isEnabled
+      ),
+    [
+      isEthereumAvailable,
+      metamask.isEnabled,
+      paliWallet.version,
+      paliWallet.isEVMInjected,
+      paliWallet.isBitcoinBased,
+      paliWallet.isLoading,
+      paliWallet.isSwitchingToUtxo,
+    ]
+  );
   const web3 = useMemo(() => {
     if (!isEnabled) {
       return null;
@@ -97,7 +95,10 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     queryFn: async () => {
       try {
         // Double-check we're on EVM network before requesting accounts
-        if (paliWallet.isBitcoinBased) {
+        if (
+          isPaliEvmProvider &&
+          (paliWallet.isBitcoinBased || paliWallet.isSwitchingToUtxo)
+        ) {
           return null; // Don't request ETH accounts when on UTXO
         }
         

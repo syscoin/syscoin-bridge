@@ -11,8 +11,47 @@ export const isPaliV2UtxoMode = (
 export const isPaliEvmReady = (
   isEVMInjected: boolean | undefined,
   isLoading: boolean,
-  isBitcoinBased: boolean | undefined
-) => Boolean(isEVMInjected) && !isLoading && isBitcoinBased === false;
+  isBitcoinBased: boolean | undefined,
+  isSwitchingToUtxo = false
+) =>
+  Boolean(isEVMInjected) &&
+  !isLoading &&
+  !isSwitchingToUtxo &&
+  isBitcoinBased === false;
+
+export const isNevmQueryReady = (
+  isEthereumAvailable: boolean | undefined,
+  isPaliV2: boolean,
+  isPaliEvmInjected: boolean | undefined,
+  isPaliLoading: boolean,
+  isPaliBitcoinBased: boolean | undefined,
+  isSwitchingToUtxo: boolean,
+  isMetaMaskEnabled: boolean
+) => {
+  if (!isEthereumAvailable) {
+    return false;
+  }
+  if (isPaliV2 && isPaliEvmInjected) {
+    return isPaliEvmReady(
+      isPaliEvmInjected,
+      isPaliLoading,
+      isPaliBitcoinBased,
+      isSwitchingToUtxo
+    );
+  }
+  return isMetaMaskEnabled;
+};
+
+export const isPaliUtxoQueryReady = (
+  isInstalled: boolean | undefined,
+  isModeFetched: boolean,
+  isBitcoinBased: boolean | undefined,
+  isSwitchingToUtxo = false
+) =>
+  Boolean(isInstalled) &&
+  isModeFetched &&
+  isBitcoinBased === true &&
+  !isSwitchingToUtxo;
 
 export const getPaliNevmQueryAction = (
   isEVMInjected: boolean | undefined,
