@@ -185,6 +185,8 @@ container so the existing backup volume remains attached.
 | `SPONSOR_TRUST_PROXY_HEADERS`   | Trust `x-real-ip`/`x-forwarded-for` for sponsor IP limits only when a trusted proxy overwrites them | false   |
 | `NEXT_PUBLIC_API_BASE_URL`      | Base URL the frontend uses for API requests    |         |
 | `CORS_ALLOWED_ORIGIN`           | Allowed frontend origin(s) for API CORS responses (comma-separated, no `*` for admin cookie auth) |         |
+| `CORS_ALLOWED_VERCEL_TEAM`      | Trusted Vercel team slug used to permit project-scoped preview origins | sys-labs-1f6f97e5 |
+| `CORS_ALLOWED_VERCEL_PROJECT`   | Optional trusted Vercel project override; derives bridge-testnet/syscoin-bridge from `IS_TESTNET` when omitted |         |
 
 **Note**: API URLs are only used for EVM networks. UTXO networks use Blockbook which has a different API structure.
 
