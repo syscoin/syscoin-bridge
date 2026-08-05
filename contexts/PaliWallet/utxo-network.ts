@@ -14,8 +14,11 @@ type PaliNetworkSwitch = (
 
 type PaliAccountChange = () => Promise<unknown>;
 
-export const getPaliSyscoinSwitchRequest = (isTestnet: boolean) => ({
-  method: "sys_switchChain",
+export const getPaliSyscoinSwitchRequest = (
+  isTestnet: boolean,
+  isAlreadyOnUtxo: boolean
+) => ({
+  method: isAlreadyOnUtxo ? "sys_switchChain" : "sys_changeUTXOEVM",
   params: [
     {
       chainId: isTestnet ? 5700 : 57,

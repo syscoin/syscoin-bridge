@@ -323,18 +323,23 @@ export const PaliWalletV2Provider: React.FC<{
 
       try {
         if (networkType === "bitcoin") {
+          const { data: wasAlreadyOnUtxo } = await isBitcoinBased.refetch();
+
           // Stop active wallet-backed EVM queries before Pali changes mode.
           if (
             getPaliNevmQueryAction(
               isEVMInjected.data,
-              isBitcoinBased.data,
+              wasAlreadyOnUtxo,
               networkType
             ) === "cancel"
           ) {
             await queryClient.cancelQueries(["nevm"]);
           }
           await window.pali.request(
-            getPaliSyscoinSwitchRequest(Boolean(constants?.isTestnet))
+            getPaliSyscoinSwitchRequest(
+              Boolean(constants?.isTestnet),
+              Boolean(wasAlreadyOnUtxo)
+            )
           );
           await isBitcoinBased.refetch();
           await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);

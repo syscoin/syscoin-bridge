@@ -7,16 +7,23 @@ import {
 
 describe("Pali Syscoin UTXO network handling", () => {
   it("uses the UTXO chain-switch method for Syscoin mainnet", () => {
-    expect(getPaliSyscoinSwitchRequest(false)).toEqual({
+    expect(getPaliSyscoinSwitchRequest(false, true)).toEqual({
       method: "sys_switchChain",
       params: [{ chainId: 57 }],
     });
   });
 
   it("uses the Syscoin testnet UTXO chain id", () => {
-    expect(getPaliSyscoinSwitchRequest(true)).toEqual({
+    expect(getPaliSyscoinSwitchRequest(true, true)).toEqual({
       method: "sys_switchChain",
       params: [{ chainId: 5700 }],
+    });
+  });
+
+  it("switches from the EVM family before selecting a UTXO account", () => {
+    expect(getPaliSyscoinSwitchRequest(false, false)).toEqual({
+      method: "sys_changeUTXOEVM",
+      params: [{ chainId: 57 }],
     });
   });
 
