@@ -13,13 +13,17 @@ import {
   isNevmQueryReady,
   isPaliV2UtxoMode,
 } from "@contexts/PaliWallet/network-query-policy";
+import {
+  normalizeEvmChainId,
+  resolveExpectedEvmChainId,
+} from "utils/network-config";
 
 interface INEVMContext {
   account?: string;
   balance?: string;
   isTestnet: boolean;
   chainId?: string;
-  expectedChainId: string;
+  expectedChainId?: string;
   isExpectedChain: boolean;
   isWrongChain: boolean;
   switchToMainnet: () => void;
@@ -170,15 +174,19 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     }
   );
   const refetchChainId = chainId.refetch;
-  const expectedChainId = constants?.chain_id ?? MAINNET_CHAIN_ID;
-  const normalizedChainId =
-    typeof chainId.data === "string" ? chainId.data.toLowerCase() : undefined;
-  const normalizedExpectedChainId = expectedChainId.toLowerCase();
-  const isExpectedChain = normalizedChainId === normalizedExpectedChainId;
+  const expectedChainId = resolveExpectedEvmChainId(
+    constants?.chain_id,
+    MAINNET_CHAIN_ID
+  );
+  const normalizedChainId = normalizeEvmChainId(chainId.data);
+  const isExpectedChain = Boolean(
+    expectedChainId && normalizedChainId === expectedChainId
+  );
   const isWrongChain = Boolean(
     isEnabled &&
+      expectedChainId &&
       normalizedChainId &&
-      normalizedChainId !== normalizedExpectedChainId
+      normalizedChainId !== expectedChainId
   );
 
   const sendTransaction = (config: TransactionConfig) => {
@@ -189,10 +197,17 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const switchToMainnet = () => {
+    if (!expectedChainId) {
+      const error = new Error("Configured NEVM chain ID is invalid");
+      captureException(error);
+      console.error(error.message);
+      return;
+    }
+
     window.ethereum
       .request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: constants?.chain_id ?? MAINNET_CHAIN_ID }],
+        params: [{ chainId: expectedChainId }],
       })
       .then(() => chainId.refetch())
       .catch((err) => {
@@ -202,7 +217,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
           // Create network params in EIP-3085 format with Pali wallet extensions
           const networkParams = {
             ...NEVMNetwork,
-            chainId: constants?.chain_id ?? MAINNET_CHAIN_ID,
+            chainId: expectedChainId,
             // Override with dynamic values from constants if available
             ...(constants && {
               rpcUrls: [constants.rpc.nevm],

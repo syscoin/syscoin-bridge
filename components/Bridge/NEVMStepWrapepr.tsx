@@ -1,6 +1,6 @@
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { Button } from "@mui/material";
+import { Alert, Button } from "@mui/material";
 import { isValidEthereumAddress } from "@sidhujag/sysweb3-utils";
 import { useTransfer } from "./context/TransferContext";
 import { useState } from "react";
@@ -13,11 +13,21 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   const { version, isBitcoinBased, switchTo, isEVMInjected } =
     usePaliWalletV2();
 
-  const { connect, account, isExpectedChain, switchToMainnet } = useNEVM();
+  const {
+    connect,
+    account,
+    expectedChainId,
+    isExpectedChain,
+    switchToMainnet,
+  } = useNEVM();
   const { transfer } = useTransfer();
   const nevmAccount = account ?? transfer.nevmAddress ?? "";
   const hasNevmAccount = nevmAccount !== "";
   const [hasSwitched, setHasSwitched] = useState(false);
+
+  if (!expectedChainId) {
+    return <Alert severity="error">NEVM network is not configured</Alert>;
+  }
 
   // Only show switch button if we haven't switched yet and Pali is in UTXO mode
   if (version === "v2" && isBitcoinBased && isEVMInjected && !hasSwitched) {

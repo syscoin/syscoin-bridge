@@ -2,6 +2,8 @@ import { describe, expect, it } from "@jest/globals";
 import {
   getSyscoinChainId,
   isSyscoinTestnetHost,
+  normalizeEvmChainId,
+  resolveExpectedEvmChainId,
   resolveSyscoinIsTestnet,
 } from "./network-config";
 
@@ -25,6 +27,30 @@ describe("Syscoin network configuration", () => {
   it("returns the matching Syscoin UTXO and NEVM chain id", () => {
     expect(getSyscoinChainId(false)).toBe(57);
     expect(getSyscoinChainId(true)).toBe(5700);
+  });
+
+  it("normalizes decimal and hexadecimal EVM chain ids", () => {
+    expect(normalizeEvmChainId("57")).toBe("0x39");
+    expect(normalizeEvmChainId(57)).toBe("0x39");
+    expect(normalizeEvmChainId("0x39")).toBe("0x39");
+    expect(normalizeEvmChainId("0X0039")).toBe("0x39");
+    expect(normalizeEvmChainId("5700")).toBe("0x1644");
+  });
+
+  it("rejects invalid EVM chain ids", () => {
+    expect(normalizeEvmChainId(undefined)).toBeUndefined();
+    expect(normalizeEvmChainId("57-nevm")).toBeUndefined();
+    expect(normalizeEvmChainId(-1)).toBeUndefined();
+  });
+
+  it("uses the default EVM chain only when configuration is missing", () => {
+    expect(resolveExpectedEvmChainId(undefined, "0x39")).toBe("0x39");
+    expect(resolveExpectedEvmChainId("", "0x39")).toBe("0x39");
+    expect(resolveExpectedEvmChainId("5700", "0x39")).toBe("0x1644");
+  });
+
+  it("fails closed when the configured EVM chain is invalid", () => {
+    expect(resolveExpectedEvmChainId("5700-nevm", "0x39")).toBeUndefined();
   });
 
   it("recognizes the Tanenbaum and Vercel testnet hosts", () => {
