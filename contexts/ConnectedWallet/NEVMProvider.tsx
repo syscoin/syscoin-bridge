@@ -160,8 +160,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   const normalizedChainId =
     typeof chainId.data === "string" ? chainId.data.toLowerCase() : undefined;
   const normalizedExpectedChainId = expectedChainId.toLowerCase();
-  const isExpectedChain =
-    isEnabled && normalizedChainId === normalizedExpectedChainId;
+  const isExpectedChain = normalizedChainId === normalizedExpectedChainId;
   const isWrongChain = Boolean(
     isEnabled &&
       normalizedChainId &&
