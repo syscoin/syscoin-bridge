@@ -152,6 +152,31 @@ jobs:
             sh ./validate-env.sh .env
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose config --quiet
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose pull syscoin-bridge
+            db_container_id=$(sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose ps -q db)
+            if [ -n "$db_container_id" ]; then
+              sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose run --rm --no-deps \
+                --entrypoint node syscoin-bridge -e '
+                  const { MongoClient } = require("mongodb");
+                  const username = process.env.MONGO_ROOT_USER?.trim();
+                  const password = process.env.MONGO_ROOT_PASSWORD;
+                  const database = process.env.MONGO_APP_DB?.trim() || "bridge";
+                  if ((process.env.MONGODB_URI || "").trim()) {
+                    throw new Error("Managed Compose retained an explicit MongoDB URI");
+                  }
+                  if (!username || !password) {
+                    throw new Error("Managed Compose Mongo credentials are missing");
+                  }
+                  const uri = `mongodb://${encodeURIComponent(username)}:${encodeURIComponent(password)}@db:27017/${encodeURIComponent(database)}?authSource=admin`;
+                  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 10000 });
+                  client.db(database).command({ ping: 1 })
+                    .then(() => client.close())
+                    .catch(async (error) => {
+                      console.error("Mongo authentication preflight failed:", error.name);
+                      await client.close().catch(() => undefined);
+                      process.exit(1);
+                    });
+                '
+            fi
             if ! sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose up -d --remove-orphans --wait --wait-timeout 300; then
               sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose ps || true
               sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose logs --tail=200 syscoin-bridge || true

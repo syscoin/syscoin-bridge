@@ -141,21 +141,23 @@ The backend deployment treats the Compose environment files as authoritative:
 The deployment copies application images and Compose configuration but does not
 generate, replace, or import these files from Vercel. `MONGO_ROOT_USER` and
 `MONGO_ROOT_PASSWORD` initialize an empty Mongo volume only. The Docker backend
-derives its internal Mongo URI from those existing credentials when
-`MONGODB_URI` is empty; an explicit URI remains an optional override. Never
-change initialized root credentials or delete/recreate a database volume to
-apply an environment change. Before validation, deployment reconciles the root
-settings from the healthy running Mongo container without logging them. It also
-recovers the existing data, configuration, and backup volume names from the
-running containers. All three volumes are then attached as explicit external
-volumes, so Compose never offers to recreate an existing Mongo data volume.
+derives its internal Mongo URI from those existing credentials. The managed
+Compose service explicitly ignores `MONGODB_URI` so a legacy URI with embedded
+credentials cannot drift from the initialized database volume; the override
+remains available to non-Compose runtimes. Never change initialized root
+credentials or delete/recreate a database volume to apply an environment
+change. Before validation, deployment reconciles the root settings from the
+healthy running Mongo container without logging them. It also recovers the
+existing data, configuration, and backup volume names from the running
+containers. All three volumes are then attached as explicit external volumes,
+so Compose never offers to recreate an existing Mongo data volume.
 
 | Name                            | Description                                    | Default |
 | ------------------------------- | ---------------------------------------------- | ------- |
 | `MONGO_ROOT_USER`               | Existing Mongo root user used by Docker Compose and URI derivation |         |
 | `MONGO_ROOT_PASSWORD`           | Existing Mongo root password used by Docker Compose and URI derivation |         |
 | `MONGO_APP_DB`                  | Mongo application database                    | bridge  |
-| `MONGODB_URI`                   | Optional MongoDB URI override; Docker derives it from the root credentials when omitted |         |
+| `MONGODB_URI`                   | Optional MongoDB URI override for non-Compose runtimes; managed Compose ignores it |         |
 | `MONGO_DATA_VOLUME`             | Existing external Mongo `/data/db` volume name |         |
 | `MONGO_CONFIG_VOLUME`           | Existing external Mongo `/data/configdb` volume name |         |
 | `MONGO_BACKUP_VOLUME`           | Existing environment-specific external Docker volume for Mongo backups |         |
