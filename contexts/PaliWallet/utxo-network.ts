@@ -1,4 +1,5 @@
 import type { PaliWalletNetworkType } from "./network-query-policy";
+import { getSyscoinChainId } from "utils/network-config";
 
 type PaliProvider = {
   isBitcoinBased: () => boolean;
@@ -21,7 +22,7 @@ export const getPaliSyscoinSwitchRequest = (
   method: isAlreadyOnUtxo ? "sys_switchChain" : "sys_changeUTXOEVM",
   params: [
     {
-      chainId: isTestnet ? 5700 : 57,
+      chainId: getSyscoinChainId(isTestnet),
     },
   ],
 });

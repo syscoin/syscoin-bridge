@@ -12,6 +12,10 @@ import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import {
+  getSyscoinChainId,
+  resolveSyscoinIsTestnet,
+} from "utils/network-config";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -72,7 +76,10 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain;
 
   const isUtxoValid =
-    isValidSYSAddress(utxoAddress, constants?.isTestnet ? 5700 : 57) &&
+    isValidSYSAddress(
+      utxoAddress,
+      getSyscoinChainId(resolveSyscoinIsTestnet(constants))
+    ) &&
     !isUtxoNotEnoughGas &&
     !isSysxNotEnoughBalance &&
     utxoAssetType !== undefined;

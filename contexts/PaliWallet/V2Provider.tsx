@@ -12,6 +12,10 @@ import MetamaskProvider from "@contexts/Metamask/Provider";
 import { isValidSYSAddress } from "@sidhujag/sysweb3-utils";
 import { useConstants } from "@contexts/useConstants";
 import {
+  getSyscoinChainId,
+  resolveSyscoinIsTestnet,
+} from "utils/network-config";
+import {
   getPaliNevmQueryAction,
   isPaliUtxoQueryReady,
   PaliWalletNetworkType,
@@ -86,7 +90,7 @@ export const PaliWalletV2Provider: React.FC<{
   children: React.ReactElement;
 }> = ({ children }) => {
   const queryClient = useQueryClient();
-  const { constants } = useConstants();
+  const { constants, refetch: refetchConstants } = useConstants();
   const isProcessingAccountChange = useRef(false);
   const networkSwitchTarget = useRef<PaliWalletNetworkType | null>(null);
   const [isSwitchingToUtxo, setIsSwitchingToUtxo] = useState(false);
@@ -110,6 +114,7 @@ export const PaliWalletV2Provider: React.FC<{
   });
 
   const isInstalled = installed.isFetched && installed.data;
+  const isBridgeTestnet = resolveSyscoinIsTestnet(constants);
 
   const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
     queryFn: async () => {
@@ -233,11 +238,11 @@ export const PaliWalletV2Provider: React.FC<{
       finalAccount &&
       isValidSYSAddress(
         finalAccount.address,
-        constants?.isTestnet ? 5700 : 57
+        getSyscoinChainId(isBridgeTestnet)
       )
         ? finalAccount.address
         : undefined,
-    [finalAccount, constants?.isTestnet]
+    [finalAccount, isBridgeTestnet]
   );
 
   const xpubAddress = useMemo(
@@ -294,7 +299,7 @@ export const PaliWalletV2Provider: React.FC<{
         // Fallback to PSBT parsing (legacy format)
         const unserializedResp = syscoinUtils.importPsbtFromJson(
           response,
-          constants?.isTestnet
+          isBridgeTestnet
             ? syscoinUtils.syscoinNetworks.testnet
             : syscoinUtils.syscoinNetworks.mainnet
         );
@@ -307,7 +312,7 @@ export const PaliWalletV2Provider: React.FC<{
         };
       }
     },
-    [constants?.isTestnet]
+    [isBridgeTestnet]
   );
 
   const switchTo = useCallback(
@@ -322,6 +327,12 @@ export const PaliWalletV2Provider: React.FC<{
       }
 
       try {
+        const activeConstants = constants ?? (await refetchConstants()).data;
+        if (!activeConstants) {
+          return Promise.reject("Bridge network configuration is unavailable");
+        }
+        const activeIsTestnet = resolveSyscoinIsTestnet(activeConstants);
+
         if (networkType === "bitcoin") {
           const { data: wasAlreadyOnUtxo } = await isBitcoinBased.refetch();
 
@@ -337,7 +348,7 @@ export const PaliWalletV2Provider: React.FC<{
           }
           await window.pali.request(
             getPaliSyscoinSwitchRequest(
-              Boolean(constants?.isTestnet),
+              activeIsTestnet,
               Boolean(wasAlreadyOnUtxo)
             )
           );
@@ -347,12 +358,14 @@ export const PaliWalletV2Provider: React.FC<{
         }
 
         if (networkType === "ethereum") {
-          const chainId = parseInt(constants?.chain_id ?? "0x39", 16);
+          const chainId = Number(activeConstants.chain_id);
           await window.ethereum.request({
             method: "eth_changeUTXOEVM",
             params: [
               {
-                chainId,
+                chainId: Number.isFinite(chainId)
+                  ? chainId
+                  : getSyscoinChainId(activeIsTestnet),
               },
             ],
           });
@@ -383,8 +396,8 @@ export const PaliWalletV2Provider: React.FC<{
       isInstalled,
       queryClient,
       isEVMInjected.data,
-      constants?.chain_id,
-      constants?.isTestnet,
+      constants,
+      refetchConstants,
     ]
   );
 
@@ -540,7 +553,7 @@ export const PaliWalletV2Provider: React.FC<{
       isInstalled,
       sendTransaction,
       connectWallet,
-      isTestnet: Boolean(constants?.isTestnet),
+      isTestnet: isBridgeTestnet,
       balance,
       connectedAccount: sysAddress,
       xpubAddress,
@@ -570,7 +583,7 @@ export const PaliWalletV2Provider: React.FC<{
       isEVMInjected,
       isLoading,
       isSwitchingToUtxo,
-      constants?.isTestnet,
+      isBridgeTestnet,
       constants?.chain_id,
     ]
   );
