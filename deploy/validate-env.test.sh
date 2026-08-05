@@ -18,6 +18,13 @@ EOF
 
 sh "$validator" "$test_dir/valid.env"
 
+sed "s|^CORS_ALLOWED_ORIGIN=.*$|CORS_ALLOWED_ORIGIN=''|" \
+  "$test_dir/valid.env" > "$test_dir/quoted-empty.env"
+if sh "$validator" "$test_dir/quoted-empty.env" 2>/dev/null; then
+  echo "validator accepted a quoted-empty required value" >&2
+  exit 1
+fi
+
 sed '/^MONGO_ROOT_PASSWORD=/d' "$test_dir/valid.env" > "$test_dir/missing-mongo.env"
 if sh "$validator" "$test_dir/missing-mongo.env" 2>/dev/null; then
   echo "validator accepted missing Mongo credentials" >&2

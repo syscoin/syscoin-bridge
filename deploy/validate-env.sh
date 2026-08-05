@@ -10,7 +10,7 @@ fi
 
 require_env() {
   key="$1"
-  if ! grep -Eq "^${key}=.+" "$env_file"; then
+  if [ -z "$(env_value "$key")" ]; then
     echo "Missing required backend environment variable: ${key}" >&2
     exit 1
   fi

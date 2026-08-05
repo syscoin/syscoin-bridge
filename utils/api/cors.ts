@@ -40,43 +40,6 @@ const parseOrigin = (origin: string) => {
 
 const normalizeHost = (host: string) => host.trim().toLowerCase();
 
-const DEFAULT_VERCEL_TEAM = "sys-labs-1f6f97e5";
-
-const getAllowedVercelProject = () =>
-  process.env.CORS_ALLOWED_VERCEL_PROJECT?.trim() ||
-  (process.env.IS_TESTNET === "true" ||
-  process.env.NEXT_PUBLIC_IS_TESTNET === "true"
-    ? "bridge-testnet"
-    : "syscoin-bridge");
-
-const isAllowedVercelPreviewOrigin = (origin: string) => {
-  const parsedOrigin = parseOrigin(origin);
-  const team = (
-    process.env.CORS_ALLOWED_VERCEL_TEAM ?? DEFAULT_VERCEL_TEAM
-  )
-    .trim()
-    .toLowerCase();
-  const project = getAllowedVercelProject().toLowerCase();
-
-  if (
-    !parsedOrigin ||
-    parsedOrigin.protocol !== "https:" ||
-    parsedOrigin.port ||
-    parsedOrigin.username ||
-    parsedOrigin.password ||
-    !team ||
-    !project
-  ) {
-    return false;
-  }
-
-  const hostname = parsedOrigin.hostname.toLowerCase();
-  return (
-    hostname.startsWith(`${project}-`) &&
-    hostname.endsWith(`-${team}.vercel.app`)
-  );
-};
-
 const isLocalhostHost = (host: string) => {
   const hostname = host.split(":")[0];
   return (
@@ -191,13 +154,16 @@ const resolveCorsOrigin = (
     return { allowed: true, corsOrigin: null };
   }
 
-  const allowedOrigins = getAllowedOrigins().map((origin) =>
-    origin === "*" ? origin : normalizeOrigin(origin)
-  );
-  if (isAllowedVercelPreviewOrigin(normalizedRequestOrigin)) {
+  // Preview deployments intentionally reflect their request origin so branch
+  // builds can exercise write flows. This never runs on Vercel production or
+  // on the Hetzner backends, where exact origin validation remains mandatory.
+  if (process.env.VERCEL_ENV === "preview") {
     return { allowed: true, corsOrigin: normalizedRequestOrigin };
   }
 
+  const allowedOrigins = getAllowedOrigins().map((origin) =>
+    origin === "*" ? origin : normalizeOrigin(origin)
+  );
   if (allowedOrigins.includes("*")) {
     return allowCredentials || !allowWildcardOrigin
       ? { allowed: false, corsOrigin: null }

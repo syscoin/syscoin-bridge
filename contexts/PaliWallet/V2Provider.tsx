@@ -261,19 +261,10 @@ export const PaliWalletV2Provider: React.FC<{
     [finalAccount]
   );
 
-  const connectWallet = useCallback(
-    (networkType: PaliWalletNetworkType = "bitcoin") => {
-      if (networkType === "bitcoin") {
-        window.pali
-          .request({ method: "sys_requestAccounts" })
-          .then(() => {
-            utxoAccount.refetch();
-            accountDetails.refetch();
-          });
-      }
-    },
-    [finalAccount]
-  );
+  const connectWallet = useCallback(async () => {
+    await window.pali.request({ method: "sys_requestAccounts" });
+    await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
+  }, [utxoAccount, accountDetails]);
 
   const sendTransaction = useCallback(
     async (utxo: UTXOTransaction) => {

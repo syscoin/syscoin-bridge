@@ -29,7 +29,9 @@ const UTXOStepWrapper: React.FC<UTXOStepWrapperProps> = ({ children }) => {
   }
 
   if (!connectedAccount) {
-    return <Button onClick={connectWallet}>Connect Pali Wallet</Button>;
+    return (
+      <Button onClick={() => connectWallet()}>Connect Pali Wallet</Button>
+    );
   }
 
   if (

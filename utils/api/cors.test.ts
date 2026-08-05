@@ -38,17 +38,16 @@ const applyWriteCors = (origin: string) => {
   return { handled, response };
 };
 
-describe("Vercel preview CORS", () => {
+describe("preview CORS isolation", () => {
   beforeEach(() => {
     process.env.CORS_ALLOWED_ORIGIN = "https://bridge.tanenbaum.io";
-    process.env.CORS_ALLOWED_VERCEL_TEAM = "sys-labs-1f6f97e5";
-    delete process.env.CORS_ALLOWED_VERCEL_PROJECT;
-    process.env.IS_TESTNET = "true";
+    delete process.env.VERCEL_ENV;
   });
 
-  it("allows the testnet project's branch preview origin", () => {
+  it("reflects the request origin only inside a Vercel preview", () => {
+    process.env.VERCEL_ENV = "preview";
     const origin =
-      "https://bridge-testnet-git-codex-harden-backen-22c360-sys-labs-1f6f97e5.vercel.app";
+      "https://bridge-testnet-git-feature.example-team.vercel.app";
     const { handled, response } = applyWriteCors(origin);
 
     expect(handled).toBe(false);
@@ -59,56 +58,27 @@ describe("Vercel preview CORS", () => {
     expect(response.status).not.toHaveBeenCalled();
   });
 
-  it("allows the testnet project's deployment-specific preview origin", () => {
-    const origin =
-      "https://bridge-testnet-56xg4mwgs-sys-labs-1f6f97e5.vercel.app";
-    const { handled, response } = applyWriteCors(origin);
-
-    expect(handled).toBe(false);
-    expect(response.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
-      origin
-    );
-  });
-
-  it("allows a trusted preview write when the generic CORS default is wildcard", () => {
-    process.env.CORS_ALLOWED_ORIGIN = "*";
-    const origin =
-      "https://bridge-testnet-git-codex-harden-backen-22c360-sys-labs-1f6f97e5.vercel.app";
-    const { handled, response } = applyWriteCors(origin);
-
-    expect(handled).toBe(false);
-    expect(response.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
-      origin
-    );
-  });
-
-  it("rejects the same project name outside the configured Vercel team", () => {
+  it("does not relax origins in Vercel production", () => {
+    process.env.VERCEL_ENV = "production";
     const { handled, response } = applyWriteCors(
-      "https://bridge-testnet-git-attack-other-team.vercel.app"
-    );
-
-    expect(handled).toBe(true);
-    expect(response.status).toHaveBeenCalledWith(403);
-    expect(response.json).toHaveBeenCalledWith({
-      message: "Origin not allowed",
-    });
-  });
-
-  it("rejects another project within the configured Vercel team", () => {
-    const { handled, response } = applyWriteCors(
-      "https://unrelated-project-123-sys-labs-1f6f97e5.vercel.app"
+      "https://untrusted.example"
     );
 
     expect(handled).toBe(true);
     expect(response.status).toHaveBeenCalledWith(403);
   });
 
-  it("selects the production project for mainnet", () => {
-    process.env.IS_TESTNET = "false";
-    const origin =
-      "https://syscoin-bridge-git-feature-5981fe-sys-labs-1f6f97e5.vercel.app";
+  it("does not relax origins on the Hetzner backend", () => {
+    const { handled, response } = applyWriteCors(
+      "https://untrusted.example"
+    );
+
+    expect(handled).toBe(true);
+    expect(response.status).toHaveBeenCalledWith(403);
+  });
+
+  it("continues to allow an exact production origin", () => {
+    const origin = "https://bridge.tanenbaum.io";
     const { handled, response } = applyWriteCors(origin);
 
     expect(handled).toBe(false);
