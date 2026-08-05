@@ -1,6 +1,11 @@
 export type PaliWalletVersion = "v1" | "v2";
 export type PaliWalletNetworkType = "bitcoin" | "ethereum";
 export type NevmQueryAction = "cancel" | "refresh" | "none";
+export type NevmAccountRequestIntent = "discover" | "connect";
+
+export const getNevmAccountRequestMethod = (
+  intent: NevmAccountRequestIntent
+) => (intent === "connect" ? "eth_requestAccounts" : "eth_accounts");
 
 export const isPaliV2UtxoMode = (
   version: PaliWalletVersion,

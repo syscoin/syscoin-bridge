@@ -9,6 +9,7 @@ import { IPaliWalletV2Context } from "@contexts/PaliWallet/V2Provider";
 import { captureException } from "@sentry/nextjs";
 import { useConstants } from "@contexts/useConstants";
 import {
+  getNevmAccountRequestMethod,
   isNevmQueryReady,
   isPaliV2UtxoMode,
 } from "@contexts/PaliWallet/network-query-policy";
@@ -104,7 +105,9 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
         
         const result: (string | { success: false })[] =
           await window.ethereum.request({
-            method: "eth_requestAccounts",
+            // Account discovery runs automatically, so it must never open a
+            // wallet prompt. The interactive method is reserved for connect().
+            method: getNevmAccountRequestMethod("discover"),
           });
         if (
           result.length > 0 &&
@@ -218,16 +221,26 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const connect = () => {
-    let prePromise = account.isFetched
+    const prePromise = account.data
       ? window.ethereum.request({
           method: "wallet_revokePermissions",
           params: [{ eth_accounts: {} }],
         })
       : Promise.resolve();
 
-    prePromise.then(() => {
-      return account.refetch();
-    });
+    void prePromise
+      .then(() =>
+        window.ethereum.request({
+          method: getNevmAccountRequestMethod("connect"),
+        })
+      )
+      .then(() => account.refetch())
+      .catch((error) => {
+        if (error?.code === 4001) {
+          return;
+        }
+        console.error("Failed to connect EVM account:", error);
+      });
   };
 
   const signMessage = (message: string): Promise<string> => {

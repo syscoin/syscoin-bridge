@@ -353,7 +353,6 @@ export const PaliWalletV2Provider: React.FC<{
             )
           );
           await isBitcoinBased.refetch();
-          await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
           return;
         }
 

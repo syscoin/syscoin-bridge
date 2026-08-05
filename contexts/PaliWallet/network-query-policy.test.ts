@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import {
+  getNevmAccountRequestMethod,
   getPaliNevmQueryAction,
   isNevmQueryReady,
   isPaliEvmReady,
@@ -8,6 +9,13 @@ import {
 } from "./network-query-policy";
 
 describe("Pali network query policy", () => {
+  it("only opens the EVM account picker for an explicit connection", () => {
+    expect(getNevmAccountRequestMethod("discover")).toBe("eth_accounts");
+    expect(getNevmAccountRequestMethod("connect")).toBe(
+      "eth_requestAccounts"
+    );
+  });
+
   it("disables the injected EVM provider when Pali v2 is on UTXO", () => {
     expect(isPaliV2UtxoMode("v2", true, true)).toBe(true);
     expect(isPaliV2UtxoMode("v2", true, false)).toBe(false);
