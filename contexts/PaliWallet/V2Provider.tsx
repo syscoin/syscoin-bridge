@@ -12,8 +12,8 @@ import MetamaskProvider from "@contexts/Metamask/Provider";
 import { isValidSYSAddress } from "@sidhujag/sysweb3-utils";
 import { useConstants } from "@contexts/useConstants";
 import {
+  getPaliNevmQueryAction,
   PaliWalletNetworkType,
-  shouldRefreshNevmQueries,
 } from "./network-query-policy";
 
 export interface ProviderState {
@@ -316,7 +316,15 @@ export const PaliWalletV2Provider: React.FC<{
       try {
         if (networkType === "bitcoin") {
           // Stop active wallet-backed EVM queries before Pali changes mode.
-          await queryClient.cancelQueries(["nevm"]);
+          if (
+            getPaliNevmQueryAction(
+              isEVMInjected.data,
+              isBitcoinBased.data,
+              networkType
+            ) === "cancel"
+          ) {
+            await queryClient.cancelQueries(["nevm"]);
+          }
           await window.pali.request({
             method: "sys_changeUTXOEVM",
             params: [
@@ -339,8 +347,16 @@ export const PaliWalletV2Provider: React.FC<{
               },
             ],
           });
-          await isBitcoinBased.refetch();
-          await queryClient.invalidateQueries(["nevm"]);
+          const { data: bitcoinBased } = await isBitcoinBased.refetch();
+          if (
+            getPaliNevmQueryAction(
+              isEVMInjected.data,
+              bitcoinBased,
+              networkType
+            ) === "refresh"
+          ) {
+            await queryClient.invalidateQueries(["nevm"]);
+          }
           return;
         }
 
@@ -354,6 +370,7 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased,
       isInstalled,
       queryClient,
+      isEVMInjected.data,
       constants?.chain_id,
       constants?.isTestnet,
     ]
@@ -372,19 +389,29 @@ export const PaliWalletV2Provider: React.FC<{
     if (!isInstalled || !window.pali) return;
 
     const refreshQueriesForActiveNetwork = async () => {
-      if (networkSwitchTarget.current === "bitcoin") {
+      const currentAction = getPaliNevmQueryAction(
+        isEVMInjected.data,
+        isBitcoinBased.data,
+        networkSwitchTarget.current
+      );
+      if (currentAction === "cancel") {
         await queryClient.cancelQueries(["nevm"]);
-        await isBitcoinBased.refetch();
-        return;
       }
 
       const { data: bitcoinBased } = await isBitcoinBased.refetch();
-      if (shouldRefreshNevmQueries(bitcoinBased, networkSwitchTarget.current)) {
+      const nextAction = getPaliNevmQueryAction(
+        isEVMInjected.data,
+        bitcoinBased,
+        networkSwitchTarget.current
+      );
+      if (nextAction === "refresh") {
         await queryClient.invalidateQueries(["nevm"]);
         return;
       }
 
-      await queryClient.cancelQueries(["nevm"]);
+      if (nextAction === "cancel" && currentAction !== "cancel") {
+        await queryClient.cancelQueries(["nevm"]);
+      }
     };
 
     // Handle any account changes (both UTXO and EVM)
@@ -398,18 +425,22 @@ export const PaliWalletV2Provider: React.FC<{
       
       // Check current network state without refetching
       const isCurrentlyBitcoinBased = isBitcoinBased.data;
-      
-      if (networkSwitchTarget.current === "bitcoin") {
+      const nevmQueryAction = getPaliNevmQueryAction(
+        isEVMInjected.data,
+        isCurrentlyBitcoinBased,
+        networkSwitchTarget.current
+      );
+
+      if (nevmQueryAction === "cancel") {
         void queryClient.cancelQueries(["nevm"]);
-      } else if (isCurrentlyBitcoinBased) {
+      }
+      if (
+        isCurrentlyBitcoinBased &&
+        networkSwitchTarget.current !== "ethereum"
+      ) {
         utxoAccount.refetch();
         accountDetails.refetch();
-      } else if (
-        shouldRefreshNevmQueries(
-          isCurrentlyBitcoinBased,
-          networkSwitchTarget.current
-        )
-      ) {
+      } else if (nevmQueryAction === "refresh") {
         // Only invalidate NEVM queries when on EVM network
         queryClient.invalidateQueries(["nevm"]);
       }

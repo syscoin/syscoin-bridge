@@ -1,5 +1,6 @@
 export type PaliWalletVersion = "v1" | "v2";
 export type PaliWalletNetworkType = "bitcoin" | "ethereum";
+export type NevmQueryAction = "cancel" | "refresh" | "none";
 
 export const isPaliV2UtxoMode = (
   version: PaliWalletVersion,
@@ -7,7 +8,16 @@ export const isPaliV2UtxoMode = (
   isBitcoinBased: boolean | undefined
 ) => version === "v2" && Boolean(isEVMInjected) && Boolean(isBitcoinBased);
 
-export const shouldRefreshNevmQueries = (
+export const getPaliNevmQueryAction = (
+  isEVMInjected: boolean | undefined,
   isBitcoinBased: boolean | undefined,
   networkSwitchTarget: PaliWalletNetworkType | null
-) => networkSwitchTarget !== "bitcoin" && isBitcoinBased === false;
+): NevmQueryAction => {
+  if (!isEVMInjected) {
+    return "none";
+  }
+  if (networkSwitchTarget === "bitcoin" || isBitcoinBased === true) {
+    return "cancel";
+  }
+  return isBitcoinBased === false ? "refresh" : "none";
+};
