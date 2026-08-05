@@ -155,7 +155,7 @@ const UTXOConnectV1: React.FC<UTXOConnectProps> = (props) => {
   };
 
   if (!connectedAccount) {
-    return <Button onClick={connectWallet}>Connect</Button>;
+    return <Button onClick={() => connectWallet()}>Connect</Button>;
   }
 
   if (!transfer.utxoAddress) {

@@ -125,7 +125,7 @@ jobs:
           host: ${{ secrets.HETZNER_HOST || secrets.HETZNER_STAGING_HOST }}
           username: ubuntu
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: deploy/docker-compose.yaml
+          source: deploy/docker-compose.yaml,deploy/restore-mongo-env.sh,deploy/validate-env.sh
           target: ${{ matrix.compose_dir }}
           strip_components: 1
           overwrite: true
@@ -148,11 +148,8 @@ jobs:
             echo "$GHCR_TOKEN" | sudo docker login ghcr.io --username "$GHCR_USER" --password-stdin >/dev/null
             trap 'sudo docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             cd "$COMPOSE_DIR"
-            grep -Eq '^MONGO_ROOT_USER=.+' .env
-            grep -Eq '^MONGO_ROOT_PASSWORD=.+' .env
-            grep -Eq '^MONGO_HOST_PORT=.+' .env
-            grep -Eq '^MONGO_BACKUP_VOLUME=.+' .env
-            grep -Eq '^BRIDGE_HOST_PORT=.+' .env
+            sh ./restore-mongo-env.sh .env "$COMPOSE_DIR"
+            sh ./validate-env.sh .env
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose config --quiet
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose pull syscoin-bridge
             sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose up -d --remove-orphans --wait --wait-timeout 300

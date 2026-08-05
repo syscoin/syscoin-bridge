@@ -1,5 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { Typography } from "@mui/material";
+import { Alert, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import axios from "axios";
 import NextLink from "next/link";
@@ -43,32 +43,40 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
     { enabled: isFullyConnected }
   );
   return (
-    <DataGrid
-      loading={isLoading}
-      columns={[
-        {
-          field: "id",
-          headerName: "Id",
-          width: 130,
-          renderCell: ({ value }) => (
-            <NextLink href={`/bridge/${value}`}>
-              <Typography
-                variant="body2"
-                color="primary"
-                sx={{ cursor: "pointer" }}
-              >
-                {value}
-              </Typography>
-            </NextLink>
-          ),
-        },
-        ...TRANSFER_COLUMNS,
-      ]}
-      rows={isFetched ? data?.data ?? items : []}
-      sx={{ background: "white", mb: 2 }}
-      autoHeight
-      error={error}
-    />
+    <>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Transfer history is temporarily unavailable. Local transfers are
+          shown when available.
+        </Alert>
+      )}
+      <DataGrid
+        loading={isLoading}
+        columns={[
+          {
+            field: "id",
+            headerName: "Id",
+            width: 130,
+            renderCell: ({ value }) => (
+              <NextLink href={`/bridge/${value}`}>
+                <Typography
+                  variant="body2"
+                  color="primary"
+                  sx={{ cursor: "pointer" }}
+                >
+                  {value}
+                </Typography>
+              </NextLink>
+            ),
+          },
+          ...TRANSFER_COLUMNS,
+        ]}
+        rows={isFetched ? data?.data ?? items : []}
+        sx={{ background: "white", mb: 2 }}
+        autoHeight
+        error={undefined}
+      />
+    </>
   );
 };
 

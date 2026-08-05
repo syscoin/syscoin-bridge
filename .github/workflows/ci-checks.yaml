@@ -33,5 +33,9 @@ jobs:
         run: yarn lint
       - name: Run Tests
         run: yarn test --runInBand
+      - name: Test Deployment Environment Validation
+        run: |
+          sh deploy/restore-mongo-env.test.sh
+          sh deploy/validate-env.test.sh
       - name: Build Application
         run: yarn build

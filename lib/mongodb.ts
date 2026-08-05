@@ -1,10 +1,9 @@
 import mongoose, { ConnectOptions } from "mongoose";
 import { ensureSponsorIndexes } from "models/ensure-sponsor-indexes";
+import { resolveMongoUri } from "utils/mongodb-uri";
 declare global {
   var mongoose: any; // This must be a `var` and not a `let / const`
 }
-
-const MONGODB_URI = process.env.MONGODB_URI!;
 
 let cached = global.mongoose;
 
@@ -24,9 +23,11 @@ async function dbConnect() {
     const opts: ConnectOptions = {
       bufferCommands: false,
     };
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
+    cached.promise = mongoose
+      .connect(resolveMongoUri(), opts)
+      .then((mongoose) => {
+        return mongoose;
+      });
   }
   try {
     cached.conn = await cached.promise;

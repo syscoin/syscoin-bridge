@@ -133,9 +133,30 @@ docker build -t syscoin/bridge .
 
 ### Environment Variables (for Production Docker)
 
+The backend deployment treats the Compose environment files as authoritative:
+
+- Tanenbaum: `/home/ubuntu/syscoin-bridge-testnet/.env`
+- Mainnet: `/home/ubuntu/syscoin-bridge-mainnet/.env`
+
+The deployment copies application images and Compose configuration but does not
+generate, replace, or import these files from Vercel. `MONGO_ROOT_USER` and
+`MONGO_ROOT_PASSWORD` initialize an empty Mongo volume only. The Docker backend
+derives its internal Mongo URI from those existing credentials when
+`MONGODB_URI` is empty; an explicit URI remains an optional override. Never
+change initialized root credentials or delete/recreate a database volume to
+apply an environment change. If either root setting is absent from a server
+environment file, deployment restores that missing setting from the running
+Mongo container before validation without logging or replacing its value. It
+similarly restores a missing `MONGO_BACKUP_VOLUME` name from the running backup
+container so the existing backup volume remains attached.
+
 | Name                            | Description                                    | Default |
 | ------------------------------- | ---------------------------------------------- | ------- |
-| `MONGODB_URI`                   | MongoDB URI                                    |         |
+| `MONGO_ROOT_USER`               | Existing Mongo root user used by Docker Compose and URI derivation |         |
+| `MONGO_ROOT_PASSWORD`           | Existing Mongo root password used by Docker Compose and URI derivation |         |
+| `MONGO_APP_DB`                  | Mongo application database                    | bridge  |
+| `MONGODB_URI`                   | Optional MongoDB URI override; Docker derives it from the root credentials when omitted |         |
+| `MONGO_BACKUP_VOLUME`           | Existing environment-specific external Docker volume for Mongo backups |         |
 | `CONFIRM_TRANSACTION_TIMEOUTS`  | Transaction confirmation timeout               |         |
 | `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer              | 100     |
 | `ADMIN_API_KEY`                 | Admin API Key                                  |         |
@@ -170,6 +191,8 @@ docker build -t syscoin/bridge .
 ### Split Frontend/Backend Deployments
 
 When hosting the frontend separately from the backend services, set `NEXT_PUBLIC_API_BASE_URL` to the backend origin (for example, `https://backend.test.com`). All browser and server-side fetches automatically use that base URL when provided, and fall back to the current origin otherwise. The same variable also enables a framework rewrite so hitting `/api/*` on the frontend domain proxies to the backend. This lets a single build work for both combined and split deployments—just omit the variable when the API routes run alongside the frontend.
+
+Vercel testnet previews automatically proxy `/api/*` to `https://bridge-api.tanenbaum.io` when no explicit API base is configured. The testnet backend accepts HTTPS `*.vercel.app` origins for these preview requests. Mainnet previews are never automatically connected to the production backend, and the mainnet backend continues to require an exact `CORS_ALLOWED_ORIGIN` match.
 
 ### Env Files
 

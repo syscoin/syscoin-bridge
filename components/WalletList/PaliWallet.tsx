@@ -56,7 +56,11 @@ const InstallPaliWallet = () => {
           </Button>
         </Link>
       ) : (
-        <Button sx={{ ml: "auto" }} variant="contained" onClick={connectWallet}>
+        <Button
+          sx={{ ml: "auto" }}
+          variant="contained"
+          onClick={() => connectWallet()}
+        >
           Connect
         </Button>
       )}

@@ -1,8 +1,7 @@
 /** @type {import('next').NextConfig} */
-const API_PROXY_TARGET = (process.env.NEXT_PUBLIC_API_BASE_URL || "").replace(
-  /\/$/,
-  ""
-);
+const { resolveApiProxyTarget } = require("./utils/api-proxy-target");
+
+const API_PROXY_TARGET = resolveApiProxyTarget();
 
 const HOST_API_PROXY_TARGETS = [
   {
