@@ -1448,10 +1448,10 @@
     eth-chains "^1.0.0"
     ethers "^6.17.0"
 
-"@sidhujag/sysweb3-utils@^1.1.277":
-  version "1.1.277"
-  resolved "https://registry.yarnpkg.com/@sidhujag/sysweb3-utils/-/sysweb3-utils-1.1.277.tgz#b6542053db369c45eea42bb9c8e0aca61dfdf184"
-  integrity sha512-epkjCycSb6YZImYkRkcOE6/JO7qomoK7/IwiR5cONJGZ10bdD9QrSU/QmERBoTCJjRoZKyxIu/uplN11LufQFA==
+"@sidhujag/sysweb3-utils@^1.1.278":
+  version "1.1.278"
+  resolved "https://registry.yarnpkg.com/@sidhujag/sysweb3-utils/-/sysweb3-utils-1.1.278.tgz#6d7ec231a9669813b8bf085940c0fa49562e2b1e"
+  integrity sha512-YYiDdWTIc+HY7WvDys+7GSLnwdrnYDtWfEMv5aA+0jh2CU8Z6L4nunw4CrIG0d/6Hk+6VO4qTBnrBB7G7HRGnQ==
   dependencies:
     "@sidhujag/sysweb3-network" "^1.0.109"
     bech32 "^2.0.0"
