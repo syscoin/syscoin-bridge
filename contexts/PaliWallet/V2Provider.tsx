@@ -26,6 +26,7 @@ import {
   readPaliBitcoinBasedState,
 } from "./utxo-network";
 import { createQueuedAccountChangeHandler } from "./account-change-queue";
+import { getNevmAccountUpdateFromEvent } from "./account-event";
 
 export interface ProviderState {
   xpub: string;
@@ -182,6 +183,10 @@ export const PaliWalletV2Provider: React.FC<{
   const finalAccount = accountDetails.data || null;
 
   const changeAccount = useCallback(async () => {
+    const previousNevmAccount = queryClient.getQueryData<string | null>([
+      "nevm",
+      "account",
+    ]);
     const result = await window.pali.request({
       method: "wallet_changeAccount",
     });
@@ -192,11 +197,17 @@ export const PaliWalletV2Provider: React.FC<{
     if (bitcoinBased) {
       await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
     } else if (isEVMInjected.data) {
-      // A pre-update wallet event may already be fetching the previous EVM
-      // account. Cancel it so this invalidation must start a post-selection
-      // request instead of reusing the stale in-flight promise.
-      await queryClient.cancelQueries(["nevm", "account"]);
-      await queryClient.invalidateQueries(["nevm"]);
+      const notifiedNevmAccount = queryClient.getQueryData<string | null>([
+        "nevm",
+        "account",
+      ]);
+
+      // The event path writes its authoritative address directly. Only fall
+      // back to discovery when no account update arrived with the popup.
+      if (notifiedNevmAccount === previousNevmAccount) {
+        await queryClient.cancelQueries(["nevm", "account"]);
+        await queryClient.invalidateQueries(["nevm"]);
+      }
     }
 
     return result;
@@ -430,14 +441,42 @@ export const PaliWalletV2Provider: React.FC<{
       }
     );
 
+    const applyNevmAccountEvent = async (accounts: unknown) => {
+      const account = getNevmAccountUpdateFromEvent(
+        accounts,
+        isBitcoinBased.data === false ||
+          networkSwitchTarget.current === "ethereum"
+      );
+      if (account === undefined) {
+        return false;
+      }
+
+      // A popup fallback may already be fetching the previous account. Stop it
+      // before committing the authoritative event value so it cannot win the
+      // race and restore stale data afterward.
+      await queryClient.cancelQueries(["nevm", "account"]);
+      queryClient.setQueryData(["nevm", "account"], account);
+      return true;
+    };
+
+    const handleNevmAccountsChanged = async (accounts: unknown) => {
+      if (!(await applyNevmAccountEvent(accounts))) {
+        await handleAccountsChanged();
+      }
+    };
+
     // Listen for Pali notification events
     const handlePaliNotification = (event: any) => {
       try {
         const eventData = JSON.parse(event.detail);
         const data = eventData.data || eventData;
         
-        if (data?.method === 'pali_xpubChanged' || data?.method === 'pali_accountsChanged') {
+        if (data?.method === 'pali_xpubChanged') {
           void handleAccountsChanged();
+        }
+
+        if (data?.method === 'pali_accountsChanged') {
+          void handleNevmAccountsChanged(data?.params);
         }
 
         // React to network-type and chain changes instantly
@@ -481,9 +520,8 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased.isFetched &&
       !isBitcoinBased.data
     ) {
-      const handleEthAccountsChanged = () => {
-        // handleAccountsChanged will handle invalidating NEVM queries
-        void handleAccountsChanged();
+      const handleEthAccountsChanged = (accounts: unknown) => {
+        void handleNevmAccountsChanged(accounts);
       };
       
       window.ethereum.on("accountsChanged", handleEthAccountsChanged);
