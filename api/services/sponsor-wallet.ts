@@ -43,6 +43,7 @@ type SponsorUtxo = {
   txId?: string;
   vout: number;
   value: string | number;
+  assetInfo?: unknown;
 };
 
 type SponsorClaimGasResult = {
@@ -467,7 +468,7 @@ export class SponsorWalletService {
     }
 
     const targetAmountSats = this.getUtxoClaimGasAmountSats();
-    const addressBalanceSats = await this.getUtxoAddressBalanceSats(
+    const addressBalanceSats = await this.getMintCompatibleSysBalanceSats(
       transfer.utxoAddress
     );
 
@@ -482,7 +483,7 @@ export class SponsorWalletService {
     }
 
     if (transfer.utxoXpub) {
-      const xpubBalanceSats = await this.getUtxoXpubBalanceSats(
+      const xpubBalanceSats = await this.getMintCompatibleSysBalanceSats(
         transfer.utxoXpub
       );
 
@@ -995,34 +996,34 @@ export class SponsorWalletService {
     });
   }
 
-  private async getUtxoAddressBalanceSats(address: string): Promise<number> {
+  private async getMintCompatibleSysBalanceSats(
+    addressOrXpub: string
+  ): Promise<number> {
     const response = await fetch(
-      `${getUtxoBlockbookUrl()}/api/v2/address/${address}?details=basic`
+      `${getUtxoBlockbookUrl()}/api/v2/utxo/${encodeURIComponent(
+        addressOrXpub
+      )}`
     );
 
     if (!response.ok) {
-      throw new Error("Unable to fetch UTXO address balance");
+      throw new Error("Unable to fetch mint-compatible UTXOs");
     }
 
-    const data = (await response.json()) as { balance?: string };
-    const balance = Number.parseInt(data.balance ?? "0", 10);
-
-    return Number.isFinite(balance) ? balance : 0;
-  }
-
-  private async getUtxoXpubBalanceSats(xpub: string): Promise<number> {
-    const response = await fetch(
-      `${getUtxoBlockbookUrl()}/api/v2/xpub/${xpub}?details=basic`
-    );
-
-    if (!response.ok) {
-      throw new Error("Unable to fetch UTXO wallet balance");
+    const utxos = (await response.json()) as SponsorUtxo[];
+    if (!Array.isArray(utxos)) {
+      throw new Error("Invalid mint-compatible UTXO response");
     }
 
-    const data = (await response.json()) as { balance?: string };
-    const balance = Number.parseInt(data.balance ?? "0", 10);
+    return utxos.reduce((total, utxo) => {
+      // Canonical bridge mints cannot consume any asset-bearing input, even
+      // when that output contains enough native SYS to cover the fee.
+      if (utxo.assetInfo) {
+        return total;
+      }
 
-    return Number.isFinite(balance) ? balance : 0;
+      const value = Number(utxo.value);
+      return Number.isFinite(value) && value > 0 ? total + value : total;
+    }, 0);
   }
 
   private getUtxoClaimGasAmountSats() {
@@ -1087,7 +1088,7 @@ export class SponsorWalletService {
     const expiresAt = new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS);
 
     for (const utxo of utxos) {
-      if (Number(utxo.value) < minValueSats) {
+      if (utxo.assetInfo || Number(utxo.value) < minValueSats) {
         continue;
       }
 

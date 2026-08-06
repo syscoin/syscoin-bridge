@@ -1045,7 +1045,7 @@ describe("SponsorWalletService", () => {
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
       (global.fetch as jest.Mock<any>).mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ balance: "100000" }),
+        json: () => Promise.resolve([{ value: "100000" }]),
       });
 
       const service = new SponsorWalletService();
@@ -1060,10 +1060,10 @@ describe("SponsorWalletService", () => {
         reason: "Destination UTXO address already has claim gas",
       });
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/address/sys1destination?details=basic")
+        expect.stringContaining("/api/v2/utxo/sys1destination")
       );
       expect(global.fetch).not.toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/xpub/xpub")
+        expect.stringContaining("/api/v2/utxo/xpub")
       );
     });
 
@@ -1072,11 +1072,11 @@ describe("SponsorWalletService", () => {
       (global.fetch as jest.Mock<any>)
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "100000" }),
+          json: () => Promise.resolve([{ value: "100000" }]),
         });
 
       const service = new SponsorWalletService();
@@ -1091,11 +1091,79 @@ describe("SponsorWalletService", () => {
         reason: "Connected UTXO wallet already has claim gas",
       });
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/address/sys1destination?details=basic")
+        expect.stringContaining("/api/v2/utxo/sys1destination")
       );
       expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/xpub/xpub?details=basic")
+        expect.stringContaining("/api/v2/utxo/xpub")
       );
+    });
+
+    it("does not count SYS locked in asset-bearing UTXOs as claim gas", async () => {
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      (global.fetch as jest.Mock<any>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              {
+                value: "2989998650",
+                assetInfo: {
+                  assetGuid: "123456",
+                  value: "10000000",
+                },
+              },
+            ]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              {
+                value: "2989998650",
+                assetInfo: {
+                  assetGuid: "123456",
+                  value: "10000000",
+                },
+              },
+            ]),
+        });
+
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.getUtxoClaimGasFundingStatus(transfer)
+      ).resolves.toBeUndefined();
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("sums only pure SYS outputs when checking claim gas", async () => {
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
+      (global.fetch as jest.Mock<any>).mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve([
+            {
+              value: "2989998650",
+              assetInfo: {
+                assetGuid: "123456",
+                value: "10000000",
+              },
+            },
+            { value: "40000" },
+            { value: "60000" },
+          ]),
+      });
+
+      const service = new SponsorWalletService();
+
+      await expect(
+        service.getUtxoClaimGasFundingStatus(transfer)
+      ).resolves.toMatchObject({
+        funded: false,
+        status: "skipped",
+        balanceSats: 100_000,
+      });
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
     it("reserves a specific sponsor UTXO for claim gas funding", async () => {
@@ -1129,17 +1197,23 @@ describe("SponsorWalletService", () => {
       (global.fetch as jest.Mock<any>)
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
           json: () =>
             Promise.resolve([
               { txid: "dust-utxo", vout: 2, value: "500" },
+              {
+                txid: "asset-utxo",
+                vout: 3,
+                value: "500000",
+                assetInfo: { assetGuid: "123456", value: "10000000" },
+              },
               { txid: "large-utxo", vout: 0, value: "2000000" },
               { txid: "small-utxo", vout: 1, value: "1000000" },
             ]),
@@ -1274,11 +1348,11 @@ describe("SponsorWalletService", () => {
       (global.fetch as jest.Mock<any>)
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -1348,11 +1422,11 @@ describe("SponsorWalletService", () => {
       (global.fetch as jest.Mock<any>)
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({ balance: "0" }),
+          json: () => Promise.resolve([]),
         })
         .mockResolvedValueOnce({
           ok: true,
@@ -1414,7 +1488,7 @@ describe("SponsorWalletService", () => {
       });
       (global.fetch as jest.Mock<any>).mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ balance: "0" }),
+        json: () => Promise.resolve([]),
       });
 
       const service = new SponsorWalletService();
@@ -1448,7 +1522,7 @@ describe("SponsorWalletService", () => {
       });
       (global.fetch as jest.Mock<any>).mockResolvedValue({
         ok: true,
-        json: () => Promise.resolve({ balance: "0" }),
+        json: () => Promise.resolve([]),
       });
 
       const service = new SponsorWalletService();
