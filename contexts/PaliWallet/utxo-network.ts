@@ -15,6 +15,51 @@ type PaliNetworkSwitch = (
 
 type PaliAccountChange = () => Promise<unknown>;
 
+type PaliAccountConnect = () => unknown | Promise<unknown>;
+
+type PaliUtxoAccount = {
+  address?: unknown;
+};
+
+export const discoverPaliUtxoAccount = async (
+  provider: Pick<PaliProvider, "request">
+): Promise<string | null> => {
+  try {
+    const account = (await provider.request({
+      method: "wallet_getAccount",
+    })) as PaliUtxoAccount | null;
+
+    return typeof account?.address === "string" && account.address
+      ? account.address
+      : null;
+  } catch {
+    // Discovery must stay silent and non-interactive. A connection prompt is
+    // only allowed from an explicit user action.
+    return null;
+  }
+};
+
+export const hasPaliUtxoAccountDetails = (
+  address: string | undefined,
+  xpub: string | undefined
+) => Boolean(address && xpub);
+
+export const connectPaliUtxoAccount = async (
+  address: string | undefined,
+  xpub: string | undefined,
+  switchTo: PaliNetworkSwitch,
+  connectAccount: PaliAccountConnect
+) => {
+  // An xpub without a valid address means Pali discovered an account on the
+  // opposite Syscoin network. Move to the bridge's configured chain before
+  // opening the account request, otherwise the returned address stays invalid.
+  if (!address && xpub) {
+    await switchTo("bitcoin");
+  }
+
+  return connectAccount();
+};
+
 export const getPaliSyscoinSwitchRequest = (
   isTestnet: boolean,
   isAlreadyOnUtxo: boolean
