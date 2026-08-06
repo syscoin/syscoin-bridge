@@ -1,11 +1,42 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  discoverPaliUtxoAccount,
   getPaliSyscoinSwitchRequest,
+  hasPaliUtxoAccountDetails,
   readPaliBitcoinBasedState,
   switchToSyscoinThenChangeAccount,
 } from "./utxo-network";
 
 describe("Pali Syscoin UTXO network handling", () => {
+  it("discovers an existing account without opening an interactive request", async () => {
+    const request = jest.fn(async () => ({ address: "sys1-existing" }));
+
+    await expect(discoverPaliUtxoAccount({ request })).resolves.toBe(
+      "sys1-existing"
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith({ method: "wallet_getAccount" });
+  });
+
+  it("stays disconnected when silent discovery fails", async () => {
+    const request = jest.fn(async () => {
+      throw new Error("Not connected");
+    });
+
+    await expect(discoverPaliUtxoAccount({ request })).resolves.toBeNull();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).not.toHaveBeenCalledWith({ method: "sys_requestAccounts" });
+  });
+
+  it("requires both an address and xpub before showing account controls", () => {
+    expect(hasPaliUtxoAccountDetails(undefined, undefined)).toBe(false);
+    expect(hasPaliUtxoAccountDetails("sys1-address", undefined)).toBe(false);
+    expect(hasPaliUtxoAccountDetails(undefined, "xpub-value")).toBe(false);
+    expect(hasPaliUtxoAccountDetails("sys1-address", "xpub-value")).toBe(
+      true
+    );
+  });
+
   it("uses the UTXO chain-switch method for Syscoin mainnet", () => {
     expect(getPaliSyscoinSwitchRequest(false, true)).toEqual({
       method: "sys_switchChain",

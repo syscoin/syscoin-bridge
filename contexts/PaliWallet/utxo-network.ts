@@ -15,6 +15,33 @@ type PaliNetworkSwitch = (
 
 type PaliAccountChange = () => Promise<unknown>;
 
+type PaliUtxoAccount = {
+  address?: unknown;
+};
+
+export const discoverPaliUtxoAccount = async (
+  provider: Pick<PaliProvider, "request">
+): Promise<string | null> => {
+  try {
+    const account = (await provider.request({
+      method: "wallet_getAccount",
+    })) as PaliUtxoAccount | null;
+
+    return typeof account?.address === "string" && account.address
+      ? account.address
+      : null;
+  } catch {
+    // Discovery must stay silent and non-interactive. A connection prompt is
+    // only allowed from an explicit user action.
+    return null;
+  }
+};
+
+export const hasPaliUtxoAccountDetails = (
+  address: string | undefined,
+  xpub: string | undefined
+) => Boolean(address && xpub);
+
 export const getPaliSyscoinSwitchRequest = (
   isTestnet: boolean,
   isAlreadyOnUtxo: boolean

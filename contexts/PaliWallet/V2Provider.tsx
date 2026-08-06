@@ -21,6 +21,7 @@ import {
   PaliWalletNetworkType,
 } from "./network-query-policy";
 import {
+  discoverPaliUtxoAccount,
   getPaliSyscoinSwitchRequest,
   readPaliBitcoinBasedState,
 } from "./utxo-network";
@@ -139,72 +140,25 @@ export const PaliWalletV2Provider: React.FC<{
     enabled: isInstalled && typeof window !== "undefined",
   });
 
-  const requestAccounts = () => {
+  const requestAccounts = useCallback(() => {
     return window.pali.request({
       method: "sys_requestAccounts",
     }) as Promise<(string | { success: boolean })[]>;
-  };
+  }, []);
 
-  // UTXO connection query - only run when on UTXO network or already connected
+  // Automatic queries may only discover an existing connection. Opening the
+  // account picker here can create a hidden pending request before the user
+  // clicks Connect, causing every later wallet action to appear unresponsive.
   const utxoAccount = useQuery(["pali", "utxo-account"], {
-    queryFn: async () => {
-      try {
-        // First check if we already have an account
-        try {
-          const existingAccount = await window.pali.request({
-            method: "wallet_getAccount",
-          });
-          if (existingAccount) {
-            return existingAccount.address; // Return address if already connected
-          }
-        } catch {
-          // No existing account, proceed with connection
-        }
-
-        // Connect using sys_requestAccounts (now returns address like eth_requestAccounts)
-        const result = await window.pali.request({
-          method: "sys_requestAccounts",
-        });
-
-        if (
-          result.length === 0 ||
-          (typeof result[0] !== "string" &&
-            result[0].success === false)
-        ) {
-          return null;
-        }
-
-        // sys_requestAccounts now returns address (consistent with eth_requestAccounts)
-        return result[0]; // This is the address
-      } catch (error: any) {
-        // Network switch and other user cancellations are handled the same way
-        // The simplified popup system means all rejections are user cancellations
-        
-        // Check if this is a user cancellation error
-        if (error?.message?.includes('Request cancelled') || 
-            error?.message?.includes('User rejected') ||
-            error?.message?.includes('popup closure') ||
-            error?.message?.includes('cancelled') ||
-            error?.message?.includes('Network switch was cancelled') ||
-            error?.message?.includes('Duplicate') ||
-            error?.code === 4001 ||
-            error?.code === -32603) { // Internal error often means user cancellation
-          console.log('User cancelled UTXO connection request:', error?.message);
-          return null; // Return null instead of throwing to prevent cascade
-        }
-        
-        console.error('sys_requestAccounts failed:', error);
-        return null; // Return null instead of throwing to prevent cascade for CORS errors
-      }
-    },
+    queryFn: () => discoverPaliUtxoAccount(window.pali),
     enabled: isPaliUtxoQueryReady(
       isInstalled,
       isBitcoinBased.isFetched,
       isBitcoinBased.data,
       isSwitchingToUtxo
     ),
-    retry: false, // Don't retry user interaction methods
-    refetchOnWindowFocus: false, // Don't refetch on focus
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   // Get full account details (including xpub) after connection
@@ -262,9 +216,20 @@ export const PaliWalletV2Provider: React.FC<{
   );
 
   const connectWallet = useCallback(async () => {
-    await window.pali.request({ method: "sys_requestAccounts" });
-    await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
-  }, [utxoAccount, accountDetails]);
+    const result = await requestAccounts();
+    const selectedAccount = result[0];
+    if (
+      !selectedAccount ||
+      (typeof selectedAccount !== "string" && !selectedAccount.success)
+    ) {
+      return;
+    }
+
+    const { data: discoveredAccount } = await utxoAccount.refetch();
+    if (discoveredAccount) {
+      await accountDetails.refetch();
+    }
+  }, [requestAccounts, utxoAccount, accountDetails]);
 
   const sendTransaction = useCallback(
     async (utxo: UTXOTransaction) => {
