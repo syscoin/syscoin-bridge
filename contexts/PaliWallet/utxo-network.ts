@@ -15,6 +15,8 @@ type PaliNetworkSwitch = (
 
 type PaliAccountChange = () => Promise<unknown>;
 
+type PaliAccountConnect = () => unknown | Promise<unknown>;
+
 type PaliUtxoAccount = {
   address?: unknown;
 };
@@ -41,6 +43,22 @@ export const hasPaliUtxoAccountDetails = (
   address: string | undefined,
   xpub: string | undefined
 ) => Boolean(address && xpub);
+
+export const connectPaliUtxoAccount = async (
+  address: string | undefined,
+  xpub: string | undefined,
+  switchTo: PaliNetworkSwitch,
+  connectAccount: PaliAccountConnect
+) => {
+  // An xpub without a valid address means Pali discovered an account on the
+  // opposite Syscoin network. Move to the bridge's configured chain before
+  // opening the account request, otherwise the returned address stays invalid.
+  if (!address && xpub) {
+    await switchTo("bitcoin");
+  }
+
+  return connectAccount();
+};
 
 export const getPaliSyscoinSwitchRequest = (
   isTestnet: boolean,

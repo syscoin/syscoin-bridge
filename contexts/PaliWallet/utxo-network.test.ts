@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  connectPaliUtxoAccount,
   discoverPaliUtxoAccount,
   getPaliSyscoinSwitchRequest,
   hasPaliUtxoAccountDetails,
@@ -35,6 +36,59 @@ describe("Pali Syscoin UTXO network handling", () => {
     expect(hasPaliUtxoAccountDetails("sys1-address", "xpub-value")).toBe(
       true
     );
+  });
+
+  it("switches an account discovered on the opposite Syscoin network before connecting", async () => {
+    const calls: string[] = [];
+    const switchTo = jest.fn(async () => {
+      calls.push("switch");
+    });
+    const connectAccount = jest.fn(async () => {
+      calls.push("connect");
+    });
+
+    await connectPaliUtxoAccount(
+      undefined,
+      "xpub-from-opposite-network",
+      switchTo,
+      connectAccount
+    );
+
+    expect(calls).toEqual(["switch", "connect"]);
+    expect(switchTo).toHaveBeenCalledWith("bitcoin");
+  });
+
+  it("connects directly when no opposite-network account was discovered", async () => {
+    const switchTo = jest.fn(async () => undefined);
+    const connectAccount = jest.fn(async () => undefined);
+
+    await connectPaliUtxoAccount(
+      undefined,
+      undefined,
+      switchTo,
+      connectAccount
+    );
+
+    expect(switchTo).not.toHaveBeenCalled();
+    expect(connectAccount).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not request an account when the configured-chain switch is rejected", async () => {
+    const switchError = new Error("Network switch rejected");
+    const switchTo = jest.fn(async () => {
+      throw switchError;
+    });
+    const connectAccount = jest.fn(async () => undefined);
+
+    await expect(
+      connectPaliUtxoAccount(
+        undefined,
+        "xpub-from-opposite-network",
+        switchTo,
+        connectAccount
+      )
+    ).rejects.toBe(switchError);
+    expect(connectAccount).not.toHaveBeenCalled();
   });
 
   it("uses the UTXO chain-switch method for Syscoin mainnet", () => {

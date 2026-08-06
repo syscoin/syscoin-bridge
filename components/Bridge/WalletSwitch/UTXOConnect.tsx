@@ -16,6 +16,7 @@ import WalletSwitchConfirmCard from "./ConfirmCard";
 import { MIN_GAS_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
+  connectPaliUtxoAccount,
   hasPaliUtxoAccountDetails,
   switchToSyscoinThenChangeAccount,
 } from "@contexts/PaliWallet/utxo-network";
@@ -192,12 +193,20 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
     setUtxo({ xpub: xpubAddress, address: connectedAccount });
   };
 
+  const connect = () =>
+    connectPaliUtxoAccount(
+      connectedAccount,
+      xpubAddress,
+      switchTo,
+      connectWallet
+    );
+
   const change = () => {
     if (
       isBitcoinBased &&
       !hasPaliUtxoAccountDetails(connectedAccount, xpubAddress)
     ) {
-      return connectWallet();
+      return connect();
     }
 
     return switchToSyscoinThenChangeAccount(
@@ -228,7 +237,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
 
   if (!hasPaliUtxoAccountDetails(connectedAccount, xpubAddress)) {
     return (
-      <Button variant="contained" onClick={() => connectWallet()}>
+      <Button variant="contained" onClick={connect}>
         Connect Pali Wallet
       </Button>
     );
