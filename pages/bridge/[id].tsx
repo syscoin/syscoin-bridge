@@ -1,7 +1,4 @@
-import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
 import ConnectedWalletProvider from "@contexts/ConnectedWallet/Provider";
-import MetamaskProvider from "@contexts/Metamask/Provider";
-import { PaliWalletV2Provider } from "@contexts/PaliWallet/V2Provider";
 import {
   COMMON_STATUS,
   ITransfer,
@@ -30,7 +27,6 @@ import { Web3Provider } from "components/Bridge/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { QueryClient, QueryClientProvider } from "react-query";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
 import BridgeTransferSwitchTypeCard from "components/Bridge/TransferSwitchTypeCard";
@@ -73,8 +69,6 @@ const isDirectionRoute = (id: unknown): id is TransferType =>
 const BridgePage: NextPage = () => {
   const { query } = useRouter();
   const connectValidateDraft = useRef<Partial<ConnectValidateDraft>>({});
-  // Create a new QueryClient when the transfer ID changes to avoid stale data
-  const queryClient = useMemo(() => new QueryClient(), [query.id]);
 
   useEffect(() => {
     if (!isDirectionRoute(query.id)) {
@@ -103,63 +97,54 @@ const BridgePage: NextPage = () => {
   }, [query.id]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SyscoinProvider>
-        <Web3Provider>
-          <PaliWalletV2Provider>
-            <MetamaskProvider>
-              <NEVMProvider>
-                <ConnectedWalletProvider>
-                  <TransferContextProvider transfer={initialTransfer}>
-                    <Container sx={{ mt: 10, mb: 15 }}>
-                      <BlocktimeDisclaimer />
-                      <Typography variant="h5" fontWeight="bold">
-                        Bridge Your SYS
-                      </Typography>
-                      <Typography variant="caption" color="gray">
-                        Trustlessly transfer SYS back and forth between the
-                        Syscoin UTXO and Syscoin NEVM blockchains without
-                        middlemen!
-                      </Typography>
-                      <Box sx={{ my: 3 }}>
-                        <TransferTitle />
-                        <Button LinkComponent={NextLink} href="/transfers">
-                          <TableRowsIcon />
-                          View All Transfers
-                        </Button>
-                        <NewTransferButton />
-                      </Box>
-                      <BridgeStepper />
-                      <Box sx={{ mt: 3, mb: 2, width: "50%" }}>
-                        <BridgeTransferSwitchTypeCard />
-                      </Box>
-                      <Card
-                        sx={{
-                          mt: 1,
-                          display: "flex",
-                          flexDirection: "column",
-                          minWidth: "20rem",
-                          width: "50%",
-                        }}
-                      >
-                        <CardContent>
-                          <BridgeStepSwitch
-                            onConnectValidateDraftChange={
-                              handleConnectValidateDraftChange
-                            }
-                          />
-                          <BridgeSavingIndicator />
-                        </CardContent>
-                      </Card>
-                    </Container>
-                  </TransferContextProvider>
-                </ConnectedWalletProvider>
-              </NEVMProvider>
-            </MetamaskProvider>
-          </PaliWalletV2Provider>
-        </Web3Provider>
-      </SyscoinProvider>
-    </QueryClientProvider>
+    <SyscoinProvider>
+      <Web3Provider>
+        <ConnectedWalletProvider>
+          <TransferContextProvider transfer={initialTransfer}>
+            <Container sx={{ mt: 10, mb: 15 }}>
+              <BlocktimeDisclaimer />
+              <Typography variant="h5" fontWeight="bold">
+                Bridge Your SYS
+              </Typography>
+              <Typography variant="caption" color="gray">
+                Trustlessly transfer SYS back and forth between the Syscoin
+                UTXO and Syscoin NEVM blockchains without middlemen!
+              </Typography>
+              <Box sx={{ my: 3 }}>
+                <TransferTitle />
+                <Button LinkComponent={NextLink} href="/transfers">
+                  <TableRowsIcon />
+                  View All Transfers
+                </Button>
+                <NewTransferButton />
+              </Box>
+              <BridgeStepper />
+              <Box sx={{ mt: 3, mb: 2, width: "50%" }}>
+                <BridgeTransferSwitchTypeCard />
+              </Box>
+              <Card
+                sx={{
+                  mt: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  minWidth: "20rem",
+                  width: "50%",
+                }}
+              >
+                <CardContent>
+                  <BridgeStepSwitch
+                    onConnectValidateDraftChange={
+                      handleConnectValidateDraftChange
+                    }
+                  />
+                  <BridgeSavingIndicator />
+                </CardContent>
+              </Card>
+            </Container>
+          </TransferContextProvider>
+        </ConnectedWalletProvider>
+      </Web3Provider>
+    </SyscoinProvider>
   );
 };
 

@@ -13,25 +13,29 @@ const queryClient = new QueryClient();
 
 function MyApp({ Component, pageProps, router }: AppProps) {
   const isAdmin = router.pathname.includes("/admin");
-  if (router.pathname.includes("/bridge")) {
-    return (
-      <ThemeProvider theme={theme}>
-        <WelcomeModal />
-        <Component {...pageProps} />
-      </ThemeProvider>
-    );
-  }
+  const isBridge = router.pathname.includes("/bridge");
+
+  // Keep wallet/query providers mounted across client-side route changes.
+  // Replacing them while entering the bridge can strand requests and event
+  // listeners owned by the outgoing page, leaving the new buttons inert.
   return (
     <QueryClientProvider client={queryClient}>
       <PaliWalletV2Provider>
         <MetamaskProvider>
           <NEVMProvider>
-            <ConnectedWalletProvider>
+            {isBridge ? (
               <ThemeProvider theme={theme}>
-                {!isAdmin && <WelcomeModal />}
+                <WelcomeModal />
                 <Component {...pageProps} />
               </ThemeProvider>
-            </ConnectedWalletProvider>
+            ) : (
+              <ConnectedWalletProvider>
+                <ThemeProvider theme={theme}>
+                  {!isAdmin && <WelcomeModal />}
+                  <Component {...pageProps} />
+                </ThemeProvider>
+              </ConnectedWalletProvider>
+            )}
           </NEVMProvider>
         </MetamaskProvider>
       </PaliWalletV2Provider>
