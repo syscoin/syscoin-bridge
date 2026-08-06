@@ -149,7 +149,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     refetchOnWindowFocus: false, // Don't refetch on focus
   });
 
-  const balance = useQuery(["nevm", "balance"], {
+  const balance = useQuery(["nevm", "balance", account.data], {
     queryFn: () => {
       if (!isEnabled || !web3 || !account.data) {
         return;
