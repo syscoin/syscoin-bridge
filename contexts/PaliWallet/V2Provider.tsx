@@ -25,6 +25,7 @@ import {
   getPaliSyscoinSwitchRequest,
   readPaliBitcoinBasedState,
 } from "./utxo-network";
+import { createQueuedAccountChangeHandler } from "./account-change-queue";
 
 export interface ProviderState {
   xpub: string;
@@ -92,7 +93,6 @@ export const PaliWalletV2Provider: React.FC<{
 }> = ({ children }) => {
   const queryClient = useQueryClient();
   const { constants, refetch: refetchConstants } = useConstants();
-  const isProcessingAccountChange = useRef(false);
   const networkSwitchTarget = useRef<PaliWalletNetworkType | null>(null);
   const [isSwitchingToUtxo, setIsSwitchingToUtxo] = useState(false);
   
@@ -181,11 +181,28 @@ export const PaliWalletV2Provider: React.FC<{
   // Extract the account from the connection result
   const finalAccount = accountDetails.data || null;
 
-  const changeAccount = useCallback(() => {
-    return window.pali.request({
+  const changeAccount = useCallback(async () => {
+    const result = await window.pali.request({
       method: "wallet_changeAccount",
     });
-  }, []);
+
+    // Do not rely solely on wallet events: providers can emit their first
+    // account-change notification before eth_accounts reflects the selection.
+    const { data: bitcoinBased } = await isBitcoinBased.refetch();
+    if (bitcoinBased) {
+      await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
+    } else if (isEVMInjected.data) {
+      await queryClient.invalidateQueries(["nevm"]);
+    }
+
+    return result;
+  }, [
+    accountDetails,
+    isBitcoinBased,
+    isEVMInjected.data,
+    queryClient,
+    utxoAccount,
+  ]);
 
   const sysAddress = useMemo(
     () =>
@@ -397,15 +414,8 @@ export const PaliWalletV2Provider: React.FC<{
     };
 
     // Handle any account changes (both UTXO and EVM)
-    const handleAccountsChanged = async () => {
-      // Prevent recursive calls
-      if (isProcessingAccountChange.current) {
-        return;
-      }
-      
-      isProcessingAccountChange.current = true;
-      
-      try {
+    const handleAccountsChanged = createQueuedAccountChangeHandler(
+      async () => {
         const bitcoinBased = await refreshQueriesForActiveNetwork();
         if (
           bitcoinBased &&
@@ -413,13 +423,8 @@ export const PaliWalletV2Provider: React.FC<{
         ) {
           await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
         }
-      } finally {
-        // Reset after a short delay to allow legitimate subsequent changes.
-        setTimeout(() => {
-          isProcessingAccountChange.current = false;
-        }, 100);
       }
-    };
+    );
 
     // Listen for Pali notification events
     const handlePaliNotification = (event: any) => {
