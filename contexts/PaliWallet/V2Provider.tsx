@@ -192,6 +192,10 @@ export const PaliWalletV2Provider: React.FC<{
     if (bitcoinBased) {
       await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
     } else if (isEVMInjected.data) {
+      // A pre-update wallet event may already be fetching the previous EVM
+      // account. Cancel it so this invalidation must start a post-selection
+      // request instead of reusing the stale in-flight promise.
+      await queryClient.cancelQueries(["nevm", "account"]);
       await queryClient.invalidateQueries(["nevm"]);
     }
 
