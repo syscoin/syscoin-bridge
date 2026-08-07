@@ -29,11 +29,14 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
         isEnabled("foundationFundingAvailable") &&
         supportsPartialUtxoSigning
       ) {
-        const prepared = await requestSponsoredUtxo(
-          transfer.id,
-          "prepare-burn"
-        );
-        if (prepared.sponsored) {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const prepared = await requestSponsoredUtxo(
+            transfer.id,
+            "prepare-burn"
+          );
+          if (!prepared.sponsored) {
+            break;
+          }
           if (prepared.txid) {
             return prepared.txid;
           }
@@ -48,7 +51,7 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
             signed
           );
           if (!submitted.sponsored) {
-            throw new Error(submitted.reason);
+            continue;
           }
           if (!submitted.txid) {
             throw new Error("Sponsored burn is already in progress");
