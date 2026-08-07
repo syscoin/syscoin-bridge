@@ -25,7 +25,7 @@ const InstallPaliWallet = () => {
           src="/pali-wallet-logo.svg"
           height={32}
           width={32}
-          alt="PaliWallet logo"
+          alt="Pali Wallet logo"
         />
         <Typography variant="body1">Pali Wallet</Typography>
         <Button sx={{ ml: "auto" }} variant="contained" disabled>
@@ -41,13 +41,13 @@ const InstallPaliWallet = () => {
         src="/pali-wallet-logo.svg"
         height={32}
         width={32}
-        alt="PaliWallet logo"
+        alt="Pali Wallet logo"
       />
       <Typography variant="body1">Pali Wallet</Typography>
       {!isInstalled ? (
         <Link
           href="https://paliwallet.com/"
-          title="Go to PaliWallet"
+          title="Visit Pali Wallet"
           sx={{ ml: "auto" }}
           target="_blank"
         >
@@ -90,7 +90,7 @@ const PaliWalletV2 = () => {
             src="/pali-wallet-logo.svg"
             height={32}
             width={32}
-            alt="PaliWallet logo"
+            alt="Pali Wallet logo"
           />
           <Typography variant="body1">Loading...</Typography>
         </Box>
@@ -114,7 +114,7 @@ const PaliWalletV2 = () => {
           src="/pali-wallet-logo.svg"
           height={32}
           width={32}
-          alt="PaliWallet logo"
+          alt="Pali Wallet logo"
         />
         <Typography variant="body1" color="secondary" noWrap maxWidth={"70%"}>
           {connectedAccount}
@@ -148,7 +148,7 @@ const PaliWalletV2 = () => {
           color="error"
           sx={{ ml: "auto", display: "block" }}
         >
-          Invalid network selected. Please switch to UTXO Network.
+          Switch Pali Wallet to the Syscoin UTXO network.
         </Typography>
       )}
     </Box>
@@ -172,7 +172,7 @@ const WalletListPaliWallet = () => {
           src="/pali-wallet-logo.svg"
           height={32}
           width={32}
-          alt="PaliWallet logo"
+          alt="Pali Wallet logo"
         />
         <Typography variant="body1">Pali Wallet</Typography>
         <Button sx={{ ml: "auto" }} variant="contained" disabled>
@@ -196,7 +196,7 @@ const WalletListPaliWallet = () => {
         src="/pali-wallet-logo.svg"
         height={32}
         width={32}
-        alt="PaliWallet logo"
+        alt="Pali Wallet logo"
       />
       <Typography variant="body1" color="secondary" noWrap maxWidth={"70%"}>
         {utxo.account}

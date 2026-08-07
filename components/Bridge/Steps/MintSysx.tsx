@@ -37,7 +37,7 @@ const MintSysx: React.FC<Props> = ({ successStatus }) => {
   if (!transactionReceipt) {
     return (
       <Alert severity="error">
-        Invalid State: Freeze and Burn logs was not saved
+        Freeze-and-burn confirmation data is missing.
       </Alert>
     );
   }
@@ -94,7 +94,7 @@ const MintSysx: React.FC<Props> = ({ successStatus }) => {
   };
 
   if (isSigning) {
-    return <Alert severity="info">Submitting SYSX mint...</Alert>;
+    return <Alert severity="info">Submitting the SYSX mint...</Alert>;
   }
 
   if (isSignError) {
@@ -106,7 +106,7 @@ const MintSysx: React.FC<Props> = ({ successStatus }) => {
     }
     return (
       <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
-        Mint SYSX error: {errorMessage}
+        Unable to mint SYSX: {errorMessage}
       </Alert>
     );
   }
@@ -114,7 +114,7 @@ const MintSysx: React.FC<Props> = ({ successStatus }) => {
   return (
     <Box>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Confirm Mint of SYSX:
+        Mint SYSX
       </Typography>
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYSX

@@ -7,7 +7,7 @@ const BridgeSavingIndicator = () => {
   return (
     <Typography variant="body2" sx={{ mt: 2 }}>
       <CircularProgress sx={{ mr: 1 }} size={"1rem"} />
-      Saving state...
+      Saving transfer...
     </Typography>
   );
 };

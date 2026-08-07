@@ -63,19 +63,15 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   };
 
   if (!spvProof || !isSpvProof(spvProof)) {
-    return (
-      <Alert severity="error" action={<Button>Retry Burn Sys</Button>}>
-        Invalid state: No Generate Proofs log was saved
-      </Alert>
-    );
+    return <Alert severity="error">Generated proof data is missing.</Alert>;
   }
 
   if (isSigning) {
     return (
       <Alert severity="info">
         {foundationFundingAvailable
-          ? "Submitting proofs..."
-          : "Check NEVM Wallet for signing"}
+          ? "Submitting proof..."
+          : "Confirm the transaction in your NEVM wallet."}
       </Alert>
     );
   }
@@ -89,7 +85,7 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
     }
     return (
       <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
-        Submit Proofs error: {errorMessage}
+        Proof submission failed: {errorMessage}
       </Alert>
     );
   }
@@ -97,19 +93,19 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   return (
     <Box>
       <Typography variant="caption" sx={{ mb: 1 }}>
-        NEVM Blockchash
+        NEVM Block Hash
       </Typography>
       <Typography variant="body1" sx={{ mb: 2, overflowWrap: "anywhere" }}>
         {spvProof.nevm_blockhash}
       </Typography>
       <Typography variant="caption" sx={{ mb: 1 }}>
-        UTXO Blockchash
+        UTXO Block Hash
       </Typography>
       <Typography variant="body1" sx={{ mb: 2, overflowWrap: "anywhere" }}>
         {spvProof.blockhash}
       </Typography>
       <Button color="primary" variant="contained" onClick={sign}>
-        Confirm
+        Submit Proof
       </Button>
     </Box>
   );

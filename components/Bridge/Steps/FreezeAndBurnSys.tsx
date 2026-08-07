@@ -31,7 +31,7 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
           data: {
             hash,
           },
-          message: "Freeze and Burn SYS",
+          message: "Freeze and burn SYS",
         },
         status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
       },
@@ -52,7 +52,7 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
           data: {
             error,
           },
-          message: "Freeze and Burn SYS Error",
+          message: "Freeze and burn SYS failed",
         },
         status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
       },
@@ -71,7 +71,11 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
   };
 
   if (isSigning) {
-    return <Alert severity="info">Check NEVM Wallet for signing</Alert>;
+    return (
+      <Alert severity="info">
+        Confirm the transaction in your NEVM wallet.
+      </Alert>
+    );
   }
 
   if (isSignError) {
@@ -83,7 +87,7 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
     }
     return (
       <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
-        Freeze and Burn SYS error: {errorMessage}
+        Unable to freeze and burn SYS: {errorMessage}
       </Alert>
     );
   }
@@ -91,7 +95,7 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
   return (
     <Box>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Confirm Freezing and Burning of SYS:
+        Freeze and burn SYS
       </Typography>
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYS

@@ -11,7 +11,7 @@ const BridgeLoading = () => {
         width: "50%",
       }}
     >
-      Loading
+      Loading bridge...
     </Box>
   );
 };

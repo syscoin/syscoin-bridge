@@ -11,7 +11,7 @@ const AdminTransferFilters: React.FC = () => {
       <TextField
         name="id"
         label="ID"
-        placeholder="Input ID here"
+        placeholder="Enter transfer ID"
         value={id}
         onChange={(e) => setId(e.target.value)}
       />

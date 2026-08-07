@@ -40,7 +40,7 @@ const isSafeTransferId = (id: string) => {
 
 const buildTransferPath = (id: string) => {
   if (!isSafeTransferId(id)) {
-    throw new Error("Invalid transfer id");
+    throw new Error("Invalid transfer ID");
   }
 
   return `/api/transfer/${encodeURIComponent(id)}`;

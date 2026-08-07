@@ -1,11 +1,22 @@
 import { Typography } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
 
+const formatStatus = (value: unknown) =>
+  String(value)
+    .split("-")
+    .map((word) => {
+      if (["sys", "sysx", "nevm", "utxo"].includes(word)) {
+        return word.toUpperCase();
+      }
+      return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+    })
+    .join(" ");
+
 const DateField: React.FC<{ value: number }> = ({ value }) => {
   if (!value) {
     return (
       <Typography variant="body2" color="GrayText">
-        EMPTY
+        —
       </Typography>
     );
   }
@@ -17,7 +28,9 @@ const DateField: React.FC<{ value: number }> = ({ value }) => {
 export const TRANSFER_COLUMNS: GridColDef[] = [
   {
     field: "type",
-    headerName: "Type",
+    headerName: "Route",
+    renderCell: ({ value }) =>
+      value === "sys-to-nevm" ? "UTXO → NEVM" : "NEVM → UTXO",
   },
   {
     field: "amount",
@@ -26,12 +39,12 @@ export const TRANSFER_COLUMNS: GridColDef[] = [
   },
   {
     field: "utxoAddress",
-    headerName: "UTXO",
+    headerName: "UTXO Account",
     width: 320,
   },
   {
     field: "nevmAddress",
-    headerName: "NEVM",
+    headerName: "NEVM Account",
     width: 300,
   },
   {
@@ -47,20 +60,20 @@ export const TRANSFER_COLUMNS: GridColDef[] = [
       }
       return (
         <Typography variant="body1" color={color}>
-          {value}
+          {formatStatus(value)}
         </Typography>
       );
     },
   },
   {
     field: "createdAt",
-    headerName: "Created At",
+    headerName: "Created",
     width: 200,
     renderCell: ({ value }) => <DateField value={value} />,
   },
   {
     field: "updatedAt",
-    headerName: "Updated At",
+    headerName: "Updated",
     width: 200,
     renderCell: ({ value }) => <DateField value={value} />,
   },

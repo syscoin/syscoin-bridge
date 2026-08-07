@@ -21,7 +21,7 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
     }
     if (!proof.coinbase) {
-      throw new Error("SPV proof missing coinbase (update syscoingetspvproof / blockbook)");
+      throw new Error("The generated SPV proof is missing coinbase data");
     }
     const txBytes = `0x${proof.transaction}`;
     const txIndex = proof.index;
@@ -53,7 +53,7 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
       console.error("Estimate gas error", error);
       throw error instanceof Error
         ? error
-        : new Error("Gas estimation failed; refusing to submit relayTx");
+        : new Error("Unable to estimate gas for proof submission");
     }
 
     return new Promise((resolve, reject) => {
@@ -68,7 +68,7 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
           const txHash = typeof hash === "string" ? hash : hash?.hash;
   
           if (!txHash) {
-            reject("Failed to submit proofs. Check browser logs");
+            reject("Proof submission did not return a transaction hash");
             console.error("Submission failed", hash);
           } else {
             resolve(txHash);

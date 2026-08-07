@@ -19,7 +19,7 @@ export const useMintSysx = (transfer: ITransfer) => {
         const sponsored = await requestSponsoredUtxo(transfer.id, "mint");
         if (sponsored.sponsored) {
           if (!sponsored.txid) {
-            throw new Error("Sponsored mint is already in progress");
+            throw new Error("A sponsored SYSX mint is already in progress");
           }
           return sponsored.txid;
         }
@@ -43,7 +43,7 @@ export const useMintSysx = (transfer: ITransfer) => {
       );
 
       if (!res) {
-        throw new Error("Mint SYS error: Not enough funds");
+        throw new Error("Unable to mint SYSX: insufficient SYS for fees");
       }
 
       const psbt = utils.exportPsbtToJson(res.psbt, res.assets);

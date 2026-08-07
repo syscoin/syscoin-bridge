@@ -44,7 +44,9 @@ const TransfersPage: NextPage = () => {
       />
       {!isFullyConnected && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          <Typography variant="body1">Connect both wallets</Typography>
+          <Typography variant="body1">
+            Connect the required wallet accounts to load your transfer history.
+          </Typography>
         </Alert>
       )}
       <WalletList />

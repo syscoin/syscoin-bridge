@@ -10,7 +10,7 @@ const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
   return (
     <Stepper activeStep={activeStep}>
       <Step key="connect-and-validate">
-        <StepLabel>Connect and Validated</StepLabel>
+        <StepLabel>Connect and Validate</StepLabel>
       </Step>
       <Step key="freeze-and-burn">
         <StepLabel>Freeze and Burn SYS</StepLabel>
@@ -22,7 +22,7 @@ const NEVMToSYSStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
         <StepLabel>Burn SYSX</StepLabel>
       </Step>
       <Step key="Completed">
-        <StepLabel>Completed</StepLabel>
+        <StepLabel>Complete</StepLabel>
       </Step>
     </Stepper>
   );
@@ -34,19 +34,19 @@ const SYSToNEVMStepper: React.FC<{ activeStep: number }> = ({ activeStep }) => {
   return (
     <Stepper activeStep={activeStep}>
       <Step key="connect-and-validate">
-        <StepLabel>Connect and Validated</StepLabel>
+        <StepLabel>Connect and Validate</StepLabel>
       </Step>
       <Step key="burn-sys">
-        <StepLabel>Burn SYS {useSysx ? "(Skipped)" : ""}</StepLabel>
+        <StepLabel>Burn SYS {useSysx ? "(skipped)" : ""}</StepLabel>
       </Step>
       <Step key="burn-sysx">
         <StepLabel>Burn SYSX</StepLabel>
       </Step>
       <Step key="validate-proofs">
-        <StepLabel>Validate Proofs</StepLabel>
+        <StepLabel>Submit Proof</StepLabel>
       </Step>
       <Step key="Completed">
-        <StepLabel>Completed</StepLabel>
+        <StepLabel>Complete</StepLabel>
       </Step>
     </Stepper>
   );

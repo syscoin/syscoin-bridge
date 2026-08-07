@@ -22,7 +22,7 @@ const WalletListMetamask = () => {
           src="/metamask-logo.svg"
           height={32}
           width={32}
-          alt="Metamask logo"
+          alt="MetaMask logo"
         />
         <Typography variant="body1">MetaMask</Typography>
         <Button sx={{ ml: "auto" }} variant="contained" disabled>
@@ -43,7 +43,7 @@ const WalletListMetamask = () => {
         src="/metamask-logo.svg"
         height={32}
         width={32}
-        alt="Metamask logo"
+        alt="MetaMask logo"
       />
 
       {nevm.type === "metamask" && nevm.account ? (
@@ -69,7 +69,7 @@ const WalletListMetamask = () => {
           ) : (
             <Link
               href="https://metamask.io/"
-              title="Go to MetaMask"
+              title="Visit MetaMask"
               sx={{ ml: "auto" }}
               target="_blank"
             >

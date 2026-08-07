@@ -18,11 +18,11 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
   return useMutation(["burnSyx", transfer.id], {
     mutationFn: async () => {
       if (!transfer.utxoXpub || !transfer.utxoAddress) {
-        throw new Error("Missing UTXO information");
+        throw new Error("UTXO account information is missing");
       }
 
       if (!transfer.nevmAddress) {
-        throw new Error("Missing NEVM address");
+        throw new Error("NEVM destination address is missing");
       }
 
       if (
@@ -41,7 +41,7 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
             return prepared.txid;
           }
           if (!prepared.psbt) {
-            throw new Error("Sponsored burn is already in progress");
+            throw new Error("A sponsored SYSX burn is already in progress");
           }
 
           const signed = await signTransaction(prepared.psbt);
@@ -54,7 +54,7 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
             continue;
           }
           if (!submitted.txid) {
-            throw new Error("Sponsored burn is already in progress");
+            throw new Error("A sponsored SYSX burn is already in progress");
           }
           return submitted.txid;
         }

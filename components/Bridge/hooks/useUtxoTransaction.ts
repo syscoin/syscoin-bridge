@@ -18,7 +18,7 @@ export const useUtxoTransaction = (
       if (transaction.confirmations >= confirmations) {
         return transaction;
       }
-      throw new Error("Transaction not confirmed");
+      throw new Error("Transaction is not yet confirmed");
     },
     refetchInterval,
     retry,

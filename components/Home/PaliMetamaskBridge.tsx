@@ -34,7 +34,7 @@ export const PaliAndMetamaskBridge = () => {
                 color="error"
                 sx={{ ml: "auto", display: "block" }}
               >
-                Invalid network selected. Please switch to UTXO Network.
+                Switch Pali Wallet to the Syscoin UTXO network.
               </Typography>
             )}
           </Link>

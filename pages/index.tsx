@@ -57,8 +57,7 @@ const Home: NextPage = () => {
                   SYSCOIN BRIDGE
                 </Typography>
                 <Typography variant="h6" sx={{ mb: 4 }}>
-                  Transfer SYS back and forth between the Syscoin and NEVM
-                  Blockchain
+                  Move SYS between Syscoin UTXO and Syscoin NEVM.
                 </Typography>
                 {isPaliVersion2 ? <PaliV2Bridge /> : <PaliAndMetamaskBridge />}
                 {isPaliVersion2 && <BridgeMetamaskNevmInstructions />}

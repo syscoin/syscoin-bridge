@@ -13,11 +13,10 @@ const Footer: React.FC = () => {
           Syscoin UTXO Explorer
         </Link>
         <Link href="https://explorer.syscoin.org">Syscoin NEVM Explorer</Link>
-        
-        <Link href="https://github.com/syscoin">Syscoin Github</Link>
+        <Link href="https://github.com/syscoin">Syscoin GitHub</Link>
       </Box>
       <Typography variant="body2">
-        © {currentYear} Syscoin. All rights reserved
+        © {currentYear} Syscoin. All rights reserved.
       </Typography>
     </Container>
   );

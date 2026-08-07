@@ -33,7 +33,7 @@ export const requestSponsoredUtxo = async (
   );
   const body = await response.json();
   if (!response.ok) {
-    throw new Error(body.message ?? "Unable to sponsor UTXO transaction");
+    throw new Error(body.message ?? "UTXO sponsorship request failed");
   }
   return body as SponsoredUtxoResponse;
 };

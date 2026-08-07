@@ -30,7 +30,7 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
         Transfer complete!
       </Alert>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2">Freeze and Burn SYS tx:</Typography>
+        <Typography variant="body2">Freeze-and-burn transaction:</Typography>
         <Link
           href={`${NEVM_TX_BLOCKCHAIN_URL}${freezeAndBurnTx?.payload?.data?.hash}`}
           target="_blank"
@@ -39,7 +39,7 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
         </Link>
       </Box>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="body2">Mint SYSX tx:</Typography>
+        <Typography variant="body2">SYSX mint transaction:</Typography>
         <Link
           href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${mintSysTx?.payload?.data?.tx}`}
           target="_blank"
@@ -48,7 +48,7 @@ const BridgeCompleteNevmToSys: React.FC<Props> = ({ transfer }) => {
         </Link>
       </Box>
       <Box>
-        <Typography variant="body2">Burn SYSX tx:</Typography>
+        <Typography variant="body2">SYSX burn transaction:</Typography>
         <Link
           href={`${SYSCOIN_TX_BLOCKCHAIN_URL}${burnSysxTx?.payload?.data?.tx}`}
           target="_blank"

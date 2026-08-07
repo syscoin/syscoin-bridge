@@ -8,11 +8,11 @@ export interface TransferStep {
 export const sysToNevmSteps: TransferStep[] = [
   {
     id: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
-    label: "Burn SYS",
+    label: "Burn SYS to SYSX",
   },
   {
     id: SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYS,
-    label: "Confirm Burn SYS",
+    label: "Wait for SYS burn",
   },
   {
     id: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
@@ -20,30 +20,30 @@ export const sysToNevmSteps: TransferStep[] = [
   },
   {
     id: SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYSX,
-    label: "Confirm Burn SYSX",
+    label: "Wait for SYSX burn",
   },
   {
     id: SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS,
-    label: "Generate Proofs",
+    label: "Generate proof",
   },
   {
     id: SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS,
-    label: "Submit Proofs",
+    label: "Submit proof",
   },
   {
     id: COMMON_STATUS.FINALIZING,
-    label: "Finalizing",
+    label: "Finalize transfer",
   },
 ];
 
 export const nevmToSysSteps: TransferStep[] = [
   {
     id: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
-    label: "Freeze and Burn (NEVM)",
+    label: "Freeze and burn SYS",
   },
   {
     id: ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
-    label: "Confirm Freeze and Burn (NEVM)",
+    label: "Wait for freeze and burn",
   },
   {
     id: ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
@@ -51,14 +51,14 @@ export const nevmToSysSteps: TransferStep[] = [
   },
   {
     id: ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_MINT_SYSX,
-    label: "Confirm Mint SYSX",
+    label: "Wait for SYSX mint",
   },
   {
-    id:ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
+    id: ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
     label: "Burn SYSX to SYS",
   },
   {
     id: COMMON_STATUS.FINALIZING,
-    label: "Finalizing",
+    label: "Finalize transfer",
   },
 ];

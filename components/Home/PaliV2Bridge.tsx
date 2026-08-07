@@ -13,9 +13,8 @@ export const PaliV2Bridge = () => {
     return (
       <Box display="flex" justifyContent="space-between">
         <Alert severity="warning">
-          Pali V2 or V3 NEVM Contract Calls are not supported yet. <br />
-          Please set your default wallet to Metamask. <br />
-          See instructions below.
+          This Pali Wallet version does not support NEVM contract calls. Set
+          MetaMask as your default wallet, then follow the instructions below.
         </Alert>
       </Box>
     );
@@ -25,7 +24,7 @@ export const PaliV2Bridge = () => {
     <Box display="flex" justifyContent="space-between">
       <Link href={`/bridge/sys-to-nevm`}>
         <Button variant="contained">
-          Go to PaliV2 Bridge
+          Start Bridge Transfer
           <ArrowForwardIcon />
         </Button>
       </Link>

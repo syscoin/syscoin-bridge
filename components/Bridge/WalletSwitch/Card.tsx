@@ -31,7 +31,7 @@ const WalletSwitchCard: React.FC<WalletSwitchCardProps> = ({
           {address}
         </Typography>
         <Typography variant="body2" color={success.main}>
-          CONFIRMED
+          SELECTED
         </Typography>
         {allowChange && (
           <Button

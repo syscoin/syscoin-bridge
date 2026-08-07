@@ -10,7 +10,7 @@ export const useBurnSys = (transfer: ITransfer) => {
   return useMutation(["burnSys", transfer.id], {
     mutationFn: async () => {
       if (!transfer.utxoXpub || !transfer.utxoAddress) {
-        throw new Error("Missing UTXO information");
+        throw new Error("UTXO account information is missing");
       }
       const psbt = await burnSysToSysx(
         syscoinInstance,

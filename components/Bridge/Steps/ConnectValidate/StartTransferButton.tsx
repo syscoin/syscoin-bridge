@@ -101,22 +101,22 @@ export const ConnectValidateStartTransferButton: React.FC<{
       {isReady && (
         <Box sx={{ display: "flex", mb: 2 }}>
           <Typography variant="body1">
-            All clear! You are ready to start the transfer process.
+            Ready to start this transfer.
           </Typography>
           <CheckCircleOutline color="success" />
         </Box>
       )}
       {isUtxoNotEnoughGas && (
-        <ErrorMessage message="UTXO: Not enough funds for gas" />
+        <ErrorMessage message="UTXO: Insufficient SYS for transaction fees" />
       )}
       {isSysxNotEnoughBalance && (
-        <ErrorMessage message="UTXO: Not enough SYSX" />
+        <ErrorMessage message="UTXO: Insufficient SYSX" />
       )}
       {isNevmNotEnoughGas && (
-        <ErrorMessage message="NEVM: Not enough funds for gas" />
+        <ErrorMessage message="NEVM: Insufficient SYS for gas" />
       )}
       {isNevmWrongNetwork && (
-        <ErrorMessage message="NEVM: Wallet must be connected to the NEVM network" />
+        <ErrorMessage message="NEVM: Switch the wallet to the configured network" />
       )}
       <Button
         sx={{ display: "block" }}

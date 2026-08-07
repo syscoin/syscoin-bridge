@@ -25,28 +25,28 @@ const BridgeMetamaskNevmInstructions = () => {
             src="/metamask-logo.svg"
             height={24}
             width={24}
-            alt="Metamask logo"
+            alt="MetaMask logo"
           />{" "}
-          <Typography>Want to use Metamask for NEVM?</Typography>
+          <Typography>Use MetaMask for Syscoin NEVM</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <List>
             <ListItem>
-              <Typography>1. Open PaliWallet</Typography>
+              <Typography>1. Open Pali Wallet.</Typography>
             </ListItem>
             <ListItem>
               <Typography>
-                2. Click options menu (burger icon on the top right)
+                2. Open the options menu in the upper-right corner.
               </Typography>
             </ListItem>
             <ListItem>
-              <Typography>3. Set default wallet</Typography>
+              <Typography>3. Select Default wallet.</Typography>
             </ListItem>
             <ListItem>
-              <Typography>4. Set Metamask as default wallet</Typography>
+              <Typography>4. Choose MetaMask.</Typography>
             </ListItem>
             <ListItem>
-              <Typography>5. Reload this page</Typography>
+              <Typography>5. Reload this page.</Typography>
             </ListItem>
           </List>
         </AccordionDetails>

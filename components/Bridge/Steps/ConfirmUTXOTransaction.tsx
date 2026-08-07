@@ -72,7 +72,7 @@ const BridgeStepConfirmUTXOTransaction: React.FC<Props> = ({
       <CircularProgress size={"1rem"} />
       <br />
       <Link href={`${constants?.explorer.utxo}/tx/${txId}`} target="_blank">
-        View on Explorer
+        View in explorer
       </Link>
     </Alert>
   );

@@ -125,7 +125,7 @@ const runWithSysToNevmStateMachine = async (
     }
 
     case "generate-proofs": {
-      console.log("Fetching backednd proof");
+      console.log("Fetching backend proof");
       const { tx } = transfer.logs.find((log) => log.status === "burn-sysx")
         ?.payload.data;
       const proof = await syscoinUtils.fetchBackendSPVProof(
@@ -143,7 +143,7 @@ const runWithSysToNevmStateMachine = async (
       dispatch(
         addLog(
           SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS,
-          "Submitting proofs",
+          "Generated proof",
           { results }
         )
       );
@@ -169,9 +169,7 @@ const runWithSysToNevmStateMachine = async (
         throw new Error("NEVM block not found: " + proof.nevm_blockhash);
       }
       if (!proof.coinbase) {
-        throw new Error(
-          "SPV proof missing coinbase (update syscoingetspvproof / blockbook)"
-        );
+        throw new Error("The generated SPV proof is missing coinbase data");
       }
       const txBytes = `0x${proof.transaction}`;
       const txIndex = proof.index;
@@ -206,7 +204,7 @@ const runWithSysToNevmStateMachine = async (
         console.error("Estimate gas error", error);
         throw error instanceof Error
           ? error
-          : new Error("Gas estimation failed; refusing to submit relayTx");
+          : new Error("Unable to estimate gas for proof submission");
       }
 
       return new Promise((resolve, reject) => {
@@ -222,12 +220,12 @@ const runWithSysToNevmStateMachine = async (
     
             if (!txHash) {
               dispatch(
-                addLog(COMMON_STATUS.ERROR, "Submission Failed", {
+                addLog(COMMON_STATUS.ERROR, "Proof submission failed", {
                   error: hash,
                 })
               );
               console.error("Submission failed", hash);
-              reject("Failed to submit proofs. Check browser logs");
+              reject("Proof submission did not return a transaction hash");
             } else {
               dispatch(
                 addLog(

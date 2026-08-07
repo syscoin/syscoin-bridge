@@ -41,7 +41,7 @@ export const burnSysToSysx = async (
     xpub
   );
   if (!res) {
-    throw new Error("Could not create transaction, not enough funds?");
+    throw new Error("Unable to create the SYS burn transaction");
   }
   console.log("burnSysToSysx", { res });
   return syscoinUtils.exportPsbtToJson(res.psbt, res.assets);

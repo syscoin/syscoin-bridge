@@ -44,8 +44,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
     ) {
       return (
         <BridgeConfirmNEVMTransaction
-          invalidStateMessage="Invalid State: Freeze and Burn logs was not saved"
-          loadingMessage="Confirming freeze and burn transaction..."
+          invalidStateMessage="Freeze-and-burn transaction data is missing."
+          loadingMessage="Waiting for the freeze-and-burn transaction to confirm..."
           sourceStatus={ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS}
           successStatus={ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX}
         />
@@ -61,8 +61,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
     ) {
       return (
         <BridgeStepConfirmUTXOTransaction
-          invalidStateMessage="Invalid State: Mint Sysx transaction was not saved"
-          loadingMessage="Confirming Mint of Sysx transaction..."
+          invalidStateMessage="SYSX mint transaction data is missing."
+          loadingMessage="Waiting for the SYSX mint transaction..."
           sourceStatus={ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX}
           successStatus={ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX}
           confirmations={0}
@@ -80,8 +80,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
     ) {
       return (
         <BridgeStepConfirmUTXOTransaction
-          invalidStateMessage="Invalid State: Burn Sysx transaction was not saved"
-          loadingMessage="Confirming Burn of Sysx transaction..."
+          invalidStateMessage="SYSX burn transaction data is missing."
+          loadingMessage="Waiting for the SYSX burn transaction to confirm..."
           sourceStatus={ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX}
           successStatus={COMMON_STATUS.COMPLETED}
         />
@@ -107,8 +107,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
   } else if (transfer.status === SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYS) {
     return (
       <BridgeStepConfirmUTXOTransaction
-        invalidStateMessage="Invalid State: Burn SYS transaction was not saved"
-        loadingMessage="Confirming Burn of SYS transaction..."
+        invalidStateMessage="SYS burn transaction data is missing."
+        loadingMessage="Waiting for the SYS burn transaction..."
         sourceStatus={SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS}
         successStatus={SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX}
         confirmations={0}
@@ -124,8 +124,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
   } else if (transfer.status === SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYSX) {
     return (
       <BridgeStepConfirmUTXOTransaction
-        invalidStateMessage="Invalid State: Burn SYSX transaction was not saved"
-        loadingMessage="Confirming Burn of SYSX transaction..."
+        invalidStateMessage="SYSX burn transaction data is missing."
+        loadingMessage="Waiting for the SYSX burn transaction to confirm..."
         sourceStatus={SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX}
         successStatus={SYS_TO_ETH_TRANSFER_STATUS.GENERATE_PROOFS}
       />
@@ -143,8 +143,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
   } else if (transfer.status == COMMON_STATUS.FINALIZING) {
     return (
       <BridgeConfirmNEVMTransaction
-        invalidStateMessage="Invalid State: Submit Proofs logs was not saved"
-        loadingMessage="Confirming final transaction..."
+        invalidStateMessage="Proof-submission transaction data is missing."
+        loadingMessage="Waiting for the proof-submission transaction to confirm..."
         sourceStatus={SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS}
         successStatus={COMMON_STATUS.COMPLETED}
       />

@@ -107,8 +107,8 @@ const BridgePage: NextPage = () => {
                 Bridge Your SYS
               </Typography>
               <Typography variant="caption" color="gray">
-                Trustlessly transfer SYS back and forth between the Syscoin
-                UTXO and Syscoin NEVM blockchains without middlemen!
+                Move SYS between Syscoin UTXO and Syscoin NEVM using
+                protocol-verified proofs.
               </Typography>
               <Box sx={{ my: 3 }}>
                 <TransferTitle />

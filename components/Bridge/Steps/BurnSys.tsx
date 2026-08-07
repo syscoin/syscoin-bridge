@@ -34,7 +34,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
           data: {
             tx,
           },
-          message: "Burning SYS to SYSX",
+          message: "Burn SYS to SYSX",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
       },
@@ -55,7 +55,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
           data: {
             error,
           },
-          message: "Burning SYS to SYSX Error",
+          message: "Burn SYS to SYSX failed",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
       },
@@ -74,7 +74,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
   };
 
   if (isSigning) {
-    return <Alert severity="info">Check Pali Wallet for signing</Alert>;
+    return <Alert severity="info">Confirm the transaction in Pali Wallet.</Alert>;
   }
 
   if (isSignError) {
@@ -86,7 +86,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
     }
     return (
       <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
-        Burn SYS error: {errorMessage}
+        Unable to burn SYS: {errorMessage}
       </Alert>
     );
   }
@@ -94,7 +94,7 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
   return (
     <Box>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Confirm Burning of SYS:
+        Burn SYS to SYSX
       </Typography>
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYS

@@ -30,29 +30,29 @@ const AddLogMenu: React.FC<Props> = ({ transfer, onSelect }) => {
     transfer.type === "sys-to-nevm"
       ? [
           {
-            label: "Add Burn Sys Transaction",
+            label: "Add SYS Burn Transaction",
             operation: "burn-sys",
           },
           {
-            label: "Add Burn Sysx Transaction",
+            label: "Add SYSX Burn Transaction",
             operation: "burn-sysx",
           },
           {
-            label: "Add Submit Proofs Transaction",
+            label: "Add Proof-Submission Transaction",
             operation: "submit-proofs",
           },
         ]
       : [
           {
-            label: "Add Freeze and Burn Transaction",
+            label: "Add Freeze-and-Burn Transaction",
             operation: "freeze-burn-sys",
           },
           {
-            label: "Add Mint Sysx Transaction",
+            label: "Add SYSX Mint Transaction",
             operation: "mint-sysx",
           },
           {
-            label: "Add Burn Sysx Transaction",
+            label: "Add SYSX Burn Transaction",
             operation: "burn-sysx",
           },
         ];

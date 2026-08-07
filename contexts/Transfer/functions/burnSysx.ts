@@ -44,7 +44,7 @@ export const burnSysx = async (
     xpubAddress
   );
   if (!res) {
-    throw new Error("Could not create transaction, not enough funds?", {
+    throw new Error("Unable to create the SYSX burn transaction", {
       cause: res,
     });
   }

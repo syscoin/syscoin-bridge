@@ -107,7 +107,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     if (utxoWalletType === "pali-wallet") {
       return paliWallet.sendTransaction(transaction);
     }
-    return Promise.reject(new Error("Wallet not connected"));
+    return Promise.reject(new Error("Pali Wallet is not connected"));
   };
 
   const confirmTransaction = useCallback(
@@ -124,7 +124,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
           const interval = setInterval(async () => {
             if (durationInSeconds !== 0 && Date.now() > expiry) {
               clearInterval(interval);
-              reject(new Error("Confirm transaction timed out"));
+              reject(new Error("Transaction confirmation timed out"));
             }
             if (isRequesting) {
               return;
@@ -136,7 +136,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
                 isRequesting = false;
                 clearInterval(interval);
                 reject(
-                  new Error("Confirm transaction failed", { cause: error })
+                  new Error("Transaction confirmation failed", { cause: error })
                 );
               });
             isRequesting = false;
@@ -159,7 +159,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
         const interval = setInterval(async () => {
           if (durationInSeconds !== 0 && Date.now() > expiry) {
             clearInterval(interval);
-            reject(new Error("Confirm transaction timed out"));
+            reject(new Error("Transaction confirmation timed out"));
           }
           if (isRequesting) {
             return;
@@ -170,7 +170,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
             .catch((error) => {
               isRequesting = false;
               clearInterval(interval);
-              reject(new Error("Confirm transaction failed", { cause: error }));
+              reject(new Error("Transaction confirmation failed", { cause: error }));
             });
           isRequesting = false;
           if (!receipt) {
@@ -182,7 +182,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
           }
           if (Date.now() > expiry) {
             clearInterval(interval);
-            reject(new Error("Confirm transaction timed out"));
+            reject(new Error("Transaction confirmation timed out"));
           }
         }, 1000);
         setCreatedIntervals(createdIntervals.concat(interval));

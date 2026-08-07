@@ -26,7 +26,7 @@ const NEVMStepWrapper: React.FC<Props> = ({ children }) => {
   const [hasSwitched, setHasSwitched] = useState(false);
 
   if (!expectedChainId) {
-    return <Alert severity="error">NEVM network is not configured</Alert>;
+    return <Alert severity="error">NEVM network is not configured.</Alert>;
   }
 
   // Only show switch button if we haven't switched yet and Pali is in UTXO mode

@@ -35,7 +35,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
           data: {
             tx,
           },
-          message: "Burning SYSX to NEVM",
+          message: "Burn SYSX",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
       },
@@ -56,7 +56,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
           data: {
             error,
           },
-          message: "Burning SYSX to NEVM",
+          message: "Burn SYSX failed",
         },
         status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
       },
@@ -75,7 +75,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
   };
 
   if (isSigning) {
-    return <Alert severity="info">Check Pali Wallet for signing</Alert>;
+    return <Alert severity="info">Confirm the transaction in Pali Wallet.</Alert>;
   }
 
   if (isSignError) {
@@ -87,7 +87,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
     }
     return (
       <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
-        Burn SYS error: {errorMessage}
+        Unable to burn SYSX: {errorMessage}
       </Alert>
     );
   }
@@ -95,7 +95,7 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
   return (
     <Box>
       <Typography variant="body2" sx={{ mb: 1 }}>
-        Confirm Burning of SYSX:
+        Burn SYSX
       </Typography>
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYSX

@@ -68,8 +68,8 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
     !utxoSponsorshipAvailable ? (
       <Alert severity="warning">
         <Typography variant="body2">
-          Please send at least {minAmount} SYS into your Pali wallet to continue
-          the transaction
+          Add at least {minAmount} SYS to Pali Wallet to cover UTXO transaction
+          fees.
         </Typography>
       </Alert>
     ) : undefined;
@@ -132,7 +132,7 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
             disabled={Boolean(faucetLink)}
           >
             <MenuItem value="none" disabled>
-              Please select token
+              Select an asset
             </MenuItem>
             <MenuItem value="sys">{sysBalanceText}</MenuItem>
             <MenuItem value="sysx" disabled={!sysxBalance.data}>
@@ -228,7 +228,7 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
   if (!isBitcoinBased) {
     return (
       <Button variant="contained" onClick={() => switchTo("bitcoin")}>
-        Set UTXO Account
+        Select UTXO Account
       </Button>
     );
   }

@@ -27,15 +27,15 @@ const LinkToNewTab: React.FC<LinkToNewTabProps> = ({ label, link }) => {
 };
 
 const terms: (string | React.ReactNode)[] = [
-  "NEVER start a Bridge using hardware wallets like Trezor, Ledger, etc.",
-  "We will NEVER ask you for your private keys or seed phrase.",
-  "This software is subject to change.",
+  "Hardware wallets are not supported. Do not start a transfer with a Trezor, Ledger, or similar device.",
+  "Never share your private key or recovery phrase. Syscoin support will not ask for either.",
+  "Bridge behavior and wallet compatibility may change between releases.",
   <>
-    Technical support is available only via the ticket system in Syscoin&apos;s
-    official Discord server at{" "}
+    Support is available through the ticket system in Syscoin&apos;s official
+    Discord server: {" "}
     <LinkToNewTab link="https://discord.gg/syscoin" />
   </>,
-  "Technical support for an incomplete bridge session must be sought within 75 days from when the session began.",
+  "Request support for an incomplete transfer within 75 days of starting it.",
 ];
 
 const WelcomeModal = () => {
@@ -81,8 +81,9 @@ const WelcomeModal = () => {
           By clicking the button below, you agree to our{" "}
           <LinkToNewTab
             link={"/Syscoin Terms and Conditions.pdf"}
-            label={"Terms and Conditions."}
+            label={"Terms and Conditions"}
           />
+          .
         </Typography>
         <Button
           variant="contained"

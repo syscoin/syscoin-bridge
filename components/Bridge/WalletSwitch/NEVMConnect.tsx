@@ -54,7 +54,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   const hasNevmAddress = Boolean(transfer.nevmAddress);
 
   if (!expectedChainId) {
-    return <Alert severity="error">NEVM network is not configured</Alert>;
+    return <Alert severity="error">NEVM network is not configured.</Alert>;
   }
   
   // If the address is already set but the user switched to a wrong EVM chain, prompt to switch back
@@ -81,10 +81,11 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
       !foundationFundingAvailable ? (
         <Alert severity="warning">
           <Typography variant="body2">
-            You don&apos;t have enough balance. Please go to&nbsp;
+            This account needs SYS for NEVM gas. Get SYS from the&nbsp;
             <Link href="https://faucet.syscoin.org/" target="_blank">
-              Faucet
+              faucet
             </Link>
+            .
           </Typography>
         </Alert>
       ) : undefined;
@@ -104,13 +105,13 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   if (isBitcoinBased && isEVMInjected) {
     return (
       <Button variant="contained" onClick={() => switchTo("ethereum")}>
-        Set NEVM Account
+        Select NEVM Account
       </Button>
     );
   }
 
   if (!account) {
-    return <Button onClick={() => connect()}>Fetch account</Button>;
+    return <Button onClick={() => connect()}>Connect NEVM Wallet</Button>;
   }
 
   if (isWrongChain) {

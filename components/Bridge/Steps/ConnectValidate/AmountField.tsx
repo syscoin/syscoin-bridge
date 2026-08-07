@@ -48,7 +48,7 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
             value: maxAmountCalculated,
             message: `You can transfer up to ${maxAmountCalculated.toFixed(
               4
-            )} SYS`,
+            )} ${showSysx ? "SYSX" : "SYS"}`,
           },
           min: {
             value: minAmount,
@@ -72,10 +72,9 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
               What is SYSX?
             </Typography>
             <Typography variant="body2">
-              SYSX serves as a bridge token between the Syscoin UTXO and Syscoin
-              NEVM chains, with a 1:1 ratio to SYS. Users can convert SYS into
-              SYSX on the Syscoin UTXO, and then bridge into Syscoin NEVM, or
-              vice versa. This conversion process is bidirectional.
+              SYSX is the UTXO-side bridge representation of SYS. The bridge
+              converts between SYS and SYSX at a 1:1 ratio as part of transfers
+              between Syscoin UTXO and Syscoin NEVM.
             </Typography>
           </Typography>
         </Alert>

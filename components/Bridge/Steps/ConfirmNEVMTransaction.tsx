@@ -70,7 +70,7 @@ const BridgeConfirmNEVMTransaction: React.FC<Props> = ({
         href={`${constants?.explorer.nevm}/tx/${sourceTxHash}`}
         target="_blank"
       >
-        View on Explorer
+        View in explorer
       </Link>
     </Alert>
   );

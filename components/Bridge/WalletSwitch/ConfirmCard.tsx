@@ -27,13 +27,13 @@ const WalletSwitchConfirmCard: React.FC<WalletSwitchConfirmCardProps> = ({
       </Button>
       <Button
         variant="contained"
-        aria-label="Set"
+        aria-label="Use account"
         onClick={onConfirm}
         color="primary"
         sx={{ ml: 1 }}
         size="small"
       >
-        Set
+        Use Account
       </Button>
     </Box>
   );

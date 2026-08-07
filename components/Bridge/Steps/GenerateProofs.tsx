@@ -1,4 +1,4 @@
-import { Alert, Button, CircularProgress } from "@mui/material";
+import { Alert, CircularProgress } from "@mui/material";
 import { useTransfer } from "../context/TransferContext";
 import {
   ITransferLog,
@@ -47,19 +47,17 @@ const BridgeStepGenerateProofs: React.FC<Props> = ({ successStatus }) => {
 
   if (!burnSysTxId) {
     return (
-      <Alert severity="error" action={<Button>Retry Burn Sys</Button>}>
-        Invalid state: Not Burn Sysx log was saved
-      </Alert>
+      <Alert severity="error">SYSX burn transaction data is missing.</Alert>
     );
   }
 
   if (isFetched) {
-    return <Alert severity="info">Proofs generated</Alert>;
+    return <Alert severity="info">Proof generated.</Alert>;
   }
 
   return (
     <Alert severity="info">
-      Generating Proofs for NEVM
+      Generating proof...{" "}
       <CircularProgress size={"1rem"} />
     </Alert>
   );

@@ -52,7 +52,7 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
             const txHash = typeof hash === "string" ? hash : hash?.hash;
             
             if (!txHash) {
-              reject("Failed to freeze and burn sys. Check browser logs");
+              reject("The freeze-and-burn transaction did not return a hash");
               console.error("freeze and burn failed", hash);
             } else {
               resolve(txHash);

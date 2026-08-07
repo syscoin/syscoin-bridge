@@ -5,7 +5,7 @@ import WalletListMetamask from "./MetaMask";
 const WalletList: React.FC = () => {
   return (
     <Box>
-      <Typography variant="body2">Connect Wallet:</Typography>
+      <Typography variant="body2">Connect wallets</Typography>
       <WalletListPaliWallet />
       <WalletListMetamask />
     </Box>

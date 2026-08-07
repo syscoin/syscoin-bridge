@@ -12,148 +12,83 @@ interface IFAQ {
   question: string;
   answer: React.ReactNode | string;
 }
+
 const faqs: IFAQ[] = [
   {
     question: "What is Syscoin?",
-    answer: (
-      <Typography>
-        Syscoin is a decentralized modular blockchain that brings together Bitcoin&apos;s secure PoW, 
-        Ethereum&apos;s flexible EVM, & scalable computation via Rollups (ZK & Optimistic). All of 
-        these best elements are combined into a single plug-and-play network making an ultra 
-        fast, scalable, low gas smart contract platform w/ proven security.
-        The blockchain trifecta.
-
-        Succinct technical description:
-        Syscoin is a modular coordinated dual-chain EVM platform designed to give Rollups 
-        optimal L1 data availability, & Bitcoin auxpow settlement enhanced w/ multi-quorum 
-        finality that resists MEV attacks & selfish mining.
-      </Typography>
-    ),
+    answer:
+      "Syscoin is a dual-chain Layer 1 with a Bitcoin-compatible UTXO chain and an EVM-compatible NEVM chain. The chains operate in parallel and use SYS as the native asset.",
   },
   {
     question: "What is an SPT?",
     answer:
-      "Syscoin Platform Tokens (SPT) are cryptocurrency tokens that can be created quickly and easily on Syscoin Platform by anyone. This can be done using Sysmint or Syscoin QT using command-line.",
+      "A Syscoin Platform Token (SPT) is a token issued on the Syscoin UTXO chain through its native asset protocol.",
   },
   {
     question: "What is SYSX?",
     answer:
-      "SYSX is both an SPT and NEVM ERC20 token, backed by SYS at 1:1 ratio. You can burn your SYS and mint SYSX on the Syscoin chain, allowing you to utilize high throughput ZDAG transactions. You can then burn your SYSX (SPT) and mint a SYSX (ERC20) token, allowing you to utilize all the functionalities of the NEVM Chain, such as Smart Contracts. This mint/burn process can also be done in reverse order; it works in both directions.",
+      "SYSX is the UTXO-side bridge representation used when moving SYS between Syscoin UTXO and Syscoin NEVM. The bridge converts between SYS and SYSX at a 1:1 ratio during the transfer flow.",
   },
   {
-    question: "How does the SYSX bridge work?",
-    answer: `The basic structure of how SYS bridge works is SYS <-> SYSX (SPT) <-> SYS (ERC20).
-
-    The automated process will 1) burn your SYS for SYSX (SPT), 2) move your SYSX (SPT) across the bridge and lock it, then 3) mint the SYS ERC20 to your NEVM address.  The same process occurs in reverse if moving SYS from NEVM to the Syscoin native UTXO blockchain.
-    
-    The total supply of SYS remains the same.`,
-  },
-  {
-    question: "Does the NEVM run on Ethereum?",
+    question: "How does the SYS bridge work?",
     answer:
-      "NEVM is a separate and distinct standard Ethereum Virtual Machine that is integrated into Syscoin in order to leverage the PoW security of Bitcoin and the benefits of holistically modular blockchain architecture. NEVM stands for Network-Enhanced Virtual Machine.",
+      "The route is Syscoin UTXO SYS ↔ UTXO SYSX ↔ Syscoin NEVM SYS. Each transfer burns or freezes the source representation, verifies the resulting proof, and mints the corresponding amount on the destination chain.",
   },
   {
-    question: "Will SPTs be transferable to NEVM?",
+    question: "How long does a transfer take?",
     answer:
-      "Any Syscoin SPT can be transferred to the NEVM layer, and back, as needed. This is a trustless and decentralized process.",
+      "Syscoin targets a 2.5-minute block time. Some bridge steps wait for block inclusion or confirmation, so completion time varies with network conditions.",
   },
   {
-    question: "Will this mean I can use Ledger, Myetherwallet, Metamask etc?",
+    question: "Does Syscoin NEVM run on Ethereum?",
     answer:
-      "Your SPT will become compatible with all major service providers that serve EVM once it is moved across the bridge to NEVM.",
+      "No. Syscoin NEVM is Syscoin's EVM-compatible chain. It supports familiar Ethereum tools and wallets when they are configured for the Syscoin network.",
   },
   {
-    question: "Syscoin supply will remain the same?",
+    question: "Which assets does this bridge support?",
     answer:
-      "Yes. SYS + SYSX (SPT) + SYS (NEVM) = Total Circulating Supply. This supply is maintained via mint/burn as tokens move across the bridge in either direction.",
+      "This interface supports moving SYS between Syscoin UTXO and Syscoin NEVM through SYSX. Other SPT or ERC-20 assets require a dedicated integration and are not available in this interface.",
   },
   {
-    question:
-      "What counterparty or custodian related risks and/or limitations do I incur when using Syscoin Bridge?",
+    question: "Which wallets can I use?",
     answer:
-      "None. You maintain full possession and control of your funds at all times. Furthermore, market demand (such as with atomic swap) is not required to take advantage of Syscoin Bridge. These benefits are made possible by first-class integration with the NEVM layer through a custom opcode (sysblockhash and utilizing dual smart contracts and SPV proofs on both sides.",
+      "Use Pali Wallet for the Syscoin UTXO side. Use MetaMask or a supported Pali Wallet configuration for Syscoin NEVM. Hardware wallets are not supported by this app.",
   },
   {
-    question: "Can I have SYSX in my Syscoin wallet?",
+    question: "Does the bridge preserve the represented SYS supply?",
     answer:
-      "SYSX is an SPT. You can use Pali which is integrated into this site. Syscoin QT can also be used if you are competent with command line interface.",
+      "Yes. The source amount is burned or frozen before the corresponding destination amount is minted, maintaining 1:1 accounting across the supported representations.",
   },
   {
-    question:
-      "Do I need gas to execute the smart contract, and if so how much?",
+    question: "Does the bridge use a custodian?",
     answer:
-      "You will need SYS gas on the NEVM to cover the costs of executing NEVM smart contracts. These costs will vary depending on the NEVM network. You can utilize the Syscoin Authenticated Faucet to get a small amount of SYS for gas: https://faucet.syscoin.org",
+      "No third party takes custody of a transfer. Users authorize source-chain transactions, and protocol proofs authorize the destination-chain result. Smart-contract, software, network, and wallet risks still apply.",
   },
   {
-    question: "Do I need SYS to execute SPT transactions, and if so how much?",
+    question: "Do I need SYS for transaction fees?",
     answer:
-      "SYS is required to execute any transaction within the Syscoin network, including SPT transfers. Exact transaction costs depend on network conditions. Syscoin transaction fees are relatively inexpensive, especially in the case of SPTs which utilize Syscoin’s ZDAG protocol. Typically, thousands of SPT transfers can be funded with a single SYS, due to the unique fee market of the ZDAG network within which users usually do not require having PoW confirmation within an immediate block.",
+      "Bridge transactions may require SYS for UTXO transaction fees or NEVM gas. If the app reports an insufficient balance, add SYS to the indicated wallet. Fees vary with network conditions.",
   },
   {
-    question: "Why have an SPT on Syscoin if I can have an ERC20 token?",
+    question: "Why move SYS between UTXO and NEVM?",
+    answer:
+      "Syscoin UTXO provides Bitcoin-style asset transactions, while Syscoin NEVM supports EVM applications and smart contracts. The bridge lets you choose the environment that fits your use case.",
+  },
+  {
+    question: "Where can I get support?",
     answer: (
       <Typography>
-        This delivers multiple advantages. SPTs use a UTXO storage model which
-        is more efficient for simple transfers and can also leverage the innovations 
-        from the Bitcoin script system. SPTs are also ZDAG enabled, which means they 
-        benefit from high-speed and high-throughput token transfers with low fees. 
-        ZDAG’s probabilistic security (offering global consensus in ten seconds or 
-        less) enables you to determine the security/speed trade-off most ideal for 
-        your particular use case. Further, each SPT transaction settles onchain with 
-        Bitcoin compliant proof of work. SPTs can also tap into Syscoin Core&apos;s option 
-        to call external APIs for the implementation of Notary and offchain business 
-        rules. All of this is especially attractive for point of sale applications, 
-        stablecoins issuers, and CBDCs. You can learn more about Syscoin ZDAG here:
-        <Link target="_blank" href="https://syscoin.org/z-dag">
-          https://syscoin.org/z-dag
+        Open a ticket in Syscoin&apos;s official Discord server at{" "}
+        <Link target="_blank" href="https://discord.gg/syscoin">
+          discord.gg/syscoin
         </Link>
-        . The overall vision is to offer both UTXO and account based (ERC)
-        representations of tokens which leverage future innovations from the
-        Bitcoin and Ethereum ecosystems respectively. Users can choose which
-        model they wish to hold their tokens in trustlessly.
-      </Typography>
-    ),
-  },
-  {
-    question: "Can other ERC20 tokens be migrated to the Syscoin chain?",
-    answer: (
-      <Typography>
-        Yes, by burning and minting via the bridge, resulting in an SPT. This is
-        currently active for SYSX. A reference implementation of the smart
-        contracts necessary to enable your particular ERC20 with Syscoin Bridge
-        is available here:{" "}
-        <Link
-          target="_blank"
-          href="https://github.com/syscoin/sysethereum-contracts"
-        >
-          https://github.com/syscoin/sysethereum-contracts
-        </Link>
-      </Typography>
-    ),
-  },
-  {
-    question: "How is this initiative different from others?",
-    answer: (
-      <Typography>
-        Syscoin Bridge is the first two-way interoperability solution without
-        counterparties, a permissionless and trustless solution that leverages
-        the security of each respective blockchain. This allows us to consider
-        the SPT supply mechanism as a fractional supply across multiple
-        blockchains. Users on Syscoin by extension will be able to leverage the
-        vast toolset of Ethereum whilst NEVM users can leverage Syscoin’s cost
-        effective and efficient asset specific transactionality. You can read
-        more about the technicals here:
-        <Link
-          target="_blank"
-          href="https://github.com/syscoin/sysethereum-docs"
-        >
-          https://github.com/syscoin/sysethereum-docs
-        </Link>
+        . Request support for an incomplete transfer within 75 days of starting
+        it.
       </Typography>
     ),
   },
 ];
+
 const FAQ: React.FC = () => {
   return (
     <Container sx={{ py: 4 }}>

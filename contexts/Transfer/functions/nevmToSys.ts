@@ -107,7 +107,7 @@ const confirmFreezeAndBurnSys = async (
         COMMON_STATUS.ERROR,
         `Confirm Freeze and Burn error${
           isEVMOnlyError
-            ? ": Please switch your Pali to the Syscoin NEVM network"
+            ? ": Switch Pali Wallet to the Syscoin NEVM network"
             : ""
         }`,
         {
@@ -162,11 +162,13 @@ const mintSysx = async (
     dispatch(
       addLog(
         ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
-        "Mint SYS error: Not enough funds",
+        "Unable to mint SYSX: insufficient SYS for fees",
         res
       )
     );
-    return Promise.reject(new Error("Mint SYS error: Not enough funds"));
+    return Promise.reject(
+      new Error("Unable to mint SYSX: insufficient SYS for fees")
+    );
   }
   console.log("assetAllocationMint received", {
     res,
@@ -176,7 +178,7 @@ const mintSysx = async (
   dispatch(
     addLog(
       ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
-      "Mint Sysx",
+      "Mint SYSX",
       mintSysxTransactionReceipt
     )
   );
@@ -201,22 +203,22 @@ const burnSysxToSys = async (
     );
   } catch (e) {
     captureException(e);
-    console.error("Burn SYSX error: Not enough funds", e);
+    console.error("Unable to burn SYSX", e);
     dispatch(
       addLog(
         ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
-        "Burn SYSX error: Not enough funds",
+        "Unable to burn SYSX",
         e
       )
     );
-    return Promise.reject(new Error("Burn SYSX error: Not enough funds"));
+    return Promise.reject(new Error("Unable to burn SYSX"));
   }
 
   const burnSysxTransactionReceipt = await sendUtxoTransaction(transaction);
   dispatch(
     addLog(
       ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX,
-      "Burn Sysx",
+      "Burn SYSX",
       burnSysxTransactionReceipt
     )
   );

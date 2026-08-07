@@ -12,10 +12,10 @@ const BridgeTransferSwitchTypeCard = () => {
     <Card>
       <CardContent sx={{ display: "flex", alignItems: "center" }}>
         {transfer.type === "sys-to-nevm" && (
-          <Typography>Syscoin UTXO &gt;&gt;&gt; Syscoin NEVM</Typography>
+          <Typography>Syscoin UTXO → Syscoin NEVM</Typography>
         )}
         {transfer.type === "nevm-to-sys" && (
-          <Typography>Syscoin NEVM &gt;&gt;&gt; Syscoin UTXO</Typography>
+          <Typography>Syscoin NEVM → Syscoin UTXO</Typography>
         )}
         <Button
           variant="contained"

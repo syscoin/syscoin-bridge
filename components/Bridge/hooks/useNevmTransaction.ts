@@ -17,7 +17,7 @@ export const useNevmTransaction = (
       if (receipt.status === true) {
         return receipt;
       }
-      throw new Error("Transaction not confirmed");
+      throw new Error("Transaction is not yet confirmed");
     },
     refetchInterval: options.refetch ? 1000 : undefined,
     refetchOnMount: options.refetch,
