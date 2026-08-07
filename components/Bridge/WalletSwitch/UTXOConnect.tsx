@@ -66,7 +66,8 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
     balance.isFetched && gasBalance < minAmount && utxoSponsorshipAvailable ? (
       <Alert severity="info">
         <Typography variant="body2">
-          The bridge will sponsor the destination-side UTXO transaction fees.
+          The bridge will attempt to sponsor the destination-side UTXO fees. If
+          sponsorship is unavailable, you will need SYS to continue.
         </Typography>
       </Alert>
     ) : balance.isFetched && gasBalance < minAmount ? (

@@ -1044,6 +1044,133 @@ describe("SponsorWalletService", () => {
       expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
     });
 
+    it("releases the sponsor output after preparing an unsigned burn", async () => {
+      const service = new SponsorWalletService() as any;
+      const placeholder = {
+        _id: "placeholder-id",
+        reservationOwner: "owner",
+        reservationExpiresAt: new Date(Date.now() + 60_000),
+        transaction: {},
+      };
+      const exported = { psbt: "canonical", assets: "[]" };
+
+      jest.spyOn(service, "getUtxoSponsorConfig").mockReturnValue({
+        sponsorAddress: "sys1sponsor",
+        sponsorWif: "sponsor-wif",
+      });
+      jest
+        .spyOn(service, "getExistingUtxoSponsorship")
+        .mockResolvedValue(null);
+      jest
+        .spyOn(service, "claimUtxoSponsorPlaceholder")
+        .mockResolvedValue(placeholder);
+      jest.spyOn(service, "reserveSponsorUtxo").mockResolvedValue({
+        key: "sponsor-txid:0",
+        utxo: { txid: "sponsor-txid", vout: 0, value: "10000" },
+      });
+      jest
+        .spyOn(service, "buildSponsoredBurn")
+        .mockResolvedValue({ psbt: {}, assets: [] });
+      jest
+        .spyOn(service, "getUserInputFingerprint")
+        .mockReturnValue("fingerprint");
+      (syscoinUtils.exportPsbtToJson as jest.Mock<any>).mockReturnValue(
+        exported
+      );
+      const store = jest
+        .spyOn(service, "storePreparedUtxoBurn")
+        .mockResolvedValue(undefined);
+      const release = jest
+        .spyOn(service, "releaseSponsorUtxoReservation")
+        .mockResolvedValue(undefined);
+
+      await expect(service.prepareSponsoredUtxoBurn(transfer)).resolves.toEqual(
+        {
+          sponsored: true,
+          status: "signature-required",
+          psbt: exported,
+        }
+      );
+
+      expect(store).toHaveBeenCalledWith(
+        placeholder,
+        "fingerprint",
+        "sponsor-txid:0",
+        exported
+      );
+      expect(release).toHaveBeenCalledWith("sponsor-txid:0", transfer.id);
+    });
+
+    it("reserves the prepared sponsor input only after validating the user signature", async () => {
+      const service = new SponsorWalletService() as any;
+      const placeholder = {
+        _id: "placeholder-id",
+        transferId: transfer.id,
+        reservationOwner: "owner",
+        reservationExpiresAt: new Date(Date.now() + 60_000),
+        utxoReservationKey: "sponsor-txid:0",
+        transaction: {
+          rawData: JSON.stringify({ psbt: "canonical", assets: "[]" }),
+        },
+      };
+      const signed = { txid: "burn-txid", rawTransaction: "00" };
+      const order: string[] = [];
+
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(placeholder);
+      (syscoinUtils.importPsbtFromJson as jest.Mock<any>).mockReturnValue({
+        psbt: {},
+      });
+      jest.spyOn(service, "getUtxoSponsorConfig").mockReturnValue({
+        sponsorAddress: "sys1sponsor",
+        sponsorWif: "sponsor-wif",
+      });
+      jest
+        .spyOn(service, "mergeUserSignatures")
+        .mockImplementation(() => order.push("validate"));
+      const reserve = jest
+        .spyOn(service, "reserveSponsorUtxo")
+        .mockImplementation(async () => {
+          order.push("reserve");
+          return {
+            key: "sponsor-txid:0",
+            utxo: { txid: "sponsor-txid", vout: 0, value: "10000" },
+          };
+        });
+      jest.spyOn(service, "signPreparedUtxo").mockResolvedValue(signed);
+      jest
+        .spyOn(service, "beginUtxoSponsorBroadcast")
+        .mockResolvedValue(placeholder);
+      jest
+        .spyOn(service, "markSponsorUtxoBroadcasting")
+        .mockResolvedValue(undefined);
+      jest
+        .spyOn(service, "broadcastPreparedUtxo")
+        .mockResolvedValue(undefined);
+      jest.spyOn(service, "markSponsorUtxoSpent").mockResolvedValue(undefined);
+      jest
+        .spyOn(service, "commitUtxoSponsorTransaction")
+        .mockResolvedValue(placeholder);
+
+      await expect(
+        service.submitSponsoredUtxoBurn(transfer, {
+          psbt: "signed",
+          assets: "[]",
+        })
+      ).resolves.toEqual({
+        sponsored: true,
+        status: "pending",
+        txid: "burn-txid",
+      });
+
+      expect(order).toEqual(["validate", "reserve"]);
+      expect(reserve).toHaveBeenCalledWith(
+        "sys1sponsor",
+        transfer.id,
+        1,
+        "sponsor-txid:0"
+      );
+    });
+
     it("stores a signed mint before making its sponsor lease permanent", async () => {
       const service = new SponsorWalletService() as any;
       const placeholder = {

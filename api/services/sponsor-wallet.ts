@@ -430,7 +430,7 @@ export class SponsorWalletService {
       }
       throw error;
     } finally {
-      if (reservation && !preparedStored) {
+      if (reservation) {
         await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
       }
     }
@@ -440,7 +440,7 @@ export class SponsorWalletService {
     transfer: ITransfer,
     signedTransaction: UTXOTransaction
   ): Promise<SponsoredUtxoResult> {
-    const { sponsorWif } = this.getUtxoSponsorConfig();
+    const { sponsorAddress, sponsorWif } = this.getUtxoSponsorConfig();
     const placeholder = await SponsorWalletTransactions.findOne({
       transferId: transfer.id,
       action: UTXO_BURN_ACTION,
@@ -478,29 +478,49 @@ export class SponsorWalletService {
       placeholder.utxoReservationKey
     );
 
-    const sponsorSigned = await this.signPreparedUtxo(canonical, sponsorWif);
-    const broadcasting = await this.beginUtxoSponsorBroadcast(
-      placeholder,
-      sponsorSigned,
-      placeholder.utxoReservationKey
-    );
-    await this.markSponsorUtxoBroadcasting(
-      placeholder.utxoReservationKey,
-      transfer.id
-    );
-    await this.broadcastPreparedUtxo(
-      sponsorSigned.rawTransaction,
-      sponsorSigned.txid
-    );
-    await this.markSponsorUtxoSpent(
-      placeholder.utxoReservationKey,
-      transfer.id
-    );
-    await this.commitUtxoSponsorTransaction(
-      broadcasting,
-      sponsorSigned.txid
-    );
-    return { sponsored: true, status: "pending", txid: sponsorSigned.txid };
+    let reservation: { key: string; utxo: SponsorUtxo } | undefined;
+    let broadcastStarted = false;
+    try {
+      reservation = await this.reserveSponsorUtxo(
+        sponsorAddress,
+        transfer.id,
+        1,
+        placeholder.utxoReservationKey
+      );
+      const sponsorSigned = await this.signPreparedUtxo(canonical, sponsorWif);
+      const broadcasting = await this.beginUtxoSponsorBroadcast(
+        placeholder,
+        sponsorSigned,
+        placeholder.utxoReservationKey
+      );
+      broadcastStarted = true;
+      await this.markSponsorUtxoBroadcasting(
+        placeholder.utxoReservationKey,
+        transfer.id
+      );
+      await this.broadcastPreparedUtxo(
+        sponsorSigned.rawTransaction,
+        sponsorSigned.txid
+      );
+      await this.markSponsorUtxoSpent(
+        placeholder.utxoReservationKey,
+        transfer.id
+      );
+      await this.commitUtxoSponsorTransaction(
+        broadcasting,
+        sponsorSigned.txid
+      );
+      return { sponsored: true, status: "pending", txid: sponsorSigned.txid };
+    } catch (error) {
+      if (!broadcastStarted) {
+        await this.failSponsorReservation(placeholder);
+      }
+      throw error;
+    } finally {
+      if (reservation && !broadcastStarted) {
+        await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
+      }
+    }
   }
 
   private getUtxoSponsorConfig() {
@@ -1513,7 +1533,8 @@ export class SponsorWalletService {
   private async reserveSponsorUtxo(
     sponsorAddress: string,
     transferId: string,
-    minValueSats: number
+    minValueSats: number,
+    requiredKey?: string
   ): Promise<{ key: string; utxo: SponsorUtxo }> {
     const utxos = await this.getSponsorUtxos(sponsorAddress);
     const expiresAt = new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS);
@@ -1528,6 +1549,9 @@ export class SponsorWalletService {
         continue;
       }
       const key = `${txid}:${utxo.vout}`;
+      if (requiredKey && key !== requiredKey) {
+        continue;
+      }
       try {
         await SponsorUtxoReservation.create({
           key,
