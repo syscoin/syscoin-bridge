@@ -1162,6 +1162,28 @@ describe("SponsorWalletService", () => {
       });
     });
 
+    it("keeps a spent reservation durable for delayed recovery", async () => {
+      SponsorUtxoReservationMock.updateOne.mockResolvedValue({
+        matchedCount: 1,
+        modifiedCount: 1,
+      });
+
+      const service = new SponsorWalletService() as any;
+      await service.markSponsorUtxoSpent("sponsor-txid:0", transfer.id);
+
+      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenCalledWith(
+        {
+          key: "sponsor-txid:0",
+          transferId: transfer.id,
+          status: { $in: ["broadcasting", "spent"] },
+        },
+        {
+          $set: { status: "spent" },
+          $unset: { expiresAt: "" },
+        }
+      );
+    });
+
     it("rejects a changed unsigned transaction before adding sponsor signatures", () => {
       const service = new SponsorWalletService() as any;
       const input = {

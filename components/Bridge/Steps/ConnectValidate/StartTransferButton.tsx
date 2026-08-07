@@ -113,7 +113,8 @@ export const ConnectValidateStartTransferButton: React.FC<{
       {willSponsorUtxoFees && (
         <Box sx={{ display: "flex", mb: 2 }}>
           <Typography variant="body1">
-            UTXO: Bridge will sponsor the destination-side transaction fees.
+            UTXO: Bridge will attempt to sponsor the destination-side fees. If
+            sponsorship is unavailable, you will need SYS to continue.
           </Typography>
         </Box>
       )}

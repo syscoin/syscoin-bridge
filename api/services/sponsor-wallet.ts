@@ -1553,10 +1553,8 @@ export class SponsorWalletService {
     const result = await SponsorUtxoReservation.updateOne(
       { key, transferId, status: { $in: ["broadcasting", "spent"] } },
       {
-        $set: {
-          status: "spent",
-          expiresAt: new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS),
-        },
+        $set: { status: "spent" },
+        $unset: { expiresAt: "" },
       }
     );
     if ((result.matchedCount ?? result.modifiedCount) !== 1) {
