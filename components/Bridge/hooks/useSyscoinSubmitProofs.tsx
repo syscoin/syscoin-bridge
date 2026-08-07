@@ -4,8 +4,8 @@ import { buildApiUrl } from "utils/api-base-url";
 import {
   ProofBlockPendingError,
   PROOF_BLOCK_PENDING_CODE,
-  proofSubmissionRetryDelay,
-  shouldRetryPendingProof,
+  isProofBlockPendingError,
+  retryPendingProof,
 } from "utils/proof-submission";
 
 const useSyscoinSubmitProofs = (
@@ -17,18 +17,20 @@ const useSyscoinSubmitProofs = (
     async () => {
       const sponsorWalletTransaction: {
         transaction: { hash: string };
-      } = await fetch(
-        buildApiUrl(`/api/transfer/${transfer.id}/signed-submit-proofs-tx`)
-      ).then(async (res) => {
-        if (res.ok) {
-          return res.json();
-        }
-        const error = await res.json();
-        if (error.code === PROOF_BLOCK_PENDING_CODE) {
-          throw new ProofBlockPendingError(error.message, error.retryAfterMs);
-        }
-        throw new Error(error.message ?? "Proof submission failed");
-      });
+      } = await retryPendingProof(() =>
+        fetch(
+          buildApiUrl(`/api/transfer/${transfer.id}/signed-submit-proofs-tx`)
+        ).then(async (res) => {
+          if (res.ok) {
+            return res.json();
+          }
+          const error = await res.json();
+          if (error.code === PROOF_BLOCK_PENDING_CODE) {
+            throw new ProofBlockPendingError(error.message, error.retryAfterMs);
+          }
+          throw new Error(error.message ?? "Proof submission failed");
+        })
+      );
 
       // The backend durably stores and broadcasts the signed transaction before
       // returning. The browser only observes the accepted transaction hash.
@@ -37,8 +39,7 @@ const useSyscoinSubmitProofs = (
     {
       onSuccess,
       retry: (failureCount, error) =>
-        shouldRetryPendingProof(failureCount, error) || failureCount < 3,
-      retryDelay: proofSubmissionRetryDelay,
+        !isProofBlockPendingError(error) && failureCount < 3,
     }
   );
 };

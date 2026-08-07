@@ -35,16 +35,24 @@ export const isProofBlockPendingError = (
     "code" in error &&
     error.code === PROOF_BLOCK_PENDING_CODE);
 
-export const shouldRetryPendingProof = (
-  failureCount: number,
-  error: unknown
-) =>
-  isProofBlockPendingError(error) && failureCount < MAX_PROOF_BLOCK_RETRIES;
+const wait = (delayMs: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 
-export const proofSubmissionRetryDelay = (
-  failureCount: number,
-  error: unknown
-) =>
-  isProofBlockPendingError(error) && "retryAfterMs" in error
-    ? error.retryAfterMs
-    : Math.min(1_000 * 2 ** failureCount, 30_000);
+export const retryPendingProof = async <T>(
+  operation: () => Promise<T>,
+  waitForRetry = wait
+): Promise<T> => {
+  for (let failureCount = 0; ; failureCount += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (
+        !isProofBlockPendingError(error) ||
+        failureCount >= MAX_PROOF_BLOCK_RETRIES
+      ) {
+        throw error;
+      }
+      await waitForRetry(error.retryAfterMs);
+    }
+  }
+};

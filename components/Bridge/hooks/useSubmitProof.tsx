@@ -8,8 +8,7 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { useRelayContract } from "./useRelayContract";
 import {
   assertProofBlockIsHistorical,
-  proofSubmissionRetryDelay,
-  shouldRetryPendingProof,
+  retryPendingProof,
 } from "utils/proof-submission";
 
 
@@ -25,12 +24,15 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
     }
-    if (nevmBlock.number === null) {
+    const proofBlockNumber = nevmBlock.number;
+    if (proofBlockNumber === null) {
       throw new Error("NEVM proof block has no block number");
     }
-    assertProofBlockIsHistorical(
-      nevmBlock.number,
-      await web3.eth.getBlockNumber()
+    await retryPendingProof(async () =>
+      assertProofBlockIsHistorical(
+        proofBlockNumber,
+        await web3.eth.getBlockNumber()
+      )
     );
     if (!proof.coinbase) {
       throw new Error("The generated SPV proof is missing coinbase data");
@@ -47,7 +49,7 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
     const syscoinBlockheader = `0x${proof.header}`;
 
     const method = relayContract.methods.relayTx(
-      nevmBlock.number,
+      proofBlockNumber,
       txBytes,
       txIndex,
       merkleProof.sibling,
@@ -95,8 +97,5 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
           }
         });
     });
-  }, {
-    retry: shouldRetryPendingProof,
-    retryDelay: proofSubmissionRetryDelay,
   });
 };
