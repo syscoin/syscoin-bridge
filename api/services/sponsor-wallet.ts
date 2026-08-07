@@ -734,21 +734,37 @@ export class SponsorWalletService {
       );
     }
 
-    const userInputs = result.psbt.data.inputs.filter(
-      (_input: unknown, index: number) => selectedInputs[index] !== sponsorKey
+    this.assertSponsorDoesNotReceiveUserNative(
+      result.psbt,
+      sponsorAddress,
+      sponsorUtxo
     );
-    const userNativeSats = userInputs.reduce(
-      (total: bigint, input: any) =>
-        total + BigInt(input.witnessUtxo?.value ?? 0),
+
+    return { psbt: result.psbt, assets: result.assets };
+  }
+
+  private assertSponsorDoesNotReceiveUserNative(
+    psbt: any,
+    sponsorAddress: string,
+    sponsorUtxo: SponsorUtxo
+  ) {
+    const sponsorScript = syscoinUtils.bitcoinjs.address.toOutputScript(
+      sponsorAddress,
+      getUtxoNetwork()
+    );
+    const sponsorScriptHex = Buffer.from(sponsorScript).toString("hex");
+    const sponsorOutputSats = psbt.txOutputs.reduce(
+      (total: bigint, output: any) =>
+        Buffer.from(output.script).toString("hex") === sponsorScriptHex
+          ? total + BigInt(output.value)
+          : total,
       BigInt(0)
     );
-    if (userNativeSats > BigInt(userInputs.length * 1_000)) {
+    if (sponsorOutputSats > BigInt(sponsorUtxo.value)) {
       throw new SponsorUnavailableError(
         "SYSX inputs contain native SYS and must use the user-funded path"
       );
     }
-
-    return { psbt: result.psbt, assets: result.assets };
   }
 
   private async getUserSysxUtxos(xpub: string): Promise<SponsorUtxo[]> {

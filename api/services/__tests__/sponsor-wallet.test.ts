@@ -72,6 +72,11 @@ jest.mock("syscoinjs-lib", () => ({
       mainnet: {},
       testnet: {},
     },
+    bitcoinjs: {
+      address: {
+        toOutputScript: jest.fn(() => Buffer.from("51", "hex")),
+      },
+    },
     fetchBackendRawTx: jest.fn(),
     exportPsbtToJson: jest.fn(),
     importPsbtFromJson: jest.fn(),
@@ -1388,6 +1393,42 @@ describe("SponsorWalletService", () => {
       expect(() =>
         service.mergeUserSignatures(canonical, changed, "sponsor:0")
       ).toThrow("does not match sponsor preparation");
+    });
+
+    it("rejects native user value that would increase sponsor change", () => {
+      const service = new SponsorWalletService() as any;
+      const psbt = {
+        txOutputs: [
+          { script: Buffer.from("51", "hex"), value: BigInt(10_001) },
+          { script: Buffer.from("52", "hex"), value: BigInt(1) },
+        ],
+      };
+
+      expect(() =>
+        service.assertSponsorDoesNotReceiveUserNative(
+          psbt,
+          "sys1sponsor",
+          { value: "10000" }
+        )
+      ).toThrow("must use the user-funded path");
+    });
+
+    it("allows sponsor change no greater than the sponsor input", () => {
+      const service = new SponsorWalletService() as any;
+      const psbt = {
+        txOutputs: [
+          { script: Buffer.from("51", "hex"), value: BigInt(9_999) },
+          { script: Buffer.from("52", "hex"), value: BigInt(1) },
+        ],
+      };
+
+      expect(() =>
+        service.assertSponsorDoesNotReceiveUserNative(
+          psbt,
+          "sys1sponsor",
+          { value: "10000" }
+        )
+      ).not.toThrow();
     });
 
     it("marks observed sponsored UTXO transactions successful", async () => {
