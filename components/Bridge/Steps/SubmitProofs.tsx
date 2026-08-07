@@ -46,20 +46,23 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
     });
   };
 
-  const foundation = useSyscoinSubmitProofs(transfer);
+  const foundation = useSyscoinSubmitProofs(transfer, onSuccess);
   const self = useSubmitProof(transfer, spvProof);
 
   const foundationFundingAvailable = isEnabled("foundationFundingAvailable");
 
   const {
-    mutate: submitProofs,
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
   } = foundationFundingAvailable ? foundation : self;
 
   const sign = () => {
-    submitProofs(undefined, { onSuccess });
+    if (foundationFundingAvailable) {
+      foundation.mutate();
+      return;
+    }
+    self.mutate(undefined, { onSuccess });
   };
 
   if (!spvProof || !isSpvProof(spvProof)) {

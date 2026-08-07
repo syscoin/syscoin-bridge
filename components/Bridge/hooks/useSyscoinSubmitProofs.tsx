@@ -8,7 +8,10 @@ import {
   shouldRetryPendingProof,
 } from "utils/proof-submission";
 
-const useSyscoinSubmitProofs = (transfer: ITransfer) => {
+const useSyscoinSubmitProofs = (
+  transfer: ITransfer,
+  onSuccess: (hash: string) => void
+) => {
   return useMutation(
     ["syscoin-submit-proofs", transfer.id],
     async () => {
@@ -32,6 +35,7 @@ const useSyscoinSubmitProofs = (transfer: ITransfer) => {
       return sponsorWalletTransaction.transaction.hash;
     },
     {
+      onSuccess,
       retry: (failureCount, error) =>
         shouldRetryPendingProof(failureCount, error) || failureCount < 3,
       retryDelay: proofSubmissionRetryDelay,
