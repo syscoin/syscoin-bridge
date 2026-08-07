@@ -63,14 +63,9 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
     supportsPartialUtxoSigning &&
     (transfer.type === "nevm-to-sys" || transfer.utxoAssetType === "sysx");
   const faucetLink =
-    balance.isFetched && gasBalance < minAmount && utxoSponsorshipAvailable ? (
-      <Alert severity="info">
-        <Typography variant="body2">
-          The bridge will attempt to sponsor the destination-side UTXO fees. If
-          sponsorship is unavailable, you will need SYS to continue.
-        </Typography>
-      </Alert>
-    ) : balance.isFetched && gasBalance < minAmount ? (
+    balance.isFetched &&
+    gasBalance < minAmount &&
+    !utxoSponsorshipAvailable ? (
       <Alert severity="warning">
         <Typography variant="body2">
           Please send at least {minAmount} SYS into your Pali wallet to continue

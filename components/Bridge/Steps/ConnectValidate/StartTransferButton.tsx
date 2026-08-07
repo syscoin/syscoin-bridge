@@ -96,7 +96,6 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
   const isReady =
     isUtxoValid && isNevmValid && isAmountValid && balanceFetched && isValid;
-  const willSponsorUtxoFees = utxoSponsorshipAvailable;
   return (
     <>
       {isReady && (
@@ -109,14 +108,6 @@ export const ConnectValidateStartTransferButton: React.FC<{
       )}
       {isUtxoNotEnoughGas && (
         <ErrorMessage message="UTXO: Not enough funds for gas" />
-      )}
-      {willSponsorUtxoFees && (
-        <Box sx={{ display: "flex", mb: 2 }}>
-          <Typography variant="body1">
-            UTXO: Bridge will attempt to sponsor the destination-side fees. If
-            sponsorship is unavailable, you will need SYS to continue.
-          </Typography>
-        </Box>
       )}
       {isSysxNotEnoughBalance && (
         <ErrorMessage message="UTXO: Not enough SYSX" />
