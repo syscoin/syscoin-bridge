@@ -39,6 +39,7 @@ export interface Account {
   address: string;
   id: number;
   isTrezorWallet: boolean;
+  isLedgerWallet?: boolean;
   label: string;
   transactions: PaliWallet.Transaction[];
   assets: Assets;
@@ -303,6 +304,19 @@ export const PaliWalletV2Provider: React.FC<{
     [isBridgeTestnet]
   );
 
+  const signTransaction = useCallback(async (utxo: UTXOTransaction) => {
+    const response = await window.pali.request({
+      method: "sys_sign",
+      params: [utxo],
+    });
+
+    if (response.success === false || !response.psbt) {
+      return Promise.reject("unable to sign transaction");
+    }
+
+    return response as UTXOTransaction;
+  }, []);
+
   const switchTo = useCallback(
     async (networkType: PaliWalletNetworkType) => {
       if (!isInstalled) {
@@ -554,6 +568,12 @@ export const PaliWalletV2Provider: React.FC<{
     () => ({
       isInstalled,
       sendTransaction,
+      signTransaction,
+      supportsPartialUtxoSigning: Boolean(
+        finalAccount &&
+          !finalAccount.isTrezorWallet &&
+          !finalAccount.isLedgerWallet
+      ),
       connectWallet,
       isTestnet: isBridgeTestnet,
       balance,
@@ -574,6 +594,8 @@ export const PaliWalletV2Provider: React.FC<{
     [
       isInstalled,
       sendTransaction,
+      signTransaction,
+      finalAccount,
       connectWallet,
       providerState.data,
       balance,

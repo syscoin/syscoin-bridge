@@ -65,14 +65,20 @@ declare module "syscoinjs-lib" {
       sysChangeAddress,
       feeRate,
       sysFromXpubOrAddress,
-      utxos = undefined,
-      redeemOrWitnessScript = undefined
+      utxos?,
+      redeemOrWitnessScript?
     ): Promise<{ psbt; assets }>;
   }
   declare module utils {
     export const BN: any;
+    export const bitcoinjs: any;
     export function exportPsbtToJson(psbt: Psbt, assets): UTXOTransaction;
     export function importPsbtFromJson(jsonData, network): UTXOTransaction;
+    export function signWithWIF(psbt, wif: string, network): Promise<any>;
+    export function sendRawTransaction(
+      backendUrl: string,
+      rawTransaction: string
+    ): Promise<{ result?: string; error?: unknown }>;
     export interface BlockbookTransactionBTC {
       txid: string;
       version: number;

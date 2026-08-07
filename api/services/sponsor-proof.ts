@@ -23,7 +23,7 @@ const parseProof = (value: unknown): SPVProof => {
   return proof as SPVProof;
 };
 
-export const getCanonicalChainLockedProof = async (
+export const getCanonicalProof = async (
   submittedProof: SPVProof
 ): Promise<{ proof: SPVProof; sourceTxHash: string }> => {
   const sourceTxHash = syscoinTxIdFromWitnessStrippedHex(
@@ -40,9 +40,6 @@ export const getCanonicalChainLockedProof = async (
 
   if (canonicalSourceTxHash !== sourceTxHash) {
     throw new Error("Canonical SPV proof does not match the source transaction");
-  }
-  if (proof.chainlock !== true) {
-    throw new Error("Source transaction is not ChainLocked");
   }
 
   return { proof, sourceTxHash };

@@ -40,6 +40,10 @@ export interface IPaliWalletContext {
   sendTransaction: (
     transaction: UTXOTransaction
   ) => Promise<{ tx: string; error?: any }>;
+  signTransaction: (
+    transaction: UTXOTransaction
+  ) => Promise<UTXOTransaction>;
+  supportsPartialUtxoSigning: boolean;
   isTestnet: boolean;
   version: "v1" | "v2";
 }
@@ -69,6 +73,14 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
     return (
       walletState.accounts.find((account) => account.xpub === xpubAddress)
         ?.balance ?? 0
+    );
+  }, [walletState, xpubAddress]);
+  const supportsPartialUtxoSigning = useMemo(() => {
+    const account = walletState?.accounts.find(
+      (candidate) => candidate.xpub === xpubAddress
+    );
+    return Boolean(
+      account && !account.isTrezorWallet && !account.isLedgerWallet
     );
   }, [walletState, xpubAddress]);
 
@@ -119,6 +131,18 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
       tx: unserializedResp.psbt.extractTransaction().getId(),
       error: null,
     };
+  };
+
+  const signTransaction = async (transaction: UTXOTransaction) => {
+    const windowController = loadWindowController();
+    if (!windowController) {
+      return Promise.reject("No controller");
+    }
+
+    return windowController.signPSBT(transaction).catch((error) => {
+      captureException(error);
+      return Promise.reject(error);
+    });
   };
 
   const loadWindowController = useCallback(() => {
@@ -201,6 +225,8 @@ const PaliWalletContextProvider: React.FC<{ children: React.ReactNode }> = ({
         connectWallet,
         xpubAddress,
         sendTransaction,
+      signTransaction,
+        supportsPartialUtxoSigning,
         balance,
         isTestnet: walletState?.activeNetwork !== "main",
         version: "v1",

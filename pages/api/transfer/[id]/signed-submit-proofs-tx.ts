@@ -4,7 +4,7 @@ import SponsorWalletService, {
   SponsorNonceRecoveryError,
   SponsorshipInProgressError,
 } from "api/services/sponsor-wallet";
-import { getCanonicalChainLockedProof } from "api/services/sponsor-proof";
+import { getCanonicalProof } from "api/services/sponsor-proof";
 import { TransferService } from "api/services/transfer";
 import { getProof } from "bitcoin-proof";
 import dbConnect from "lib/mongodb";
@@ -49,8 +49,7 @@ const handler: NextApiHandler = async (
       throw new Error("Proofs not generated");
     }
     const submittedProof = generatedProofLog.payload.data as SPVProof;
-    const { proof, sourceTxHash } =
-      await getCanonicalChainLockedProof(submittedProof);
+    const { proof, sourceTxHash } = await getCanonicalProof(submittedProof);
     const nevmBlock = await web3.eth.getBlock(`0x${proof.nevm_blockhash}`);
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);

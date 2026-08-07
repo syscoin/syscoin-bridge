@@ -4,14 +4,27 @@ import { utils } from "syscoinjs-lib";
 import { useSyscoin } from "../context/Syscoin";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useConstants } from "@contexts/useConstants";
+import { useFeatureFlags } from "./useFeatureFlags";
+import { requestSponsoredUtxo } from "./sponsored-utxo";
 
 export const useMintSysx = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
   const { constants } = useConstants();
+  const { isEnabled } = useFeatureFlags();
   const { sendTransaction } = usePaliWalletV2();
   return useMutation(
     ["mintSysx", transfer.id],
     async (transactionHash: string) => {
+      if (isEnabled("foundationFundingAvailable")) {
+        const sponsored = await requestSponsoredUtxo(transfer.id, "mint");
+        if (sponsored.sponsored) {
+          if (!sponsored.txid) {
+            throw new Error("Sponsored mint is already in progress");
+          }
+          return sponsored.txid;
+        }
+      }
+
       const feeRate = new utils.BN(10);
       const txOpts = { rbf: true };
       const assetOpts = {

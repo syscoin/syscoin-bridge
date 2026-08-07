@@ -43,7 +43,6 @@ jest.mock("models/sponsor-wallet-transactions", () => {
     SponsorWalletTransactionCollectionName: "sponsorwallettransactions",
   };
 });
-
 jest.mock("models/sponsor-utxo-reservation", () => {
   const Model: any = jest.fn();
   Model.create = jest.fn();
@@ -73,6 +72,10 @@ jest.mock("syscoinjs-lib", () => ({
       testnet: {},
     },
     fetchBackendRawTx: jest.fn(),
+    exportPsbtToJson: jest.fn(),
+    importPsbtFromJson: jest.fn(),
+    signWithWIF: jest.fn(),
+    sendRawTransaction: jest.fn(),
   },
 }));
 
@@ -993,665 +996,79 @@ describe("SponsorWalletService", () => {
     });
   });
 
-  describe("sponsorUtxoClaimGas", () => {
-    it("rejects claim gas for a pre-activation source block", async () => {
-      process.env.NEVM_V2_ACTIVATION_BLOCK = "100";
-      const service = new SponsorWalletService();
 
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 99)
-      ).rejects.toThrow("before the V2 activation block");
-      expect(SponsorWalletTransactionsMock.findOne).not.toHaveBeenCalled();
+
+  describe("sponsored UTXO transactions", () => {
+    beforeEach(() => {
+      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
+      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
     });
 
-    it("returns the existing claim gas transaction when one was already created", async () => {
+    it("returns an existing sponsored mint without reserving another UTXO", async () => {
       SponsorWalletTransactionsMock.findOne.mockResolvedValue({
         status: "pending",
-        transaction: { hash: "utxo-txid" },
+        transaction: { hash: "mint-txid" },
       });
 
       const service = new SponsorWalletService();
-
       await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
+        service.sponsorUtxoMint(transfer, "0xfreeze")
       ).resolves.toEqual({
-        funded: true,
+        sponsored: true,
         status: "pending",
-        txid: "utxo-txid",
-      });
-    });
-
-    it("looks up existing claim gas transactions by source burn transaction", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
-        status: "pending",
-        transaction: { hash: "utxo-txid" },
-      });
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.getUtxoClaimGasSponsorStatus("transfer-2", "0xburn")
-      ).resolves.toMatchObject({
-        funded: true,
-        txid: "utxo-txid",
-      });
-      expect(SponsorWalletTransactionsMock.findOne).toHaveBeenCalledWith({
-        action: "utxo-claim-gas",
-        $or: [{ transferId: "transfer-2" }, { sourceTxHash: "0xburn" }],
-      });
-    });
-
-    it("skips funding when the destination already has enough claim gas", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      (global.fetch as jest.Mock<any>).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve([{ value: "100000" }]),
-      });
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
-      ).resolves.toEqual({
-        funded: false,
-        status: "skipped",
-        amountSats: 0,
-        balanceSats: 100_000,
-        reason: "Destination UTXO address already has claim gas",
-      });
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/utxo/sys1destination")
-      );
-      expect(global.fetch).not.toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/utxo/xpub")
-      );
-    });
-
-    it("skips funding when the wallet xpub has enough claim gas", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      (global.fetch as jest.Mock<any>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([{ value: "100000" }]),
-        });
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
-      ).resolves.toEqual({
-        funded: false,
-        status: "skipped",
-        amountSats: 0,
-        balanceSats: 100_000,
-        reason: "Connected UTXO wallet already has claim gas",
-      });
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/utxo/sys1destination")
-      );
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/api/v2/utxo/xpub")
-      );
-    });
-
-    it("does not count SYS locked in asset-bearing UTXOs as claim gas", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      (global.fetch as jest.Mock<any>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              {
-                value: "2989998650",
-                assetInfo: {
-                  assetGuid: "123456",
-                  value: "10000000",
-                },
-              },
-            ]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              {
-                value: "2989998650",
-                assetInfo: {
-                  assetGuid: "123456",
-                  value: "10000000",
-                },
-              },
-            ]),
-        });
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.getUtxoClaimGasFundingStatus(transfer)
-      ).resolves.toBeUndefined();
-      expect(global.fetch).toHaveBeenCalledTimes(2);
-    });
-
-    it("sums only pure SYS outputs when checking claim gas", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      (global.fetch as jest.Mock<any>).mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve([
-            {
-              value: "2989998650",
-              assetInfo: {
-                assetGuid: "123456",
-                value: "10000000",
-              },
-            },
-            { value: "40000" },
-            { value: "60000" },
-          ]),
-      });
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.getUtxoClaimGasFundingStatus(transfer)
-      ).resolves.toMatchObject({
-        funded: false,
-        status: "skipped",
-        balanceSats: 100_000,
-      });
-      expect(global.fetch).toHaveBeenCalledTimes(1);
-    });
-
-    it("reserves a specific sponsor UTXO for claim gas funding", async () => {
-      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
-      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      SponsorUtxoReservationMock.create.mockResolvedValue({});
-      SponsorUtxoReservationMock.updateOne.mockResolvedValue({
-        modifiedCount: 1,
-      });
-      SponsorUtxoReservationMock.deleteOne.mockResolvedValue({
-        deletedCount: 0,
-      });
-      SponsorWalletTransactionsMock.findOneAndUpdate
-        .mockResolvedValueOnce({
-          _id: "placeholder-id",
-          reservationOwner: "utxo-owner",
-          status: "pending",
-          transaction: {},
-        })
-        .mockResolvedValueOnce({
-          _id: "placeholder-id",
-          status: "pending",
-          transaction: {
-            hash: "utxo-txid",
-            rawData: "utxo-txid",
-            nonce: 0,
-            confirmedHash: "",
-          },
-        });
-      (global.fetch as jest.Mock<any>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              { txid: "dust-utxo", vout: 2, value: "500" },
-              {
-                txid: "asset-utxo",
-                vout: 3,
-                value: "500000",
-                assetInfo: { assetGuid: "123456", value: "10000000" },
-              },
-              { txid: "large-utxo", vout: 0, value: "2000000" },
-              { txid: "small-utxo", vout: 1, value: "1000000" },
-            ]),
-        });
-
-      const extractTransaction = jest.fn(() => ({ getId: () => "utxo-txid" }));
-      const createTransaction = jest.fn(() =>
-        Promise.resolve({ psbt: "unsigned-psbt" })
-      );
-      const signAndSendWithWIF = jest.fn(() =>
-        Promise.resolve({
-          extractTransaction,
-        })
-      );
-      SyscoinMock.mockImplementation(() => ({
-        createTransaction,
-        signAndSendWithWIF,
-      }));
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
-      ).resolves.toMatchObject(
-        {
-          funded: true,
-          status: "pending",
-          txid: "utxo-txid",
-        }
-      );
-      expect(SponsorUtxoReservationMock.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          key: "small-utxo:1",
-          transferId: "transfer-1",
-          txid: "small-utxo",
-          vout: 1,
-          status: "reserved",
-        })
-      );
-      expect(createTransaction).toHaveBeenCalledTimes(1);
-      expect(createTransaction).toHaveBeenCalledWith(
-        expect.anything(),
-        "sys1sponsor",
-        expect.any(Array),
-        expect.anything(),
-        "sys1sponsor",
-        [{ txid: "small-utxo", vout: 1, value: "1000000" }]
-      );
-      expect(signAndSendWithWIF).toHaveBeenCalledWith(
-        "unsigned-psbt",
-        "sponsor-wif"
-      );
-      expect(createTransaction.mock.invocationCallOrder[0]).toBeLessThan(
-        SponsorWalletTransactionsMock.findOneAndUpdate.mock
-          .invocationCallOrder[0]
-      );
-      expect(
-        SponsorWalletTransactionsMock.findOneAndUpdate.mock
-          .invocationCallOrder[0]
-      ).toBeLessThan(signAndSendWithWIF.mock.invocationCallOrder[0]);
-      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenNthCalledWith(
-        1,
-        { key: "small-utxo:1", status: "reserved" },
-        {
-          $set: { status: "broadcasting" },
-          $unset: { expiresAt: "" },
-        }
-      );
-      expect(
-        SponsorWalletTransactionsMock.findOneAndUpdate
-      ).toHaveBeenNthCalledWith(
-        1,
-        expect.objectContaining({
-          _id: "placeholder-id",
-          status: "pending",
-          reservationOwner: expect.any(String),
-          reservationExpiresAt: { $gt: expect.any(Date) },
-          "transaction.hash": { $exists: false },
-        }),
-        expect.objectContaining({
-          $set: {
-            reservationExpiresAt: expect.any(Date),
-            reservationPhase: "broadcasting",
-          },
-        }),
-        { new: true }
-      );
-      expect(
-        SponsorWalletTransactionsMock.findOneAndUpdate
-      ).toHaveBeenNthCalledWith(
-        2,
-        expect.objectContaining({
-          _id: "placeholder-id",
-          status: "pending",
-          reservationOwner: "utxo-owner",
-          "transaction.hash": { $exists: false },
-        }),
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            status: "pending",
-            transaction: expect.objectContaining({ hash: "utxo-txid" }),
-          }),
-          $unset: {
-            reservationOwner: "",
-            reservationExpiresAt: "",
-            reservationPhase: "",
-          },
-        }),
-        { new: true }
-      );
-      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenNthCalledWith(
-        2,
-        { key: "small-utxo:1", status: "broadcasting" },
-        {
-          $set: {
-            status: "spent",
-            expiresAt: expect.any(Date),
-          },
-        }
-      );
-      expect(SponsorUtxoReservationMock.deleteOne).not.toHaveBeenCalled();
-    });
-
-    it("releases the reservation when UTXO construction fails before broadcast", async () => {
-      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
-      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      SponsorUtxoReservationMock.create.mockResolvedValue({});
-      SponsorUtxoReservationMock.deleteOne.mockResolvedValue({
-        deletedCount: 1,
-      });
-      (global.fetch as jest.Mock<any>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              { txid: "construction-utxo", vout: 0, value: "1000000" },
-            ]),
-        });
-      const constructionError = new Error("Unable to build PSBT");
-      const createTransaction = jest.fn(() =>
-        Promise.reject(constructionError)
-      );
-      const signAndSendWithWIF = jest.fn();
-      SyscoinMock.mockImplementation(() => ({
-        createTransaction,
-        signAndSendWithWIF,
-      }));
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
-      ).rejects.toThrow(
-        "Unable to build PSBT"
-      );
-
-      expect(signAndSendWithWIF).not.toHaveBeenCalled();
-      expect(
-        SponsorWalletTransactionsMock.findOneAndUpdate
-      ).not.toHaveBeenCalled();
-      expect(SponsorWalletTransactionsMock.updateOne).toHaveBeenCalledWith(
-        expect.objectContaining({
-          _id: "placeholder-id",
-          reservationOwner: expect.any(String),
-          "transaction.hash": { $exists: false },
-        }),
-        {
-          $set: { status: "failed" },
-          $unset: {
-            reservationOwner: "",
-            reservationExpiresAt: "",
-            reservationPhase: "",
-          },
-        }
-      );
-      expect(SponsorUtxoReservationMock.deleteOne).toHaveBeenCalledWith({
-        key: "construction-utxo:0",
-        status: "reserved",
-      });
-    });
-
-    it("retains the specific UTXO when broadcast outcome is unknown", async () => {
-      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
-      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(null);
-      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValueOnce({
-        _id: "placeholder-id",
-        reservationOwner: "utxo-owner",
-        reservationPhase: "broadcasting",
-        status: "pending",
-        transaction: {},
-      });
-      SponsorUtxoReservationMock.create.mockResolvedValue({});
-      SponsorUtxoReservationMock.updateOne.mockResolvedValue({
-        modifiedCount: 1,
-      });
-      (global.fetch as jest.Mock<any>)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve([]),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve([
-              { txid: "ambiguous-utxo", vout: 0, value: "1000000" },
-            ]),
-        });
-      const createTransaction = jest.fn(() =>
-        Promise.resolve({ psbt: "unsigned-psbt" })
-      );
-      const signAndSendWithWIF = jest.fn(() =>
-        Promise.reject(new Error("Broadcast response lost"))
-      );
-      SyscoinMock.mockImplementation(() => ({
-        createTransaction,
-        signAndSendWithWIF,
-      }));
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
-      ).rejects.toThrow(
-        "Broadcast response lost"
-      );
-
-      expect(SponsorUtxoReservationMock.updateOne).toHaveBeenCalledWith(
-        { key: "ambiguous-utxo:0", status: "reserved" },
-        {
-          $set: { status: "broadcasting" },
-          $unset: { expiresAt: "" },
-        }
-      );
-      expect(SponsorUtxoReservationMock.deleteOne).not.toHaveBeenCalled();
-      expect(SponsorWalletTransactionsMock.updateOne).not.toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          $set: expect.objectContaining({ status: "failed" }),
-        })
-      );
-    });
-
-    it("returns in-progress when a duplicate placeholder wins the race", async () => {
-      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
-      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
-      SponsorWalletTransactionsMock.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          status: "pending",
-          transaction: {},
-        });
-      SponsorWalletTransactionsMock.mockImplementationOnce(function (
-        this: any,
-        data: any
-      ) {
-        Object.assign(this, data);
-        this.save = jest.fn<any>().mockRejectedValue({ code: 11000 });
-      });
-      (global.fetch as jest.Mock<any>).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve([]),
-      });
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.sponsorUtxoClaimGas(transfer, undefined, 1)
-      ).resolves.toEqual({
-        funded: true,
-        status: "pending",
-        reason: "UTXO claim gas sponsorship is already in progress",
+        txid: "mint-txid",
       });
       expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
     });
 
-    it("returns in-progress when a failed placeholder retry lock is already taken", async () => {
-      process.env.UTXO_SPONSOR_ADDRESS = "sys1sponsor";
-      process.env.UTXO_SPONSOR_WIF = "sponsor-wif";
-      SponsorWalletTransactionsMock.findOne
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({
-          status: "failed",
-          transaction: {},
-        });
-      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValue(null);
-      SponsorWalletTransactionsMock.mockImplementationOnce(function (
-        this: any,
-        data: any
-      ) {
-        Object.assign(this, data);
-        this.save = jest.fn<any>().mockRejectedValue({ code: 11000 });
-      });
-      (global.fetch as jest.Mock<any>).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve([]),
+    it("returns the same unsigned burn while its sponsor input is reserved", async () => {
+      const expires = new Date(Date.now() + 60_000);
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
+        status: "pending",
+        reservationOwner: "owner",
+        reservationExpiresAt: expires,
+        transaction: {
+          rawData: JSON.stringify({ psbt: "canonical", assets: "[]" }),
+        },
       });
 
       const service = new SponsorWalletService();
-
       await expect(
-        service.sponsorUtxoClaimGas(transfer, "0xburn", 1)
+        service.prepareSponsoredUtxoBurn(transfer)
       ).resolves.toEqual({
-        funded: true,
-        status: "pending",
-        reason: "UTXO claim gas sponsorship is already in progress",
+        sponsored: true,
+        status: "signature-required",
+        psbt: { psbt: "canonical", assets: "[]" },
       });
-      expect(SponsorWalletTransactionsMock.findOneAndUpdate).toHaveBeenCalledWith(
-        {
-          action: "utxo-claim-gas",
-          status: "failed",
-          "transaction.hash": { $exists: false },
-          $or: [{ transferId: "transfer-1" }, { sourceTxHash: "0xburn" }],
-        },
-        expect.objectContaining({
-          $set: expect.objectContaining({
-            status: "pending",
-            transaction: {},
-            reservationOwner: expect.any(String),
-            reservationExpiresAt: expect.any(Date),
-          }),
-        }),
-        { new: true }
-      );
       expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
     });
 
-    it("expires stale pending claim gas placeholders without a hash", async () => {
-      const stalePlaceholder = {
-        _id: "stale-utxo-placeholder",
-        status: "pending",
-        transaction: {},
-        updatedAt: new Date(Date.now() - 10 * 60_000),
+    it("rejects a changed unsigned transaction before adding sponsor signatures", () => {
+      const service = new SponsorWalletService() as any;
+      const input = {
+        hash: Buffer.alloc(32, 1),
+        index: 0,
+        sequence: 0xfffffffd,
       };
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(stalePlaceholder);
-      SponsorWalletTransactionsMock.findOneAndUpdate.mockResolvedValue({
-        ...stalePlaceholder,
-        status: "failed",
-      });
+      const canonical = {
+        version: 141,
+        locktime: 0,
+        txInputs: [input],
+        txOutputs: [{ script: Buffer.from("00", "hex"), value: BigInt(1) }],
+        data: { inputs: [{}] },
+        updateInput: jest.fn(),
+      };
+      const changed = {
+        ...canonical,
+        txOutputs: [{ script: Buffer.from("00", "hex"), value: BigInt(2) }],
+      };
 
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.getUtxoClaimGasSponsorStatus("transfer-1")
-      ).resolves.toBeUndefined();
-      expect(SponsorWalletTransactionsMock.findOneAndUpdate).toHaveBeenCalledWith(
-        {
-          _id: "stale-utxo-placeholder",
-          status: "pending",
-          "transaction.hash": { $exists: false },
-          $or: [
-            { reservationExpiresAt: { $lte: expect.any(Date) } },
-            {
-              reservationExpiresAt: { $exists: false },
-              updatedAt: { $lte: expect.any(Date) },
-            },
-          ],
-        },
-        {
-          $set: { status: "failed" },
-          $unset: {
-            reservationOwner: "",
-            reservationExpiresAt: "",
-          },
-        },
-        { new: true }
-      );
+      expect(() =>
+        service.mergeUserSignatures(canonical, changed, "sponsor:0")
+      ).toThrow("does not match sponsor preparation");
     });
 
-    it("does not retry an expired UTXO reservation with an unknown broadcast outcome", async () => {
-      const broadcastingPlaceholder = {
-        _id: "broadcasting-utxo-placeholder",
-        status: "pending",
-        reservationPhase: "broadcasting",
-        reservationExpiresAt: new Date(Date.now() - 10 * 60_000),
-        transaction: {},
-      };
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(
-        broadcastingPlaceholder
-      );
-
-      const service = new SponsorWalletService();
-
-      await expect(
-        service.getUtxoClaimGasSponsorStatus("transfer-1")
-      ).resolves.toEqual({
-        funded: true,
-        status: "pending",
-        reason:
-          "UTXO sponsorship broadcast outcome requires manual reconciliation",
-      });
-      expect(
-        SponsorWalletTransactionsMock.findOneAndUpdate
-      ).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("updateSponsorWalletTransactionStatus", () => {
-    it("looks up NEVM sponsor transactions by nested transaction hash", async () => {
-      const record = {
-        status: "pending",
-        transaction: { hash: "0xabc", confirmedHash: "" },
-        save: jest.fn<any>().mockResolvedValue(undefined),
-      };
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue(record);
-      mockWeb3.eth.getTransactionReceipt.mockResolvedValue({
-        blockNumber: 1,
-        status: true,
-        transactionHash: "0xabc",
-      });
-
-      const service = new SponsorWalletService();
-      await service.updateSponsorWalletTransactionStatus("0xabc");
-
-      expect(SponsorWalletTransactionsMock.findOne).toHaveBeenCalledWith({
-        "transaction.hash": "0xabc",
-      });
-      expect(record.status).toBe("success");
-      expect(record.transaction.confirmedHash).toBe("0xabc");
-      expect(record.save).toHaveBeenCalled();
-    });
-  });
-
-  describe("updateUtxoSponsorWalletTransactionStatus", () => {
-    it("marks observed UTXO claim gas transactions as successful", async () => {
+    it("marks observed sponsored UTXO transactions successful", async () => {
       const record = {
         status: "pending",
         transaction: { hash: "utxo-txid", confirmedHash: "" },
@@ -1665,11 +1082,10 @@ describe("SponsorWalletService", () => {
 
       expect(SponsorWalletTransactionsMock.findOne).toHaveBeenCalledWith({
         "transaction.hash": "utxo-txid",
-        action: "utxo-claim-gas",
+        action: { $in: ["mint-sysx", "burn-sysx"] },
       });
       expect(record.status).toBe("success");
       expect(record.transaction.confirmedHash).toBe("utxo-txid");
-      expect(record.save).toHaveBeenCalled();
     });
   });
 });

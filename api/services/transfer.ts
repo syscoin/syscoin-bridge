@@ -1,4 +1,8 @@
-import { COMMON_STATUS, ITransfer } from "@contexts/Transfer/types";
+import {
+  ETH_TO_SYS_TRANSFER_STATUS,
+  ITransfer,
+  SYS_TO_ETH_TRANSFER_STATUS,
+} from "@contexts/Transfer/types";
 import TransferModel from "models/transfer";
 import { createHash, timingSafeEqual } from "crypto";
 import { SponsorWalletService } from "./sponsor-wallet";
@@ -96,11 +100,14 @@ export class TransferService {
         );
       }
     }
-    const sponsorClaimGasLog = transfer.logs.find(
-      (log) => log.status === COMMON_STATUS.SPONSOR_CLAIM_GAS
+    const sponsoredUtxoLogs = transfer.logs.filter(
+      (log) =>
+        log.status === ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX ||
+        log.status === ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX ||
+        log.status === SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX
     );
-    if (sponsorClaimGasLog) {
-      const { tx } = sponsorClaimGasLog.payload.data;
+    for (const log of sponsoredUtxoLogs) {
+      const { tx } = log.payload.data;
       if (tx) {
         await this.sponsorWalletService.updateUtxoSponsorWalletTransactionStatus(
           tx

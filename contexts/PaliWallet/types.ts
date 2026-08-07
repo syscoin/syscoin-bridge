@@ -23,6 +23,7 @@ export namespace PaliWallet {
     assets: any[];
     id: number;
     isTrezorWallet: boolean;
+    isLedgerWallet?: boolean;
     label: string;
     transactions: Transaction[];
     xpub: string;

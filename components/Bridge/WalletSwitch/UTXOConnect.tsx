@@ -58,13 +58,14 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
     gasBalance = 0;
   }
 
-  const claimGasSponsorshipAvailable =
-    isEnabled("foundationFundingAvailable") && transfer.type === "nevm-to-sys";
+  const utxoSponsorshipAvailable =
+    isEnabled("foundationFundingAvailable") &&
+    (transfer.type === "nevm-to-sys" || transfer.utxoAssetType === "sysx");
   const faucetLink =
-    balance.isFetched && gasBalance < minAmount && claimGasSponsorshipAvailable ? (
+    balance.isFetched && gasBalance < minAmount && utxoSponsorshipAvailable ? (
       <Alert severity="info">
         <Typography variant="body2">
-          The bridge will fund the minimal SYS needed to claim this transfer.
+          The bridge will sponsor the destination-side UTXO transaction fees.
         </Typography>
       </Alert>
     ) : balance.isFetched && gasBalance < minAmount ? (
