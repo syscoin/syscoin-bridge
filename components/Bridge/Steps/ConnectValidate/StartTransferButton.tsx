@@ -12,6 +12,7 @@ import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import {
   getSyscoinChainId,
   resolveSyscoinIsTestnet,
@@ -31,6 +32,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
 }> = ({ isSaving, transfer }) => {
   const { constants } = useConstants();
   const { isExpectedChain } = useNEVM();
+  const { supportsPartialUtxoSigning } = usePaliWalletV2();
   const {
     watch,
     formState: { errors, isValid },
@@ -53,6 +55,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
     isEnabled("foundationFundingAvailable") && transfer.type === "sys-to-nevm";
   const utxoSponsorshipAvailable =
     isEnabled("foundationFundingAvailable") &&
+    supportsPartialUtxoSigning &&
     (transfer.type === "nevm-to-sys" || useSysx);
 
   const isNevmNotEnoughGas =
