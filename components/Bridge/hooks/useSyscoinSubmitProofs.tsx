@@ -19,7 +19,9 @@ const useSyscoinSubmitProofs = (
         transaction: { hash: string };
       } = await retryPendingProof(() =>
         fetch(
-          buildApiUrl(`/api/transfer/${transfer.id}/signed-submit-proofs-tx`)
+          buildApiUrl(
+            `/api/transfer/${encodeURIComponent(transfer.id)}/signed-submit-proofs-tx`
+          )
         ).then(async (res) => {
           if (res.ok) {
             return res.json();
