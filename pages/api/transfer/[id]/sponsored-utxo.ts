@@ -8,7 +8,10 @@ import {
   assertSponsoredMintEligible,
   assertSponsoredUtxoTransfer,
 } from "api/services/sponsor-utxo-eligibility";
-import { TransferService } from "api/services/transfer";
+import {
+  TransferService,
+  TransferWriteUnauthorizedError,
+} from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 import { NextApiHandler } from "next";
 import { UTXOTransaction } from "syscoinjs-lib";
@@ -43,7 +46,16 @@ const handler: NextApiHandler = async (req, res) => {
 
   try {
     await dbConnect();
-    const transfer = await transferService.getTransfer(id);
+    const authorization = req.headers.authorization;
+    const writeToken =
+      typeof authorization === "string" &&
+      authorization.startsWith("Bearer ")
+        ? authorization.slice("Bearer ".length)
+        : undefined;
+    const transfer = await transferService.getAuthorizedTransfer(
+      id,
+      writeToken
+    );
     const { action, transaction } = req.body as SponsoredUtxoRequest;
 
     if (action === "mint") {
@@ -86,6 +98,9 @@ const handler: NextApiHandler = async (req, res) => {
 
     return res.status(400).json({ message: "Invalid sponsorship action" });
   } catch (error) {
+    if (error instanceof TransferWriteUnauthorizedError) {
+      return res.status(401).json({ message: error.message });
+    }
     if (error instanceof SponsorUnavailableError) {
       return res.status(200).json({
         sponsored: false,

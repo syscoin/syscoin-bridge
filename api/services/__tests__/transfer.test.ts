@@ -84,6 +84,26 @@ describe("TransferService write capabilities", () => {
     );
   });
 
+  it("returns a transfer only when its capability matches", async () => {
+    const writeToken = "secret-capability";
+    const writeTokenHash = createHash("sha256")
+      .update(writeToken)
+      .digest("hex");
+    findExisting({ ...transfer, writeTokenHash });
+
+    await expect(
+      new TransferService().getAuthorizedTransfer(transfer.id, writeToken)
+    ).resolves.toEqual(transfer);
+  });
+
+  it("rejects sponsored actions without the transfer capability", async () => {
+    findExisting({ ...transfer, writeTokenHash: "00".repeat(32) });
+
+    await expect(
+      new TransferService().getAuthorizedTransfer(transfer.id)
+    ).rejects.toBeInstanceOf(TransferWriteUnauthorizedError);
+  });
+
   it("binds a new record to the supplied capability and forces V2", async () => {
     findExisting(null);
     TransferModelMock.create.mockImplementation(async (value: any) => value);

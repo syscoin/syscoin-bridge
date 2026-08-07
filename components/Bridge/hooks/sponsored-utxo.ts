@@ -15,13 +15,19 @@ export const requestSponsoredUtxo = async (
   action: "mint" | "prepare-burn" | "submit-burn",
   transaction?: UTXOTransaction
 ): Promise<SponsoredUtxoResponse> => {
+  const writeToken = localStorage.getItem(
+    `transfer-write-token-${transferId}`
+  );
   const response = await fetch(
     buildApiUrl(
       `/api/transfer/${encodeURIComponent(transferId)}/sponsored-utxo`
     ),
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(writeToken ? { Authorization: `Bearer ${writeToken}` } : {}),
+      },
       body: JSON.stringify({ action, transaction }),
     }
   );

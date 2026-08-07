@@ -52,7 +52,7 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
   let gasBalance = balance.data ?? 0;
   const { version } = usePaliWallet();
   const isV2 = version === "v2";
-  const { isBitcoinBased } = usePaliWalletV2();
+  const { isBitcoinBased, supportsPartialUtxoSigning } = usePaliWalletV2();
   const { isEnabled } = useFeatureFlags();
   if (isNaN(gasBalance)) {
     gasBalance = 0;
@@ -60,6 +60,7 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
 
   const utxoSponsorshipAvailable =
     isEnabled("foundationFundingAvailable") &&
+    supportsPartialUtxoSigning &&
     (transfer.type === "nevm-to-sys" || transfer.utxoAssetType === "sysx");
   const faucetLink =
     balance.isFetched && gasBalance < minAmount && utxoSponsorshipAvailable ? (

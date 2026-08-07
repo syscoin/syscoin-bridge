@@ -88,6 +88,28 @@ export class TransferService {
     return transfer as unknown as ITransfer;
   }
 
+  async getAuthorizedTransfer(
+    id: string,
+    writeToken?: string
+  ): Promise<ITransfer> {
+    const transfer = await TransferModel.findOne({ id }).select(
+      "+writeTokenHash"
+    );
+
+    if (!transfer) {
+      throw new Error("Transfer not found");
+    }
+    if (
+      !writeToken ||
+      !transfer.writeTokenHash ||
+      !writeTokenMatches(writeToken, transfer.writeTokenHash)
+    ) {
+      throw new TransferWriteUnauthorizedError();
+    }
+
+    return toPublicTransfer(transfer);
+  }
+
   private async updateSponsorStatuses(transfer: ITransfer): Promise<void> {
     const submitProofsTxLog = transfer.logs.find(
       (log) => log.status === "submit-proofs"
