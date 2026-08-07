@@ -65,6 +65,7 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
           loadingMessage="Confirming Mint of Sysx transaction..."
           sourceStatus={ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX}
           successStatus={ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX}
+          confirmations={0}
         />
       );
     } else if (transfer.status === ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX) {

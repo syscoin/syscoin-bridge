@@ -33,18 +33,19 @@ The bridge UI is a ReactJS application that allows users to interact with the br
 
 Each step taken on the Bridge is stored in MongoDB. This allows the user to resume the process at any time.
 
-### Sponsored Claim Gas
+### Sponsored Transactions
 
-When `FOUNDATION_FUNDED=true`, the bridge can sponsor only the destination-side gas needed to complete receipt of bridged SYS. Users still sign and pay the source-chain transaction.
+When `FOUNDATION_FUNDED=true`, the bridge sponsors destination-side transaction fees directly. Users still sign and pay the source-chain transaction.
 
 - `sys-to-nevm`: the configured NEVM sponsor wallet signs the final NEVM `submit-proofs` transaction, so the destination NEVM address does not need pre-existing gas to receive SYS.
-- `nevm-to-sys`: after the NEVM `freezeBurn` transaction is confirmed, the bridge can fund a minimal UTXO SYS amount to the destination Syscoin address so the user can complete the UTXO claim/release steps.
+- `nevm-to-sys`: the UTXO sponsor signs and broadcasts the SYSX mint. For the following SYSX-to-SYS burn, Pali signs the user-owned SYSX input and the backend signs a reserved sponsor-owned SYS fee input before broadcasting.
+- `sys-to-nevm` with existing SYSX: the same split-signature UTXO flow is attempted for the SYSX burn. If the SYSX input already carries native SYS, the bridge uses the normal user-funded Pali path so native change never crosses ownership boundaries.
 
-UTXO sponsorship reserves individual sponsor outputs by `txid:vout` in MongoDB before signing. Pre-split the UTXO sponsor wallet into multiple small outputs to allow multiple users to be funded concurrently. If every sponsor output is already reserved or spent, new claim-gas requests fail safely and can be retried later.
+UTXO sponsorship reserves individual sponsor outputs by `txid:vout` in MongoDB before signing. Pre-split the UTXO sponsor wallet into multiple outputs to support concurrent users. The backend never gives a sponsor signature to the browser: it verifies the Pali-signed PSBT against the stored unsigned transaction, adds its signature last, and broadcasts atomically.
 
-Sponsorship is rate-limited by client IP, destination UTXO address, and source NEVM address. It is also idempotent per transfer/action, so refreshing a transfer does not repeatedly drain sponsor funds.
+Sponsorship is idempotent per transfer/action and source transaction inputs, so refreshing or aliasing a transfer cannot repeatedly spend sponsor outputs. If the sponsor is disabled or has no available output, the UI falls back to the existing user-funded flow.
 
-Sponsor signing keys are configured through deployment secrets/env vars. MongoDB stores sponsorship usage, reservations, and rate-limit state only; it does not store sponsor private keys.
+Sponsor signing keys are configured through deployment secrets/env vars. MongoDB stores sponsorship usage and UTXO reservations only; it does not store sponsor private keys.
 
 NEVM sponsorship is server-broadcast: the backend durably stores each signed
 transaction, broadcasts it in nonce order, and returns only the accepted hash
@@ -57,7 +58,7 @@ Treat enabling `FOUNDATION_FUNDED=true` as an atomic V2 backend cutover:
 
 1. Keep funding disabled while all pre-V2/older backend instances are stopped.
 2. Configure `NEVM_V2_ACTIVATION_BLOCK` to the immutable first NEVM block
-   eligible for V2 claim-gas sponsorship. Funding fails closed if it is missing
+   eligible for V2 sponsorship. Funding fails closed if it is missing
    or invalid.
 3. Reconcile every legacy signed sponsor row that lacks `action` or
    `sourceTxHash`. Confirm/broadcast or replace its nonce as appropriate, then
@@ -177,16 +178,11 @@ so Compose never offers to recreate an existing Mongo data volume.
 | `ERC20_MANAGER_CONTRACT_ADDRESS`| ERC20 Manager contract address                 |         |
 | `SYS5_ENABLED`                  | Enable Sys5 features                           | true    |
 | `PALI_V2_NEVM_ENABLED`          | Enable Pali V2 NEVM features                    | true    |
-| `FOUNDATION_FUNDED`             | Enable sponsored claim gas for destination-side bridge completion | false   |
-| `NEVM_V2_ACTIVATION_BLOCK`      | First NEVM block eligible for V2 foundation-funded claim gas; required when funding is enabled |         |
+| `FOUNDATION_FUNDED`             | Enable direct NEVM and UTXO transaction fee sponsorship | false   |
+| `NEVM_V2_ACTIVATION_BLOCK`      | First NEVM block eligible for V2 foundation-funded transactions; required when funding is enabled |         |
 | `NEVM_SPONSOR_PRIVATE_KEY`      | Private key for the NEVM sponsor wallet used to sign sponsored `submit-proofs` transactions |         |
-| `UTXO_SPONSOR_ADDRESS`          | Syscoin UTXO sponsor address used for NEVM-to-UTXO claim gas funding |         |
+| `UTXO_SPONSOR_ADDRESS`          | Syscoin UTXO address used to fund sponsored mint and SYSX burn fees |         |
 | `UTXO_SPONSOR_WIF`              | WIF private key for the UTXO sponsor address    |         |
-| `UTXO_SPONSOR_CLAIM_GAS_AMOUNT_SYS` | Minimal SYS amount funded to empty UTXO destinations for claim gas | 0.001   |
-| `SPONSOR_IP_RATE_LIMIT`         | Max claim-gas sponsorship attempts per client IP per window | 20      |
-| `SPONSOR_ADDRESS_RATE_LIMIT`    | Max claim-gas sponsorship attempts per UTXO/NEVM address per window | 3       |
-| `SPONSOR_RATE_LIMIT_WINDOW_MS`  | Sponsorship rate-limit window in milliseconds   | 86400000 |
-| `SPONSOR_TRUST_PROXY_HEADERS`   | Trust `x-real-ip`/`x-forwarded-for` for sponsor IP limits only when a trusted proxy overwrites them | false   |
 | `NEXT_PUBLIC_API_BASE_URL`      | Base URL the frontend uses for API requests    |         |
 | `CORS_ALLOWED_ORIGIN`           | Allowed frontend origin(s) for API CORS responses (comma-separated, no `*` for admin cookie auth) |         |
 

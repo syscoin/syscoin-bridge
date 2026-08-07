@@ -20,9 +20,6 @@ const sponsorWalletTransactions: any = {
 const sponsorUtxoReservation: any = {
   createIndexes: jest.fn(),
 };
-const sponsorRateLimit: any = {
-  createIndexes: jest.fn(),
-};
 const transferModel: any = {
   aggregate: jest.fn(),
   createIndexes: jest.fn(),
@@ -35,10 +32,6 @@ jest.mock("../sponsor-wallet-transactions", () => ({
 jest.mock("../sponsor-utxo-reservation", () => ({
   __esModule: true,
   default: sponsorUtxoReservation,
-}));
-jest.mock("../sponsor-rate-limit", () => ({
-  __esModule: true,
-  default: sponsorRateLimit,
 }));
 jest.mock("../transfer", () => ({
   __esModule: true,
@@ -57,7 +50,6 @@ describe("ensureSponsorIndexes", () => {
     collection.indexes.mockResolvedValue([]);
     sponsorWalletTransactions.createIndexes.mockResolvedValue(undefined);
     sponsorUtxoReservation.createIndexes.mockResolvedValue(undefined);
-    sponsorRateLimit.createIndexes.mockResolvedValue(undefined);
     transferModel.aggregate.mockResolvedValue([]);
     transferModel.createIndexes.mockResolvedValue(undefined);
   });
@@ -87,7 +79,6 @@ describe("ensureSponsorIndexes", () => {
     );
     expect(sponsorWalletTransactions.createIndexes).toHaveBeenCalledTimes(1);
     expect(sponsorUtxoReservation.createIndexes).toHaveBeenCalledTimes(1);
-    expect(sponsorRateLimit.createIndexes).toHaveBeenCalledTimes(1);
     expect(transferModel.createIndexes).toHaveBeenCalledTimes(1);
   });
 

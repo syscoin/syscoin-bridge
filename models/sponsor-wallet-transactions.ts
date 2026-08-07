@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 export type SponsorWalletTransactionStatus = "pending" | "success" | "failed";
 export type SponsorWalletTransactionAction =
   | "submit-proofs"
-  | "utxo-claim-gas";
+  | "mint-sysx"
+  | "burn-sysx";
 
 export const SponsorWalletTransactionCollectionName =
   "sponsorwallettransactions";
@@ -18,6 +19,7 @@ export interface ISponsorWalletTransaction extends mongoose.Document {
   reservationOwner?: string;
   reservationExpiresAt?: Date;
   reservationPhase?: "reserved" | "broadcasting";
+  utxoReservationKey?: string;
   broadcastAt?: Date;
   broadcastAttempts?: number;
   createdAt: Date;
@@ -68,6 +70,9 @@ const SponsorWalletTransactionSchema =
       reservationPhase: {
         type: String,
         enum: ["reserved", "broadcasting"],
+      },
+      utxoReservationKey: {
+        type: String,
       },
       broadcastAt: {
         type: Date,

@@ -52,19 +52,22 @@ const ConnectedUtxoWallet: React.FC<ConnectedUtxoWalletProps> = ({
   let gasBalance = balance.data ?? 0;
   const { version } = usePaliWallet();
   const isV2 = version === "v2";
-  const { isBitcoinBased } = usePaliWalletV2();
+  const { isBitcoinBased, supportsPartialUtxoSigning } = usePaliWalletV2();
   const { isEnabled } = useFeatureFlags();
   if (isNaN(gasBalance)) {
     gasBalance = 0;
   }
 
-  const claimGasSponsorshipAvailable =
-    isEnabled("foundationFundingAvailable") && transfer.type === "nevm-to-sys";
+  const utxoSponsorshipAvailable =
+    isEnabled("foundationFundingAvailable") &&
+    supportsPartialUtxoSigning &&
+    (transfer.type === "nevm-to-sys" || transfer.utxoAssetType === "sysx");
   const faucetLink =
-    balance.isFetched && gasBalance < minAmount && claimGasSponsorshipAvailable ? (
+    balance.isFetched && gasBalance < minAmount && utxoSponsorshipAvailable ? (
       <Alert severity="info">
         <Typography variant="body2">
-          The bridge will fund the minimal SYS needed to claim this transfer.
+          The bridge will attempt to sponsor the destination-side UTXO fees. If
+          sponsorship is unavailable, you will need SYS to continue.
         </Typography>
       </Alert>
     ) : balance.isFetched && gasBalance < minAmount ? (

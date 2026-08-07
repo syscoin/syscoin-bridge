@@ -4,10 +4,17 @@ import { useSyscoin } from "../context/Syscoin";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import burnSysx from "@contexts/Transfer/functions/burnSysx";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
+import { useFeatureFlags } from "./useFeatureFlags";
+import { requestSponsoredUtxo } from "./sponsored-utxo";
 
 export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
   const syscoinInstance = useSyscoin();
-  const { sendTransaction } = usePaliWalletV2();
+  const {
+    sendTransaction,
+    signTransaction,
+    supportsPartialUtxoSigning,
+  } = usePaliWalletV2();
+  const { isEnabled } = useFeatureFlags();
   return useMutation(["burnSyx", transfer.id], {
     mutationFn: async () => {
       if (!transfer.utxoXpub || !transfer.utxoAddress) {
@@ -16,6 +23,41 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
 
       if (!transfer.nevmAddress) {
         throw new Error("Missing NEVM address");
+      }
+
+      if (
+        isEnabled("foundationFundingAvailable") &&
+        supportsPartialUtxoSigning
+      ) {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const prepared = await requestSponsoredUtxo(
+            transfer.id,
+            "prepare-burn"
+          );
+          if (!prepared.sponsored) {
+            break;
+          }
+          if (prepared.txid) {
+            return prepared.txid;
+          }
+          if (!prepared.psbt) {
+            throw new Error("Sponsored burn is already in progress");
+          }
+
+          const signed = await signTransaction(prepared.psbt);
+          const submitted = await requestSponsoredUtxo(
+            transfer.id,
+            "submit-burn",
+            signed
+          );
+          if (!submitted.sponsored) {
+            continue;
+          }
+          if (!submitted.txid) {
+            throw new Error("Sponsored burn is already in progress");
+          }
+          return submitted.txid;
+        }
       }
 
       const psbt = await burnSysx(

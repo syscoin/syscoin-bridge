@@ -1,33 +1,34 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { randomUUID } from "crypto";
+import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
+import * as secp256k1 from "@bitcoinerlab/secp256k1";
+import { createHash, randomUUID } from "crypto";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
   SponsorWalletTransactionAction,
 } from "models/sponsor-wallet-transactions";
 import satoshibitcoin from "satoshi-bitcoin";
-import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
+import { syscoin, UTXOTransaction, utils as syscoinUtils } from "syscoinjs-lib";
 import web3 from "utils/get-web3";
 import {
   MAINNET_BLOCKBOOK_URL,
   resolveUtxoBlockbookUrl,
 } from "utils/syscoin-urls";
 import { TransactionConfig } from "web3-core";
-import { assertV2ActivationBlock } from "./sponsor-eligibility";
 export { syscoinTxIdFromWitnessStrippedHex } from "utils/syscoin-txid";
 
 const SUBMIT_PROOFS_ACTION: SponsorWalletTransactionAction = "submit-proofs";
-const UTXO_CLAIM_GAS_ACTION: SponsorWalletTransactionAction = "utxo-claim-gas";
-const DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS = "0.001";
+const UTXO_MINT_ACTION: SponsorWalletTransactionAction = "mint-sysx";
+const UTXO_BURN_ACTION: SponsorWalletTransactionAction = "burn-sysx";
 const DEFAULT_UTXO_FEE_RATE = 10;
-const UTXO_CLAIM_GAS_FEE_BUFFER_SATS = DEFAULT_UTXO_FEE_RATE * 250;
-const SPONSOR_RESERVATION_LEASE_MS = 5 * 60_000;
+const SPONSOR_RESERVATION_LEASE_MS = 10 * 60_000;
 const SPONSOR_PROTOCOL_VERSION = 2;
 
 export class SponsorshipInProgressError extends Error {
   constructor() {
     super("Sponsorship is already in progress");
     this.name = "SponsorshipInProgressError";
+    Object.setPrototypeOf(this, SponsorshipInProgressError.prototype);
   }
 }
 
@@ -35,6 +36,14 @@ export class SponsorNonceRecoveryError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SponsorNonceRecoveryError";
+  }
+}
+
+export class SponsorUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SponsorUnavailableError";
+    Object.setPrototypeOf(this, SponsorUnavailableError.prototype);
   }
 }
 
@@ -46,13 +55,11 @@ type SponsorUtxo = {
   assetInfo?: unknown;
 };
 
-type SponsorClaimGasResult = {
-  funded: boolean;
-  status: "skipped" | "pending" | "success" | "failed";
+export type SponsoredUtxoResult = {
+  sponsored: true;
+  status: "signature-required" | "pending" | "success";
   txid?: string;
-  amountSats?: number;
-  balanceSats?: number;
-  reason?: string;
+  psbt?: UTXOTransaction;
 };
 
 type SponsorPlaceholderResult = {
@@ -72,21 +79,24 @@ const getUtxoNetwork = () =>
     ? syscoinUtils.syscoinNetworks.testnet
     : syscoinUtils.syscoinNetworks.mainnet;
 
-const toSats = (amount: string) => {
-  const sats = satoshibitcoin.toSatoshi(amount);
-  if (!Number.isFinite(sats) || sats <= 0) {
-    throw new Error("Invalid UTXO sponsorship amount");
-  }
-
-  return Math.ceil(sats);
-};
-
 const isDuplicateKeyError = (error: unknown) => {
   return (
     typeof error === "object" &&
     error !== null &&
     "code" in error &&
     (error as { code?: number }).code === duplicateKeyCode
+  );
+};
+
+const isInsufficientFundsError = (error: unknown) => {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const value = error as { code?: string; error?: string; message?: string };
+  return (
+    value.code === "INSUFFICIENT_FUNDS" ||
+    value.error === "INSUFFICIENT_FUNDS" ||
+    value.message?.toLowerCase().includes("insufficient funds") === true
   );
 };
 
@@ -267,110 +277,71 @@ export class SponsorWalletService {
     }
   }
 
-  public async sponsorUtxoClaimGas(
+  public async sponsorUtxoMint(
     transfer: ITransfer,
-    sourceTxHash: string | undefined,
-    sourceBlockNumber: number | string | bigint
-  ): Promise<SponsorClaimGasResult> {
-    assertV2ActivationBlock(sourceBlockNumber);
-
-    if (transfer.type !== "nevm-to-sys") {
-      throw new Error("UTXO claim gas sponsorship is only for NEVM to SYS");
-    }
-
+    sourceTxHash: string
+  ): Promise<SponsoredUtxoResult> {
     if (!transfer.utxoAddress) {
       throw new Error("Missing UTXO address");
     }
 
-    const preflightStatus = await this.getUtxoClaimGasFundingStatus(
-      transfer,
-      sourceTxHash
-    );
-    if (preflightStatus) {
-      return preflightStatus;
-    }
-
-    const targetAmountSats = this.getUtxoClaimGasAmountSats();
-    const sponsorAddress = process.env.UTXO_SPONSOR_ADDRESS;
-    const sponsorWif = process.env.UTXO_SPONSOR_WIF;
-
-    if (!sponsorAddress || !sponsorWif) {
-      throw new Error("UTXO sponsor wallet is not configured");
-    }
-
-    const placeholderResult = await this.createSponsorPlaceholder(
+    const { sponsorAddress, sponsorWif } = this.getUtxoSponsorConfig();
+    const existing = await this.getExistingUtxoSponsorship(
       transfer.id,
-      UTXO_CLAIM_GAS_ACTION,
-      sponsorAddress,
+      UTXO_MINT_ACTION,
       sourceTxHash
     );
-    let placeholder = placeholderResult.transaction;
-
-    if (placeholder.transaction?.hash) {
+    if (existing?.transaction?.hash) {
+      await this.recoverUtxoSponsorBroadcast(existing);
       return {
-        funded: true,
-        status: placeholder.status,
+        sponsored: true,
+        status: existing.status === "success" ? "success" : "pending",
+        txid: existing.transaction.hash,
+      };
+    }
+
+    const placeholder = await this.claimUtxoSponsorPlaceholder(
+      transfer.id,
+      UTXO_MINT_ACTION,
+      sponsorAddress,
+      sourceTxHash,
+      existing
+    );
+    if (placeholder.transaction?.hash) {
+      await this.recoverUtxoSponsorBroadcast(placeholder);
+      return {
+        sponsored: true,
+        status: placeholder.status === "success" ? "success" : "pending",
         txid: placeholder.transaction.hash,
       };
     }
-
-    if (!placeholderResult.created && placeholder.status === "pending") {
-      return {
-        funded: true,
-        status: "pending",
-        reason: "UTXO claim gas sponsorship is already in progress",
-      };
-    }
-
-    if (!placeholderResult.created && placeholder.status === "failed") {
-      const retryPlaceholder = await this.acquireFailedSponsorPlaceholder(
-        transfer.id,
-        UTXO_CLAIM_GAS_ACTION,
-        sourceTxHash
-      );
-
-      if (!retryPlaceholder) {
-        return {
-          funded: true,
-          status: "pending",
-          reason: "UTXO claim gas sponsorship is already in progress",
-        };
-      }
-
-      placeholder = retryPlaceholder;
-    }
-
     let reservation: { key: string; utxo: SponsorUtxo } | undefined;
     let broadcastStarted = false;
     try {
       reservation = await this.reserveSponsorUtxo(
         sponsorAddress,
         transfer.id,
-        targetAmountSats + UTXO_CLAIM_GAS_FEE_BUFFER_SATS
+        1
       );
-      const preparedTransaction = await this.prepareUtxoClaimGas(
+      const prepared = await this.prepareSponsoredMint(
+        transfer,
+        sourceTxHash,
         sponsorAddress,
-        transfer.utxoAddress,
-        targetAmountSats,
         reservation.utxo
       );
-      placeholder = await this.beginUtxoSponsorBroadcast(placeholder);
-      await this.markSponsorUtxoBroadcasting(reservation.key);
-      broadcastStarted = true;
-      const txid = await this.sendPreparedUtxoClaimGas(
-        preparedTransaction,
-        sponsorWif,
+      const signed = await this.signPreparedUtxo(prepared.psbt, sponsorWif);
+      const broadcasting = await this.beginUtxoSponsorBroadcast(
+        placeholder,
+        signed,
+        reservation.key
       );
+      broadcastStarted = true;
+      await this.markSponsorUtxoBroadcasting(reservation.key, transfer.id);
+      await this.broadcastPreparedUtxo(signed.rawTransaction, signed.txid);
 
-      await this.commitUtxoSponsorTransaction(placeholder, txid);
-      await this.markSponsorUtxoSpent(reservation.key);
-
-      return {
-        funded: true,
-        status: "pending",
-        txid,
-        amountSats: targetAmountSats,
-      };
+      await this.markSponsorUtxoSpent(reservation.key, transfer.id);
+      await this.commitUtxoSponsorTransaction(broadcasting, signed.txid);
+      return { sponsored: true, status: "pending", txid: signed.txid };
     } catch (error) {
       if (!broadcastStarted) {
         await this.failSponsorReservation(placeholder);
@@ -378,127 +349,718 @@ export class SponsorWalletService {
       throw error;
     } finally {
       if (reservation && !broadcastStarted) {
-        await this.releaseSponsorUtxoReservation(reservation.key);
+        await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
       }
     }
   }
 
-  public async getUtxoClaimGasSponsorStatus(
-    transferId: string,
-    sourceTxHash?: string
-  ): Promise<SponsorClaimGasResult | undefined> {
-    const existingTransaction = await SponsorWalletTransactions.findOne({
-      action: UTXO_CLAIM_GAS_ACTION,
-      $or: [
-        { transferId },
-        ...(sourceTxHash ? [{ sourceTxHash }] : []),
-      ],
-    });
+  public async prepareSponsoredUtxoBurn(
+    transfer: ITransfer
+  ): Promise<SponsoredUtxoResult> {
+    if (!transfer.utxoAddress || !transfer.utxoXpub || !transfer.nevmAddress) {
+      throw new Error("Missing transfer addresses");
+    }
 
-    if (existingTransaction?.transaction?.hash) {
+    const { sponsorAddress } = this.getUtxoSponsorConfig();
+    const existing = await this.getExistingUtxoSponsorship(
+      transfer.id,
+      UTXO_BURN_ACTION
+    );
+    if (existing?.transaction?.hash) {
+      await this.recoverUtxoSponsorBroadcast(existing);
       return {
-        funded: true,
-        status: existingTransaction.status,
-        txid: existingTransaction.transaction.hash,
+        sponsored: true,
+        status: existing.status === "success" ? "success" : "pending",
+        txid: existing.transaction.hash,
+      };
+    }
+    if (existing?.transaction?.rawData && this.hasLiveReservation(existing)) {
+      return {
+        sponsored: true,
+        status: "signature-required",
+        psbt: JSON.parse(existing.transaction.rawData) as UTXOTransaction,
       };
     }
 
-    if (existingTransaction?.status === "pending") {
-      if (existingTransaction.reservationPhase === "broadcasting") {
-        return {
-          funded: true,
-          status: "pending",
-          reason:
-            "UTXO sponsorship broadcast outcome requires manual reconciliation",
-        };
+    const placeholder = await this.claimUtxoSponsorPlaceholder(
+      transfer.id,
+      UTXO_BURN_ACTION,
+      sponsorAddress,
+      undefined,
+      existing
+    );
+    let reservation: { key: string; utxo: SponsorUtxo } | undefined;
+    let preparedStored = false;
+    try {
+      reservation = await this.reserveSponsorUtxo(
+        sponsorAddress,
+        transfer.id,
+        1
+      );
+      const prepared = await this.buildSponsoredBurn(
+        transfer,
+        sponsorAddress,
+        reservation.utxo
+      );
+      const sourceTxHash = this.getUserInputFingerprint(
+        prepared.psbt,
+        reservation.key
+      );
+      const exported = syscoinUtils.exportPsbtToJson(
+        prepared.psbt,
+        prepared.assets
+      );
+      await this.storePreparedUtxoBurn(
+        placeholder,
+        sourceTxHash,
+        reservation.key,
+        exported
+      );
+      preparedStored = true;
+      return {
+        sponsored: true,
+        status: "signature-required",
+        psbt: exported,
+      };
+    } catch (error) {
+      if (!preparedStored) {
+        await this.failSponsorReservation(placeholder);
       }
+      if (isDuplicateKeyError(error)) {
+        throw new SponsorshipInProgressError();
+      }
+      throw error;
+    } finally {
+      if (reservation) {
+        await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
+      }
+    }
+  }
 
-      const now = new Date();
-      const leaseCutoff = new Date(Date.now() - SPONSOR_RESERVATION_LEASE_MS);
-      const expired = await SponsorWalletTransactions.findOneAndUpdate(
+  public async submitSponsoredUtxoBurn(
+    transfer: ITransfer,
+    signedTransaction: UTXOTransaction
+  ): Promise<SponsoredUtxoResult> {
+    const { sponsorAddress, sponsorWif } = this.getUtxoSponsorConfig();
+    const placeholder = await SponsorWalletTransactions.findOne({
+      transferId: transfer.id,
+      action: UTXO_BURN_ACTION,
+    });
+    if (placeholder?.transaction?.hash) {
+      await this.recoverUtxoSponsorBroadcast(placeholder);
+      return {
+        sponsored: true,
+        status: placeholder.status === "success" ? "success" : "pending",
+        txid: placeholder.transaction.hash,
+      };
+    }
+    if (
+      !placeholder?.transaction?.rawData ||
+      !placeholder.utxoReservationKey ||
+      !this.hasLiveReservation(placeholder)
+    ) {
+      throw new Error("Sponsored burn preparation expired; prepare it again");
+    }
+
+    const canonicalJson = JSON.parse(
+      placeholder.transaction.rawData
+    ) as UTXOTransaction;
+    const canonical = syscoinUtils.importPsbtFromJson(
+      canonicalJson,
+      getUtxoNetwork()
+    ).psbt;
+    const signed = syscoinUtils.importPsbtFromJson(
+      signedTransaction,
+      getUtxoNetwork()
+    ).psbt;
+    this.mergeUserSignatures(
+      canonical,
+      signed,
+      placeholder.utxoReservationKey
+    );
+
+    let reservation: { key: string; utxo: SponsorUtxo } | undefined;
+    let broadcastStarted = false;
+    try {
+      reservation = await this.reserveSponsorUtxo(
+        sponsorAddress,
+        transfer.id,
+        1,
+        placeholder.utxoReservationKey
+      );
+      const sponsorSigned = await this.signPreparedUtxo(canonical, sponsorWif);
+      const broadcasting = await this.beginUtxoSponsorBroadcast(
+        placeholder,
+        sponsorSigned,
+        placeholder.utxoReservationKey
+      );
+      broadcastStarted = true;
+      await this.markSponsorUtxoBroadcasting(
+        placeholder.utxoReservationKey,
+        transfer.id
+      );
+      await this.broadcastPreparedUtxo(
+        sponsorSigned.rawTransaction,
+        sponsorSigned.txid
+      );
+      await this.markSponsorUtxoSpent(
+        placeholder.utxoReservationKey,
+        transfer.id
+      );
+      await this.commitUtxoSponsorTransaction(
+        broadcasting,
+        sponsorSigned.txid
+      );
+      return { sponsored: true, status: "pending", txid: sponsorSigned.txid };
+    } catch (error) {
+      if (!broadcastStarted) {
+        await this.failSponsorReservation(placeholder);
+      }
+      throw error;
+    } finally {
+      if (reservation && !broadcastStarted) {
+        await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
+      }
+    }
+  }
+
+  private getUtxoSponsorConfig() {
+    const sponsorAddress = process.env.UTXO_SPONSOR_ADDRESS;
+    const sponsorWif = process.env.UTXO_SPONSOR_WIF;
+    if (!sponsorAddress || !sponsorWif) {
+      throw new SponsorUnavailableError(
+        "UTXO sponsor wallet is not configured"
+      );
+    }
+    return { sponsorAddress, sponsorWif };
+  }
+
+  private hasLiveReservation(transaction: ISponsorWalletTransaction) {
+    return Boolean(
+      transaction.reservationOwner &&
+        transaction.reservationExpiresAt &&
+        transaction.reservationExpiresAt.getTime() > Date.now()
+    );
+  }
+
+  private async getExistingUtxoSponsorship(
+    transferId: string,
+    action: SponsorWalletTransactionAction,
+    sourceTxHash?: string
+  ) {
+    return SponsorWalletTransactions.findOne({
+      action,
+      $or: [
+        { transferId },
+        ...(sourceTxHash
+          ? [{ sourceTxHash: sourceTxHash.toLowerCase() }]
+          : []),
+      ],
+    });
+  }
+
+  private async claimUtxoSponsorPlaceholder(
+    transferId: string,
+    action: SponsorWalletTransactionAction,
+    sponsorAddress: string,
+    sourceTxHash?: string,
+    existing?: ISponsorWalletTransaction | null
+  ): Promise<ISponsorWalletTransaction> {
+    if (existing?.reservationPhase === "broadcasting") {
+      throw new SponsorshipInProgressError();
+    }
+    if (existing?.status === "pending") {
+      if (this.hasLiveReservation(existing)) {
+        throw new SponsorshipInProgressError();
+      }
+      const stale = await this.acquireStaleSponsorPlaceholder(
+        transferId,
+        action,
+        sourceTxHash
+      );
+      if (!stale) {
+        throw new SponsorshipInProgressError();
+      }
+      return stale;
+    }
+    if (existing?.status === "failed") {
+      const retry = await this.acquireFailedSponsorPlaceholder(
+        transferId,
+        action,
+        sourceTxHash
+      );
+      if (!retry) {
+        throw new SponsorshipInProgressError();
+      }
+      return retry;
+    }
+
+    const result = await this.createSponsorPlaceholder(
+      transferId,
+      action,
+      sponsorAddress,
+      sourceTxHash?.toLowerCase()
+    );
+    if (!result.created) {
+      if (result.transaction.transaction?.hash) {
+        return result.transaction;
+      }
+      throw new SponsorshipInProgressError();
+    }
+    return result.transaction;
+  }
+
+  private async prepareSponsoredMint(
+    transfer: ITransfer,
+    sourceTxHash: string,
+    sponsorAddress: string,
+    sponsorUtxo: SponsorUtxo
+  ) {
+    const syscoinInstance = new syscoin(
+      null,
+      getUtxoBlockbookUrl(),
+      getUtxoNetwork()
+    );
+    let result;
+    try {
+      result = await syscoinInstance.assetAllocationMint(
         {
-          _id: existingTransaction._id,
-          status: "pending",
-          "transaction.hash": { $exists: false },
-          $or: [
-            { reservationExpiresAt: { $lte: now } },
+          web3url:
+            process.env.NEVM_RPC_URL ??
+            process.env.NEXT_PUBLIC_NEVM_RPC_URL ??
+            "https://rpc.syscoin.org",
+          ethtxid: sourceTxHash,
+        },
+        { rbf: true },
+        null,
+        sponsorAddress,
+        new syscoinUtils.BN(DEFAULT_UTXO_FEE_RATE),
+        sponsorAddress,
+        {
+          utxos: [{ ...sponsorUtxo, address: sponsorAddress }],
+          assets: [],
+        }
+      );
+    } catch (error) {
+      if (isInsufficientFundsError(error)) {
+        throw new SponsorUnavailableError("UTXO sponsor has insufficient funds");
+      }
+      throw error;
+    }
+    if (!result?.psbt) {
+      throw new SponsorUnavailableError("Unable to fund sponsored mint");
+    }
+    return { syscoinInstance, psbt: result.psbt };
+  }
+
+  private async buildSponsoredBurn(
+    transfer: ITransfer,
+    sponsorAddress: string,
+    sponsorUtxo: SponsorUtxo
+  ) {
+    const userUtxos = await this.getUserSysxUtxos(transfer.utxoXpub!);
+    if (userUtxos.length === 0) {
+      throw new Error("No SYSX inputs are available to burn");
+    }
+
+    const syscoinInstance = new syscoin(
+      null,
+      getUtxoBlockbookUrl(),
+      getUtxoNetwork()
+    );
+    const assetMap = new Map([
+      [
+        SYSX_ASSET_GUID,
+        {
+          changeAddress: transfer.utxoAddress,
+          outputs: [
             {
-              reservationExpiresAt: { $exists: false },
-              updatedAt: { $lte: leaseCutoff },
+              value: new syscoinUtils.BN(
+                Math.ceil(satoshibitcoin.toSatoshi(transfer.amount))
+              ),
+              address: transfer.utxoAddress,
             },
           ],
         },
+      ],
+    ]);
+    let result;
+    try {
+      result = await syscoinInstance.assetAllocationBurn(
         {
-          $set: { status: "failed" },
-          $unset: {
-            reservationOwner: "",
-            reservationExpiresAt: "",
-          },
+          ethaddress: Buffer.from(
+            transfer.type === "sys-to-nevm"
+              ? transfer.nevmAddress!.replace(/^0x/, "")
+              : "",
+            "hex"
+          ),
         },
-        { new: true }
+        { rbf: true },
+        assetMap,
+        sponsorAddress,
+        new syscoinUtils.BN(DEFAULT_UTXO_FEE_RATE),
+        transfer.utxoXpub,
+        {
+          utxos: [
+            ...userUtxos,
+            { ...sponsorUtxo, address: sponsorAddress },
+          ],
+          assets: [
+            {
+              assetGuid: SYSX_ASSET_GUID,
+              maxSupply: "0",
+              decimals: 8,
+            },
+          ],
+        }
       );
-      if (expired) {
-        return undefined;
+    } catch (error) {
+      if (isInsufficientFundsError(error)) {
+        throw new SponsorUnavailableError("UTXO sponsor has insufficient funds");
       }
-
-      return {
-        funded: true,
-        status: "pending",
-        reason: "UTXO claim gas sponsorship is already in progress",
-      };
+      throw error;
+    }
+    if (!result?.psbt) {
+      throw new SponsorUnavailableError("Unable to fund sponsored SYSX burn");
     }
 
-    return undefined;
+    const sponsorKey = this.psbtInputKeyFromReservation(sponsorUtxo);
+    const selectedInputs = result.psbt.txInputs.map((input: any) =>
+      this.psbtInputKey(input)
+    );
+    if (!selectedInputs.includes(sponsorKey)) {
+      throw new SponsorUnavailableError(
+        "SYSX input already carries enough native SYS for its fee"
+      );
+    }
+
+    this.assertSponsorDoesNotReceiveUserNative(
+      result.psbt,
+      sponsorAddress,
+      sponsorUtxo
+    );
+
+    return { psbt: result.psbt, assets: result.assets };
   }
 
-  public async getUtxoClaimGasFundingStatus(
-    transfer: ITransfer,
-    sourceTxHash?: string
-  ): Promise<SponsorClaimGasResult | undefined> {
-    const existingStatus = await this.getUtxoClaimGasSponsorStatus(
-      transfer.id,
-      sourceTxHash
+  private assertSponsorDoesNotReceiveUserNative(
+    psbt: any,
+    sponsorAddress: string,
+    sponsorUtxo: SponsorUtxo
+  ) {
+    const sponsorScript = syscoinUtils.bitcoinjs.address.toOutputScript(
+      sponsorAddress,
+      getUtxoNetwork()
     );
-    if (existingStatus) {
-      return existingStatus;
-    }
-
-    if (!transfer.utxoAddress) {
-      throw new Error("Missing UTXO address");
-    }
-
-    const targetAmountSats = this.getUtxoClaimGasAmountSats();
-    const addressBalanceSats = await this.getMintCompatibleSysBalanceSats(
-      transfer.utxoAddress
+    const sponsorScriptHex = Buffer.from(sponsorScript).toString("hex");
+    const sponsorOutputSats = psbt.txOutputs.reduce(
+      (total: bigint, output: any) =>
+        Buffer.from(output.script).toString("hex") === sponsorScriptHex
+          ? total + BigInt(output.value)
+          : total,
+      BigInt(0)
     );
-
-    if (addressBalanceSats >= targetAmountSats) {
-      return {
-        funded: false,
-        status: "skipped",
-        amountSats: 0,
-        balanceSats: addressBalanceSats,
-        reason: "Destination UTXO address already has claim gas",
-      };
-    }
-
-    if (transfer.utxoXpub) {
-      const xpubBalanceSats = await this.getMintCompatibleSysBalanceSats(
-        transfer.utxoXpub
+    if (sponsorOutputSats > BigInt(sponsorUtxo.value)) {
+      throw new SponsorUnavailableError(
+        "SYSX inputs contain native SYS and must use the user-funded path"
       );
+    }
+  }
 
-      if (xpubBalanceSats >= targetAmountSats) {
-        return {
-          funded: false,
-          status: "skipped",
-          amountSats: 0,
-          balanceSats: xpubBalanceSats,
-          reason: "Connected UTXO wallet already has claim gas",
-        };
+  private async getUserSysxUtxos(xpub: string): Promise<SponsorUtxo[]> {
+    const response = await fetch(
+      `${getUtxoBlockbookUrl()}/api/v2/utxo/${encodeURIComponent(xpub)}`
+    );
+    if (!response.ok) {
+      throw new Error("Unable to fetch SYSX inputs");
+    }
+    const body = (await response.json()) as
+      | SponsorUtxo[]
+      | { utxos?: SponsorUtxo[] };
+    const utxos = Array.isArray(body) ? body : body.utxos;
+    if (!Array.isArray(utxos)) {
+      throw new Error("Invalid SYSX UTXO response");
+    }
+    return utxos.filter(
+      (utxo) =>
+        typeof utxo.assetInfo === "object" &&
+        utxo.assetInfo !== null &&
+        "assetGuid" in utxo.assetInfo &&
+        String((utxo.assetInfo as { assetGuid: unknown }).assetGuid) ===
+          SYSX_ASSET_GUID
+    );
+  }
+
+  private async storePreparedUtxoBurn(
+    placeholder: ISponsorWalletTransaction,
+    sourceTxHash: string,
+    utxoReservationKey: string,
+    psbt: UTXOTransaction
+  ) {
+    if (!placeholder.reservationOwner) {
+      throw new SponsorshipInProgressError();
+    }
+    const stored = await SponsorWalletTransactions.findOneAndUpdate(
+      {
+        _id: placeholder._id,
+        status: "pending",
+        reservationOwner: placeholder.reservationOwner,
+        reservationExpiresAt: { $gt: new Date() },
+        "transaction.hash": { $exists: false },
+      },
+      {
+        $set: {
+          sourceTxHash,
+          utxoReservationKey,
+          transaction: {
+            rawData: JSON.stringify(psbt),
+            nonce: 0,
+            confirmedHash: "",
+          },
+        },
+      },
+      { new: true }
+    );
+    if (!stored) {
+      throw new SponsorshipInProgressError();
+    }
+  }
+
+  private getUserInputFingerprint(psbt: any, sponsorKey: string) {
+    const userInputs = psbt.txInputs
+      .map((input: any) => this.psbtInputKey(input))
+      .filter((key: string) => key !== sponsorKey)
+      .sort();
+    if (userInputs.length === 0) {
+      throw new Error("Sponsored burn is missing the user SYSX input");
+    }
+    return createHash("sha256").update(userInputs.join("|")).digest("hex");
+  }
+
+  private psbtInputKey(input: { hash: Uint8Array; index: number }) {
+    return `${Buffer.from(input.hash).reverse().toString("hex")}:${input.index}`;
+  }
+
+  private psbtInputKeyFromReservation(utxo: SponsorUtxo) {
+    const txid = utxo.txid ?? utxo.txId;
+    if (!txid) {
+      throw new Error("Sponsor UTXO is missing its transaction id");
+    }
+    return `${txid}:${utxo.vout}`;
+  }
+
+  private unsignedPsbtFingerprint(psbt: any) {
+    return JSON.stringify({
+      version: psbt.version,
+      locktime: psbt.locktime,
+      inputs: psbt.txInputs.map((input: any) => ({
+        key: this.psbtInputKey(input),
+        sequence: input.sequence,
+      })),
+      outputs: psbt.txOutputs.map((output: any) => ({
+        script: Buffer.from(output.script).toString("hex"),
+        value: output.value.toString(),
+      })),
+    });
+  }
+
+  private mergeUserSignatures(canonical: any, signed: any, sponsorKey: string) {
+    if (
+      this.unsignedPsbtFingerprint(canonical) !==
+      this.unsignedPsbtFingerprint(signed)
+    ) {
+      throw new Error("Signed transaction does not match sponsor preparation");
+    }
+
+    canonical.txInputs.forEach((input: any, index: number) => {
+      if (this.psbtInputKey(input) === sponsorKey) {
+        return;
+      }
+      const source = signed.data.inputs[index];
+      const signatureFields = {
+        ...(source.partialSig ? { partialSig: source.partialSig } : {}),
+        ...(source.tapKeySig ? { tapKeySig: source.tapKeySig } : {}),
+        ...(source.tapScriptSig ? { tapScriptSig: source.tapScriptSig } : {}),
+        ...(source.finalScriptSig
+          ? { finalScriptSig: source.finalScriptSig }
+          : {}),
+        ...(source.finalScriptWitness
+          ? { finalScriptWitness: source.finalScriptWitness }
+          : {}),
+      };
+      if (Object.keys(signatureFields).length === 0) {
+        throw new Error("Pali did not sign every user-owned SYSX input");
+      }
+      canonical.updateInput(index, signatureFields);
+    });
+  }
+
+  private readWitnessStack(buffer: Uint8Array): Buffer[] {
+    const source = Buffer.from(buffer);
+    let offset = 0;
+    const readCompactSize = () => {
+      const prefix = source[offset++];
+      if (prefix < 0xfd) {
+        return prefix;
+      }
+      if (prefix === 0xfd) {
+        const value = source.readUInt16LE(offset);
+        offset += 2;
+        return value;
+      }
+      if (prefix === 0xfe) {
+        const value = source.readUInt32LE(offset);
+        offset += 4;
+        return value;
+      }
+      const value = Number(source.readBigUInt64LE(offset));
+      offset += 8;
+      return value;
+    };
+    const count = readCompactSize();
+    const stack: Buffer[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const length = readCompactSize();
+      stack.push(source.subarray(offset, offset + length));
+      offset += length;
+    }
+    if (offset !== source.length) {
+      throw new Error("Invalid finalized witness encoding");
+    }
+    return stack;
+  }
+
+  private validateFinalizedInput(psbt: any, inputIndex: number) {
+    const clone = psbt.clone();
+    const metadata = clone.data.inputs[inputIndex];
+    const validator = (
+      publicKey: Uint8Array,
+      hash: Uint8Array,
+      signature: Uint8Array
+    ) =>
+      publicKey.length === 32
+        ? secp256k1.verifySchnorr(hash, publicKey, signature)
+        : secp256k1.verify(hash, publicKey, signature);
+
+    if (metadata.finalScriptWitness) {
+      const witness = this.readWitnessStack(metadata.finalScriptWitness);
+      clone.clearFinalizedInput(inputIndex);
+      if (witness.length === 2) {
+        clone.updateInput(inputIndex, {
+          partialSig: [{ signature: witness[0], pubkey: witness[1] }],
+        });
+      } else if (witness.length === 1) {
+        clone.updateInput(inputIndex, { tapKeySig: witness[0] });
+      } else {
+        return false;
+      }
+    } else if (metadata.finalScriptSig) {
+      const chunks = syscoinUtils.bitcoinjs.script.decompile(
+        metadata.finalScriptSig
+      );
+      if (
+        !chunks ||
+        chunks.length !== 2 ||
+        !Buffer.isBuffer(chunks[0]) ||
+        !Buffer.isBuffer(chunks[1])
+      ) {
+        return false;
+      }
+      clone.clearFinalizedInput(inputIndex);
+      clone.updateInput(inputIndex, {
+        partialSig: [{ signature: chunks[0], pubkey: chunks[1] }],
+      });
+    } else {
+      return false;
+    }
+
+    try {
+      return clone.validateSignaturesOfInput(inputIndex, validator);
+    } catch {
+      return false;
+    }
+  }
+  private async signPreparedUtxo(psbt: any, sponsorWif: string) {
+    const signed = await syscoinUtils.signWithWIF(
+      psbt,
+      sponsorWif,
+      getUtxoNetwork()
+    );
+    for (let index = 0; index < signed.txInputs.length; index += 1) {
+      if (!this.validateFinalizedInput(signed, index)) {
+        throw new Error("Sponsored UTXO transaction has an invalid signature");
       }
     }
+    const transaction = signed.extractTransaction();
+    const rawTransaction = transaction.toHex();
+    return { txid: transaction.getId(), rawTransaction };
+  }
 
-    return undefined;
+  private async broadcastPreparedUtxo(
+    rawTransaction: string,
+    expectedTxid: string
+  ) {
+    try {
+      const response = await syscoinUtils.sendRawTransaction(
+        getUtxoBlockbookUrl(),
+        rawTransaction
+      );
+      if (!response?.result || response.result !== expectedTxid) {
+        throw new Error(
+          response?.error
+            ? JSON.stringify(response.error)
+            : "UTXO RPC returned an unexpected transaction id"
+        );
+      }
+    } catch (error) {
+      const known = await syscoinUtils
+        .fetchBackendRawTx(getUtxoBlockbookUrl(), expectedTxid)
+        .catch(() => undefined);
+      if (known?.txid !== expectedTxid) {
+        throw error;
+      }
+    }
+  }
+
+  private async recoverUtxoSponsorBroadcast(
+    transaction: ISponsorWalletTransaction
+  ) {
+    if (transaction.reservationPhase !== "broadcasting") {
+      return;
+    }
+    const { hash, rawData } = transaction.transaction;
+    if (!hash || !rawData || !transaction.utxoReservationKey) {
+      throw new SponsorNonceRecoveryError(
+        "Sponsored UTXO broadcast is missing durable transaction data"
+      );
+    }
+    try {
+      await this.markSponsorUtxoBroadcasting(
+        transaction.utxoReservationKey,
+        transaction.transferId
+      );
+    } catch (error) {
+      if (!(error instanceof SponsorshipInProgressError)) {
+        throw error;
+      }
+      const { sponsorAddress } = this.getUtxoSponsorConfig();
+      await this.reserveSponsorUtxo(
+        sponsorAddress,
+        transaction.transferId,
+        1,
+        transaction.utxoReservationKey
+      );
+      await this.markSponsorUtxoBroadcasting(
+        transaction.utxoReservationKey,
+        transaction.transferId
+      );
+    }
+    await this.broadcastPreparedUtxo(rawData, hash);
+    await this.markSponsorUtxoSpent(
+      transaction.utxoReservationKey,
+      transaction.transferId
+    );
+    await this.commitUtxoSponsorTransaction(transaction, hash);
   }
 
   public async updateSponsorWalletTransactionStatus(transactionHash: string) {
@@ -523,7 +1085,7 @@ export class SponsorWalletService {
   public async updateUtxoSponsorWalletTransactionStatus(txid: string) {
     const transaction = await SponsorWalletTransactions.findOne({
       "transaction.hash": txid,
-      action: UTXO_CLAIM_GAS_ACTION,
+      action: { $in: [UTXO_MINT_ACTION, UTXO_BURN_ACTION] },
     });
 
     if (!transaction || transaction.status !== "pending") {
@@ -615,6 +1177,9 @@ export class SponsorWalletService {
           ),
           reservationPhase: "reserved",
         },
+        $unset: {
+          utxoReservationKey: "",
+        },
       },
       { new: true }
     );
@@ -663,6 +1228,9 @@ export class SponsorWalletService {
           ),
           reservationPhase: "reserved",
           updatedAt: now,
+        },
+        $unset: {
+          utxoReservationKey: "",
         },
       },
       { new: true }
@@ -751,6 +1319,7 @@ export class SponsorWalletService {
           reservationOwner: "",
           reservationExpiresAt: "",
           reservationPhase: "",
+          utxoReservationKey: "",
         },
       },
       { new: true }
@@ -764,7 +1333,9 @@ export class SponsorWalletService {
   }
 
   private async beginUtxoSponsorBroadcast(
-    placeholder: ISponsorWalletTransaction
+    placeholder: ISponsorWalletTransaction,
+    signed: { txid: string; rawTransaction: string },
+    utxoReservationKey: string
   ): Promise<ISponsorWalletTransaction> {
     if (!placeholder.reservationOwner) {
       throw new SponsorshipInProgressError();
@@ -780,10 +1351,14 @@ export class SponsorWalletService {
       },
       {
         $set: {
-          reservationExpiresAt: new Date(
-            Date.now() + SPONSOR_RESERVATION_LEASE_MS
-          ),
           reservationPhase: "broadcasting",
+          utxoReservationKey,
+          transaction: {
+            hash: signed.txid,
+            rawData: signed.rawTransaction,
+            nonce: 0,
+            confirmedHash: "",
+          },
         },
       },
       { new: true }
@@ -809,22 +1384,15 @@ export class SponsorWalletService {
         _id: placeholder._id,
         status: "pending",
         reservationOwner: placeholder.reservationOwner,
-        "transaction.hash": { $exists: false },
+        "transaction.hash": transactionHash,
       },
       {
-        $set: {
-          status: "pending",
-          transaction: {
-            hash: transactionHash,
-            rawData: transactionHash,
-            nonce: 0,
-            confirmedHash: "",
-          },
-        },
+        $set: { status: "pending" },
         $unset: {
           reservationOwner: "",
           reservationExpiresAt: "",
           reservationPhase: "",
+          utxoReservationKey: "",
         },
       },
       { new: true }
@@ -996,93 +1564,11 @@ export class SponsorWalletService {
     });
   }
 
-  private async getMintCompatibleSysBalanceSats(
-    addressOrXpub: string
-  ): Promise<number> {
-    const response = await fetch(
-      `${getUtxoBlockbookUrl()}/api/v2/utxo/${encodeURIComponent(
-        addressOrXpub
-      )}`
-    );
-
-    if (!response.ok) {
-      throw new Error("Unable to fetch mint-compatible UTXOs");
-    }
-
-    const utxos = (await response.json()) as SponsorUtxo[];
-    if (!Array.isArray(utxos)) {
-      throw new Error("Invalid mint-compatible UTXO response");
-    }
-
-    return utxos.reduce((total, utxo) => {
-      // Canonical bridge mints cannot consume any asset-bearing input, even
-      // when that output contains enough native SYS to cover the fee.
-      if (utxo.assetInfo) {
-        return total;
-      }
-
-      const value = Number(utxo.value);
-      return Number.isFinite(value) && value > 0 ? total + value : total;
-    }, 0);
-  }
-
-  private getUtxoClaimGasAmountSats() {
-    return toSats(
-      process.env.UTXO_SPONSOR_CLAIM_GAS_AMOUNT_SYS ??
-        DEFAULT_UTXO_CLAIM_GAS_AMOUNT_SYS
-    );
-  }
-
-  private async prepareUtxoClaimGas(
-    sponsorAddress: string,
-    recipientAddress: string,
-    amountSats: number,
-    sponsorUtxo: SponsorUtxo
-  ): Promise<{ syscoinInstance: any; psbt: any }> {
-    const syscoinInstance = new syscoin(
-      null,
-      getUtxoBlockbookUrl(),
-      getUtxoNetwork()
-    );
-    const feeRate = new syscoinUtils.BN(DEFAULT_UTXO_FEE_RATE);
-    const txOpts = { rbf: true };
-
-    const result = await syscoinInstance.createTransaction(
-      txOpts,
-      sponsorAddress,
-      [
-        {
-          address: recipientAddress,
-          value: new syscoinUtils.BN(amountSats),
-        },
-      ],
-      feeRate,
-      sponsorAddress,
-      [sponsorUtxo]
-    );
-
-    return { syscoinInstance, psbt: result.psbt };
-  }
-
-  private async sendPreparedUtxoClaimGas(
-    preparedTransaction: { syscoinInstance: any; psbt: any },
-    sponsorWif: string
-  ): Promise<string> {
-    const signedPsbt =
-      await preparedTransaction.syscoinInstance.signAndSendWithWIF(
-        preparedTransaction.psbt,
-        sponsorWif
-      );
-    const psbt = signedPsbt.psbt ?? signedPsbt;
-    const transaction = psbt.extractTransaction();
-
-    return transaction.getId();
-  }
-
   private async reserveSponsorUtxo(
     sponsorAddress: string,
     transferId: string,
-    minValueSats: number
+    minValueSats: number,
+    requiredKey?: string
   ): Promise<{ key: string; utxo: SponsorUtxo }> {
     const utxos = await this.getSponsorUtxos(sponsorAddress);
     const expiresAt = new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS);
@@ -1097,6 +1583,9 @@ export class SponsorWalletService {
         continue;
       }
       const key = `${txid}:${utxo.vout}`;
+      if (requiredKey && key !== requiredKey) {
+        continue;
+      }
       try {
         await SponsorUtxoReservation.create({
           key,
@@ -1115,40 +1604,58 @@ export class SponsorWalletService {
       }
     }
 
-    throw new Error("No free UTXO sponsor outputs available");
+    throw new SponsorUnavailableError("No free UTXO sponsor outputs available");
   }
 
-  private async markSponsorUtxoSpent(key: string) {
+  private async markSponsorUtxoSpent(key: string, transferId: string) {
     const result = await SponsorUtxoReservation.updateOne(
-      { key, status: "broadcasting" },
+      { key, transferId, status: { $in: ["broadcasting", "spent"] } },
       {
-        $set: {
-          status: "spent",
-          expiresAt: new Date(Date.now() + SPONSOR_RESERVATION_LEASE_MS),
-        },
+        $set: { status: "spent" },
+        $unset: { expiresAt: "" },
       }
     );
-    if (result.modifiedCount !== 1) {
+    if ((result.matchedCount ?? result.modifiedCount) !== 1) {
       throw new Error("UTXO sponsor reservation was lost after broadcast");
     }
   }
 
-  private async markSponsorUtxoBroadcasting(key: string) {
+  private async markSponsorUtxoBroadcasting(
+    key: string,
+    transferId: string
+  ) {
     const result = await SponsorUtxoReservation.updateOne(
-      { key, status: "reserved" },
+      {
+        key,
+        transferId,
+        status: { $in: ["reserved", "broadcasting"] },
+      },
       {
         $set: { status: "broadcasting" },
         $unset: { expiresAt: "" },
       }
     );
-    if (result.modifiedCount !== 1) {
+    if ((result.matchedCount ?? result.modifiedCount) === 1) {
+      return;
+    }
+
+    const alreadySpent = await SponsorUtxoReservation.exists({
+      key,
+      transferId,
+      status: "spent",
+    });
+    if (!alreadySpent) {
       throw new SponsorshipInProgressError();
     }
   }
 
-  private async releaseSponsorUtxoReservation(key: string) {
+  private async releaseSponsorUtxoReservation(
+    key: string,
+    transferId: string
+  ) {
     await SponsorUtxoReservation.deleteOne({
       key,
+      transferId,
       status: "reserved",
     });
   }
@@ -1164,7 +1671,7 @@ export class SponsorWalletService {
 
     const utxos = (await response.json()) as SponsorUtxo[];
 
-    return [...utxos].sort((a, b) => Number(a.value) - Number(b.value));
+    return [...utxos].sort((a, b) => Number(b.value) - Number(a.value));
   }
 
 }

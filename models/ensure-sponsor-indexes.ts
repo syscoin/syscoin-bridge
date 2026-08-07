@@ -1,5 +1,4 @@
 import { getV2ActivationBlock } from "api/services/sponsor-eligibility";
-import SponsorRateLimit from "./sponsor-rate-limit";
 import SponsorUtxoReservation from "./sponsor-utxo-reservation";
 import SponsorWalletTransactions from "./sponsor-wallet-transactions";
 import TransferModel from "./transfer";
@@ -125,6 +124,5 @@ export const ensureSponsorIndexes = async () => {
     TransferModel.createIndexes(),
     SponsorWalletTransactions.createIndexes(),
     SponsorUtxoReservation.createIndexes(),
-    SponsorRateLimit.createIndexes(),
   ]);
 };

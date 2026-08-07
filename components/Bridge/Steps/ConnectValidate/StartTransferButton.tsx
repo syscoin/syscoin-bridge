@@ -12,6 +12,7 @@ import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
+import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import {
   getSyscoinChainId,
   resolveSyscoinIsTestnet,
@@ -31,6 +32,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
 }> = ({ isSaving, transfer }) => {
   const { constants } = useConstants();
   const { isExpectedChain } = useNEVM();
+  const { supportsPartialUtxoSigning } = usePaliWalletV2();
   const {
     watch,
     formState: { errors, isValid },
@@ -51,8 +53,10 @@ export const ConnectValidateStartTransferButton: React.FC<{
 
   const foundationFundingAvailable =
     isEnabled("foundationFundingAvailable") && transfer.type === "sys-to-nevm";
-  const utxoClaimGasSponsorshipAvailable =
-    isEnabled("foundationFundingAvailable") && transfer.type === "nevm-to-sys";
+  const utxoSponsorshipAvailable =
+    isEnabled("foundationFundingAvailable") &&
+    supportsPartialUtxoSigning &&
+    (transfer.type === "nevm-to-sys" || useSysx);
 
   const isNevmNotEnoughGas =
     !foundationFundingAvailable &&
@@ -62,7 +66,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
     nevmBalance.data < MIN_GAS_AMOUNT;
 
   const isUtxoNotEnoughGas =
-    !utxoClaimGasSponsorshipAvailable &&
+    !utxoSponsorshipAvailable &&
     Boolean(utxoXpub) &&
     utxoBalance.isFetched &&
     utxoBalance.data !== undefined &&
@@ -92,12 +96,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
   const isReady =
     isUtxoValid && isNevmValid && isAmountValid && balanceFetched && isValid;
-  const willSponsorUtxoClaimGas =
-    utxoClaimGasSponsorshipAvailable &&
-    Boolean(utxoXpub) &&
-    utxoBalance.isFetched &&
-    utxoBalance.data !== undefined &&
-    utxoBalance.data < MIN_GAS_AMOUNT;
+  const willSponsorUtxoFees = utxoSponsorshipAvailable;
   return (
     <>
       {isReady && (
@@ -111,11 +110,11 @@ export const ConnectValidateStartTransferButton: React.FC<{
       {isUtxoNotEnoughGas && (
         <ErrorMessage message="UTXO: Not enough funds for gas" />
       )}
-      {willSponsorUtxoClaimGas && (
+      {willSponsorUtxoFees && (
         <Box sx={{ display: "flex", mb: 2 }}>
           <Typography variant="body1">
-            UTXO: Bridge will fund the minimal claim gas needed to complete the
-            transfer.
+            UTXO: Bridge will attempt to sponsor the destination-side fees. If
+            sponsorship is unavailable, you will need SYS to continue.
           </Typography>
         </Box>
       )}
