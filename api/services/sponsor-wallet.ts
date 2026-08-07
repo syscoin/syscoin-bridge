@@ -1579,7 +1579,16 @@ export class SponsorWalletService {
         $unset: { expiresAt: "" },
       }
     );
-    if ((result.matchedCount ?? result.modifiedCount) !== 1) {
+    if ((result.matchedCount ?? result.modifiedCount) === 1) {
+      return;
+    }
+
+    const alreadySpent = await SponsorUtxoReservation.exists({
+      key,
+      transferId,
+      status: "spent",
+    });
+    if (!alreadySpent) {
       throw new SponsorshipInProgressError();
     }
   }

@@ -47,6 +47,7 @@ jest.mock("models/sponsor-utxo-reservation", () => {
   const Model: any = jest.fn();
   Model.create = jest.fn();
   Model.updateOne = jest.fn();
+  Model.exists = jest.fn();
   Model.deleteOne = jest.fn();
   return {
     __esModule: true,
@@ -1135,6 +1136,30 @@ describe("SponsorWalletService", () => {
 
       expect(order).toEqual(["lock", "broadcast", "spent", "commit"]);
       expect(lock).toHaveBeenCalledWith("sponsor-txid:0", transfer.id);
+    });
+
+    it("accepts an already-spent reservation while recovering a broadcast", async () => {
+      SponsorUtxoReservationMock.updateOne.mockResolvedValue({
+        matchedCount: 0,
+        modifiedCount: 0,
+      });
+      SponsorUtxoReservationMock.exists.mockResolvedValue({
+        _id: "reservation",
+      });
+
+      const service = new SponsorWalletService() as any;
+      await expect(
+        service.markSponsorUtxoBroadcasting(
+          "sponsor-txid:0",
+          transfer.id
+        )
+      ).resolves.toBeUndefined();
+
+      expect(SponsorUtxoReservationMock.exists).toHaveBeenCalledWith({
+        key: "sponsor-txid:0",
+        transferId: transfer.id,
+        status: "spent",
+      });
     });
 
     it("rejects a changed unsigned transaction before adding sponsor signatures", () => {
