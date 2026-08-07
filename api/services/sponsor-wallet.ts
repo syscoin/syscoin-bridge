@@ -28,6 +28,7 @@ export class SponsorshipInProgressError extends Error {
   constructor() {
     super("Sponsorship is already in progress");
     this.name = "SponsorshipInProgressError";
+    Object.setPrototypeOf(this, SponsorshipInProgressError.prototype);
   }
 }
 
@@ -1017,10 +1018,27 @@ export class SponsorWalletService {
         "Sponsored UTXO broadcast is missing durable transaction data"
       );
     }
-    await this.markSponsorUtxoBroadcasting(
-      transaction.utxoReservationKey,
-      transaction.transferId
-    );
+    try {
+      await this.markSponsorUtxoBroadcasting(
+        transaction.utxoReservationKey,
+        transaction.transferId
+      );
+    } catch (error) {
+      if (!(error instanceof SponsorshipInProgressError)) {
+        throw error;
+      }
+      const { sponsorAddress } = this.getUtxoSponsorConfig();
+      await this.reserveSponsorUtxo(
+        sponsorAddress,
+        transaction.transferId,
+        1,
+        transaction.utxoReservationKey
+      );
+      await this.markSponsorUtxoBroadcasting(
+        transaction.utxoReservationKey,
+        transaction.transferId
+      );
+    }
     await this.broadcastPreparedUtxo(rawData, hash);
     await this.markSponsorUtxoSpent(
       transaction.utxoReservationKey,

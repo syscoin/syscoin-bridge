@@ -84,6 +84,7 @@ import SponsorWalletTransactions from "models/sponsor-wallet-transactions";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import SponsorWalletService, {
+  SponsorshipInProgressError,
   syscoinTxIdFromWitnessStrippedHex,
 } from "../sponsor-wallet";
 
@@ -1263,6 +1264,59 @@ describe("SponsorWalletService", () => {
 
       expect(order).toEqual(["lock", "broadcast", "spent", "commit"]);
       expect(lock).toHaveBeenCalledWith("sponsor-txid:0", transfer.id);
+    });
+
+    it("recreates an expired sponsor lease before recovering a broadcast", async () => {
+      const service = new SponsorWalletService() as any;
+      const transaction = {
+        transferId: transfer.id,
+        reservationPhase: "broadcasting",
+        utxoReservationKey: "sponsor-txid:0",
+        transaction: { hash: "burn-txid", rawData: "00" },
+      };
+      const order: string[] = [];
+
+      jest.spyOn(service, "getUtxoSponsorConfig").mockReturnValue({
+        sponsorAddress: "sys1sponsor",
+        sponsorWif: "sponsor-wif",
+      });
+      jest
+        .spyOn(service, "markSponsorUtxoBroadcasting")
+        .mockImplementationOnce(async () => {
+          order.push("missing");
+          throw new SponsorshipInProgressError();
+        })
+        .mockImplementationOnce(async () => {
+          order.push("lock");
+        });
+      const reserve = jest
+        .spyOn(service, "reserveSponsorUtxo")
+        .mockImplementation(async () => {
+          order.push("reserve");
+          return {
+            key: "sponsor-txid:0",
+            utxo: { txid: "sponsor-txid", vout: 0, value: "10000" },
+          };
+        });
+      jest
+        .spyOn(service, "broadcastPreparedUtxo")
+        .mockImplementation(async () => {
+          order.push("broadcast");
+        });
+      jest.spyOn(service, "markSponsorUtxoSpent").mockResolvedValue(undefined);
+      jest
+        .spyOn(service, "commitUtxoSponsorTransaction")
+        .mockResolvedValue(transaction);
+
+      await service.recoverUtxoSponsorBroadcast(transaction);
+
+      expect(order).toEqual(["missing", "reserve", "lock", "broadcast"]);
+      expect(reserve).toHaveBeenCalledWith(
+        "sys1sponsor",
+        transfer.id,
+        1,
+        "sponsor-txid:0"
+      );
     });
 
     it("accepts an already-spent reservation while recovering a broadcast", async () => {
