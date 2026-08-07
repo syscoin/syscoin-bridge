@@ -94,6 +94,9 @@ describe("TransferService write capabilities", () => {
     await expect(
       new TransferService().getAuthorizedTransfer(transfer.id, writeToken)
     ).resolves.toEqual(transfer);
+    expect(TransferModelMock.findOne).toHaveBeenCalledWith({
+      id: { $eq: transfer.id },
+    });
   });
 
   it("rejects sponsored actions without the transfer capability", async () => {

@@ -92,7 +92,7 @@ export class TransferService {
     id: string,
     writeToken?: string
   ): Promise<ITransfer> {
-    const transfer = await TransferModel.findOne({ id }).select(
+    const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
       "+writeTokenHash"
     );
 
