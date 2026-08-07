@@ -46,7 +46,7 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
     });
   };
 
-  const foundation = useSyscoinSubmitProofs(transfer, onSuccess);
+  const foundation = useSyscoinSubmitProofs(transfer);
   const self = useSubmitProof(transfer, spvProof);
 
   const foundationFundingAvailable = isEnabled("foundationFundingAvailable");
@@ -70,8 +70,8 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
     return (
       <Alert severity="info">
         {foundationFundingAvailable
-          ? "Submitting proof..."
-          : "Confirm the transaction in your NEVM wallet."}
+          ? "Preparing proof submission..."
+          : "Preparing proof submission. Confirm it in your NEVM wallet when prompted."}
       </Alert>
     );
   }

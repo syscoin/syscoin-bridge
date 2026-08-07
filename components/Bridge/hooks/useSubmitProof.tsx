@@ -6,6 +6,11 @@ import { useWeb3 } from "../context/Web";
 
 import { ITransfer } from "@contexts/Transfer/types";
 import { useRelayContract } from "./useRelayContract";
+import {
+  assertProofBlockIsHistorical,
+  proofSubmissionRetryDelay,
+  shouldRetryPendingProof,
+} from "utils/proof-submission";
 
 
 export const isSpvProof = (data: unknown): data is SPVProof => {
@@ -20,6 +25,13 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
     }
+    if (nevmBlock.number === null) {
+      throw new Error("NEVM proof block has no block number");
+    }
+    assertProofBlockIsHistorical(
+      nevmBlock.number,
+      await web3.eth.getBlockNumber()
+    );
     if (!proof.coinbase) {
       throw new Error("The generated SPV proof is missing coinbase data");
     }
@@ -83,5 +95,8 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
           }
         });
     });
+  }, {
+    retry: shouldRetryPendingProof,
+    retryDelay: proofSubmissionRetryDelay,
   });
 };

@@ -12,6 +12,10 @@ import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import { SPVProof } from "syscoinjs-lib";
 import Web3 from "web3";
 import { applyApiCors } from "utils/api/cors";
+import {
+  assertProofBlockIsHistorical,
+  ProofBlockPendingError,
+} from "utils/proof-submission";
 
 const web3 = new Web3(process.env.NEVM_RPC_URL ?? "https://rpc.syscoin.org");
 
@@ -54,6 +58,13 @@ const handler: NextApiHandler = async (
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
     }
+    if (nevmBlock.number === null) {
+      throw new Error("NEVM proof block has no block number");
+    }
+    assertProofBlockIsHistorical(
+      nevmBlock.number,
+      await web3.eth.getBlockNumber()
+    );
     if (!proof.coinbase) {
       throw new Error(
         "SPV proof missing coinbase (update syscoingetspvproof / blockbook)"
@@ -107,11 +118,20 @@ const handler: NextApiHandler = async (
       message = e.message;
     }
     const status =
+      e instanceof ProofBlockPendingError ||
       e instanceof SponsorshipInProgressError
         ? 409
         : e instanceof SponsorNonceRecoveryError
           ? 503
           : 500;
+    if (e instanceof ProofBlockPendingError) {
+      res.setHeader("Retry-After", e.retryAfterMs / 1_000);
+      return res.status(status).json({
+        code: e.code,
+        message,
+        retryAfterMs: e.retryAfterMs,
+      });
+    }
     res.status(status).json({ message });
   }
 };
