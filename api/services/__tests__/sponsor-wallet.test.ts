@@ -1043,6 +1043,100 @@ describe("SponsorWalletService", () => {
       expect(SponsorUtxoReservationMock.create).not.toHaveBeenCalled();
     });
 
+    it("stores a signed mint before making its sponsor lease permanent", async () => {
+      const service = new SponsorWalletService() as any;
+      const placeholder = {
+        _id: "placeholder-id",
+        reservationOwner: "owner",
+        reservationExpiresAt: new Date(Date.now() + 60_000),
+        transaction: {},
+      };
+      const signed = { txid: "mint-txid", rawTransaction: "00" };
+      const order: string[] = [];
+
+      jest.spyOn(service, "getUtxoSponsorConfig").mockReturnValue({
+        sponsorAddress: "sys1sponsor",
+        sponsorWif: "sponsor-wif",
+      });
+      jest
+        .spyOn(service, "getExistingUtxoSponsorship")
+        .mockResolvedValue(null);
+      jest
+        .spyOn(service, "claimUtxoSponsorPlaceholder")
+        .mockResolvedValue(placeholder);
+      jest.spyOn(service, "reserveSponsorUtxo").mockResolvedValue({
+        key: "sponsor-txid:0",
+        utxo: { txid: "sponsor-txid", vout: 0, value: "10000" },
+      });
+      jest
+        .spyOn(service, "prepareSponsoredMint")
+        .mockResolvedValue({ psbt: {} });
+      jest.spyOn(service, "signPreparedUtxo").mockResolvedValue(signed);
+      const begin = jest
+        .spyOn(service, "beginUtxoSponsorBroadcast")
+        .mockImplementation(async () => {
+          order.push("persist");
+          return placeholder;
+        });
+      const lock = jest
+        .spyOn(service, "markSponsorUtxoBroadcasting")
+        .mockImplementation(async () => {
+          order.push("lock");
+        });
+      jest.spyOn(service, "broadcastPreparedUtxo").mockResolvedValue(undefined);
+      jest.spyOn(service, "markSponsorUtxoSpent").mockResolvedValue(undefined);
+      jest
+        .spyOn(service, "commitUtxoSponsorTransaction")
+        .mockResolvedValue(placeholder);
+
+      await service.sponsorUtxoMint(transfer, "0xfreeze");
+
+      expect(order).toEqual(["persist", "lock"]);
+      expect(begin).toHaveBeenCalledWith(
+        placeholder,
+        signed,
+        "sponsor-txid:0"
+      );
+      expect(lock).toHaveBeenCalledWith("sponsor-txid:0", transfer.id);
+    });
+
+    it("restores the permanent sponsor lease before recovering a broadcast", async () => {
+      const service = new SponsorWalletService() as any;
+      const transaction = {
+        transferId: transfer.id,
+        reservationPhase: "broadcasting",
+        utxoReservationKey: "sponsor-txid:0",
+        transaction: { hash: "burn-txid", rawData: "00" },
+      };
+      const order: string[] = [];
+      const lock = jest
+        .spyOn(service, "markSponsorUtxoBroadcasting")
+        .mockImplementation(async () => {
+          order.push("lock");
+        });
+      jest
+        .spyOn(service, "broadcastPreparedUtxo")
+        .mockImplementation(async () => {
+          order.push("broadcast");
+        });
+      jest
+        .spyOn(service, "markSponsorUtxoSpent")
+        .mockImplementation(async () => {
+          order.push("spent");
+        });
+      jest
+        .spyOn(service, "commitUtxoSponsorTransaction")
+        .mockImplementation(async () => {
+          order.push("commit");
+          return transaction;
+        });
+
+      await service.recoverUtxoSponsorBroadcast(transaction);
+
+      expect(order).toEqual(["lock", "broadcast", "spent", "commit"]);
+      expect(lock).toHaveBeenCalledWith("sponsor-txid:0", transfer.id);
+    });
+
     it("rejects a changed unsigned transaction before adding sponsor signatures", () => {
       const service = new SponsorWalletService() as any;
       const input = {

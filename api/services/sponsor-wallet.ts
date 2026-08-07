@@ -329,15 +329,16 @@ export class SponsorWalletService {
         reservation.utxo
       );
       const signed = await this.signPreparedUtxo(prepared.psbt, sponsorWif);
-      await this.markSponsorUtxoBroadcasting(reservation.key);
-      broadcastStarted = true;
       const broadcasting = await this.beginUtxoSponsorBroadcast(
         placeholder,
-        signed
+        signed,
+        reservation.key
       );
+      broadcastStarted = true;
+      await this.markSponsorUtxoBroadcasting(reservation.key, transfer.id);
       await this.broadcastPreparedUtxo(signed.rawTransaction, signed.txid);
 
-      await this.markSponsorUtxoSpent(reservation.key);
+      await this.markSponsorUtxoSpent(reservation.key, transfer.id);
       await this.commitUtxoSponsorTransaction(broadcasting, signed.txid);
       return { sponsored: true, status: "pending", txid: signed.txid };
     } catch (error) {
@@ -347,7 +348,7 @@ export class SponsorWalletService {
       throw error;
     } finally {
       if (reservation && !broadcastStarted) {
-        await this.releaseSponsorUtxoReservation(reservation.key);
+        await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
       }
     }
   }
@@ -430,7 +431,7 @@ export class SponsorWalletService {
       throw error;
     } finally {
       if (reservation && !preparedStored) {
-        await this.releaseSponsorUtxoReservation(reservation.key);
+        await this.releaseSponsorUtxoReservation(reservation.key, transfer.id);
       }
     }
   }
@@ -478,16 +479,23 @@ export class SponsorWalletService {
     );
 
     const sponsorSigned = await this.signPreparedUtxo(canonical, sponsorWif);
-    await this.markSponsorUtxoBroadcasting(placeholder.utxoReservationKey);
     const broadcasting = await this.beginUtxoSponsorBroadcast(
       placeholder,
-      sponsorSigned
+      sponsorSigned,
+      placeholder.utxoReservationKey
+    );
+    await this.markSponsorUtxoBroadcasting(
+      placeholder.utxoReservationKey,
+      transfer.id
     );
     await this.broadcastPreparedUtxo(
       sponsorSigned.rawTransaction,
       sponsorSigned.txid
     );
-    await this.markSponsorUtxoSpent(placeholder.utxoReservationKey);
+    await this.markSponsorUtxoSpent(
+      placeholder.utxoReservationKey,
+      transfer.id
+    );
     await this.commitUtxoSponsorTransaction(
       broadcasting,
       sponsorSigned.txid
@@ -989,8 +997,15 @@ export class SponsorWalletService {
         "Sponsored UTXO broadcast is missing durable transaction data"
       );
     }
+    await this.markSponsorUtxoBroadcasting(
+      transaction.utxoReservationKey,
+      transaction.transferId
+    );
     await this.broadcastPreparedUtxo(rawData, hash);
-    await this.markSponsorUtxoSpent(transaction.utxoReservationKey);
+    await this.markSponsorUtxoSpent(
+      transaction.utxoReservationKey,
+      transaction.transferId
+    );
     await this.commitUtxoSponsorTransaction(transaction, hash);
   }
 
@@ -1265,7 +1280,8 @@ export class SponsorWalletService {
 
   private async beginUtxoSponsorBroadcast(
     placeholder: ISponsorWalletTransaction,
-    signed: { txid: string; rawTransaction: string }
+    signed: { txid: string; rawTransaction: string },
+    utxoReservationKey: string
   ): Promise<ISponsorWalletTransaction> {
     if (!placeholder.reservationOwner) {
       throw new SponsorshipInProgressError();
@@ -1282,6 +1298,7 @@ export class SponsorWalletService {
       {
         $set: {
           reservationPhase: "broadcasting",
+          utxoReservationKey,
           transaction: {
             hash: signed.txid,
             rawData: signed.rawTransaction,
@@ -1532,9 +1549,9 @@ export class SponsorWalletService {
     throw new SponsorUnavailableError("No free UTXO sponsor outputs available");
   }
 
-  private async markSponsorUtxoSpent(key: string) {
+  private async markSponsorUtxoSpent(key: string, transferId: string) {
     const result = await SponsorUtxoReservation.updateOne(
-      { key, status: { $in: ["broadcasting", "spent"] } },
+      { key, transferId, status: { $in: ["broadcasting", "spent"] } },
       {
         $set: {
           status: "spent",
@@ -1547,9 +1564,16 @@ export class SponsorWalletService {
     }
   }
 
-  private async markSponsorUtxoBroadcasting(key: string) {
+  private async markSponsorUtxoBroadcasting(
+    key: string,
+    transferId: string
+  ) {
     const result = await SponsorUtxoReservation.updateOne(
-      { key, status: { $in: ["reserved", "broadcasting"] } },
+      {
+        key,
+        transferId,
+        status: { $in: ["reserved", "broadcasting"] },
+      },
       {
         $set: { status: "broadcasting" },
         $unset: { expiresAt: "" },
@@ -1560,9 +1584,13 @@ export class SponsorWalletService {
     }
   }
 
-  private async releaseSponsorUtxoReservation(key: string) {
+  private async releaseSponsorUtxoReservation(
+    key: string,
+    transferId: string
+  ) {
     await SponsorUtxoReservation.deleteOne({
       key,
+      transferId,
       status: "reserved",
     });
   }
