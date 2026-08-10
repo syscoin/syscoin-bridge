@@ -33,6 +33,25 @@ The bridge UI is a ReactJS application that allows users to interact with the br
 
 Each step taken on the Bridge is stored in MongoDB. This allows the user to resume the process at any time.
 
+### Admin access
+
+Each deployment has a separate admin allowlist in its MongoDB database. Open
+`/admin/login`, connect the registered NEVM account on the network shown by the
+page, and sign the login message. The signature is free and does not submit a
+transaction.
+
+Provisioning an admin requires the deployment's `ADMIN_API_KEY`:
+
+```bash
+curl -X POST https://bridge.example/api/admin \
+  -H "Authorization: Bearer $ADMIN_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data '{"address":"0x...","name":"Admin"}'
+```
+
+Admin addresses are normalized to lowercase. Never expose `ADMIN_API_KEY` in
+frontend configuration.
+
 ### Sponsored Transactions
 
 When `FOUNDATION_FUNDED=true`, the bridge sponsors destination-side transaction fees directly. Users still sign and pay the source-chain transaction.

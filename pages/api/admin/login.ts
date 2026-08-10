@@ -5,50 +5,61 @@ import dbConnect from "lib/mongodb";
 import AdminModel from "models/admin";
 import { verifySignature } from "utils/api/verify-signature";
 import { applyApiCors } from "utils/api/cors";
+import { normalizeAdminAddress } from "api/services/admin";
 
-const AdminLoginApiRoute: NextApiHandler = withSessionRoute(
-  async (req, res) => {
-    if (applyApiCors(req, res, { allowCredentials: true })) {
-      return;
-    }
+export const adminLoginRequest: NextApiHandler = async (req, res) => {
+  if (applyApiCors(req, res, { allowCredentials: true })) {
+    return;
+  }
 
-    if (req.method !== "POST") {
-      return res.status(405).json({ message: "Method not allowed" });
-    }
+  if (req.method !== "POST") {
+    return res.status(405).json({ message: "Method not allowed" });
+  }
 
-    const { address, signedMessage } = req.body;
+  const { address, signedMessage } = req.body ?? {};
+  if (typeof address !== "string" || typeof signedMessage !== "string") {
+    return res.status(400).json({
+      success: false,
+      message: "Wallet address and signature are required",
+    });
+  }
 
-    const isVerified = verifySignature(
+  const normalizedAddress = normalizeAdminAddress(address);
+  let isVerified = false;
+  try {
+    isVerified = verifySignature(
       ADMIN_LOGIN_MESSAGE,
       signedMessage,
-      address
+      normalizedAddress
     );
-
-    if (!isVerified) {
-      return res
-        .status(401)
-        .json({ success: false, message: "signature invalid" });
-    }
-
-    await dbConnect();
-
-    const adminUser = await AdminModel.findOne({ address });
-
-    if (!adminUser) {
-      return res.status(401).json({
-        success: false,
-        message: `address ${address} is not registered as admin`,
-      });
-    }
-
-    req.session.user = {
-      address: adminUser.address,
-      name: adminUser.name,
-    };
-
-    await req.session.save();
-    return res.status(200).json({ success: true });
+  } catch {
+    isVerified = false;
   }
-);
 
-export default AdminLoginApiRoute;
+  if (!isVerified) {
+    return res
+      .status(401)
+      .json({ success: false, message: "Wallet signature is invalid" });
+  }
+
+  await dbConnect();
+
+  const adminUser = await AdminModel.findOne({ address: normalizedAddress });
+
+  if (!adminUser) {
+    return res.status(403).json({
+      success: false,
+      message: "This wallet is not registered as an administrator",
+    });
+  }
+
+  req.session.user = {
+    address: normalizeAdminAddress(adminUser.address),
+    name: adminUser.name,
+  };
+
+  await req.session.save();
+  return res.status(200).json({ success: true });
+};
+
+export default withSessionRoute(adminLoginRequest);

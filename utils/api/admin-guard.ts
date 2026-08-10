@@ -1,8 +1,6 @@
 import { NextApiHandler } from "next";
 import { applyApiCors } from "utils/api/cors";
 
-const apiKey = process.env.ADMIN_API_KEY;
-
 const adminGuard = (handler: NextApiHandler) => {
   const checkHandler: NextApiHandler = (req, res) => {
     if (applyApiCors(req, res)) {
@@ -10,6 +8,7 @@ const adminGuard = (handler: NextApiHandler) => {
     }
 
     const { authorization } = req.headers;
+    const apiKey = process.env.ADMIN_API_KEY;
     if (
       !authorization ||
       apiKey === undefined ||
