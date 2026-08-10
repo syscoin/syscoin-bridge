@@ -5,7 +5,8 @@ import { useConstants } from "@contexts/useConstants";
 
 const ConnectAdmin = () => {
   const { account, connect, isWrongChain, switchToMainnet } = useNEVM();
-  const { isBitcoinBased, isEVMInjected, switchTo } = usePaliWalletV2();
+  const { changeAccount, isBitcoinBased, isEVMInjected, switchTo } =
+    usePaliWalletV2();
   const { constants } = useConstants();
 
   const isConnected = Boolean(account);
@@ -31,7 +32,10 @@ const ConnectAdmin = () => {
         </Button>
       )}
       {isConnected && (
-        <Button variant="outlined" onClick={connect}>
+        <Button
+          variant="outlined"
+          onClick={isEVMInjected ? changeAccount : connect}
+        >
           Use another wallet
         </Button>
       )}
