@@ -16,20 +16,37 @@ const getApiBaseUrl = () => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
-type BuildApiUrlOptions = {
-  fallbackOrigin?: string;
+const getInternalApiBaseUrl = () => {
+  const baseUrl = stripTrailingSlashes(
+    (process.env.INTERNAL_API_BASE_URL || "").trim()
+  );
+
+  if (!baseUrl) {
+    throw new Error(
+      "INTERNAL_API_BASE_URL is required for server-side API requests"
+    );
+  }
+
+  const protocol = new URL(baseUrl).protocol;
+  if (protocol !== "http:" && protocol !== "https:") {
+    throw new Error("INTERNAL_API_BASE_URL must use HTTP or HTTPS");
+  }
+
+  return baseUrl;
 };
 
-export const buildApiUrl = (
-  path: string,
-  options?: BuildApiUrlOptions
-): string => {
+export const buildApiUrl = (path: string): string => {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const baseUrl = getApiBaseUrl() || options?.fallbackOrigin || "";
+  const baseUrl = getApiBaseUrl();
 
   if (!baseUrl) {
     return normalizedPath;
   }
 
   return `${baseUrl}${normalizedPath}`;
+};
+
+export const buildInternalApiUrl = (path: string): string => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${getInternalApiBaseUrl()}${normalizedPath}`;
 };

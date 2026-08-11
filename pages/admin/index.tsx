@@ -5,7 +5,7 @@ import { useRouter } from "next/router";
 import AdminTransferList from "components/Admin/Transfer/List";
 import { ITransfer } from "@contexts/Transfer/types";
 import AdminTransferFilters from "components/Admin/Transfer/Filters";
-import { buildApiUrl } from "utils/api-base-url";
+import { buildInternalApiUrl } from "utils/api-base-url";
 type Props = {
   user: SessionUser;
   transfers: ITransfer[];
@@ -84,16 +84,9 @@ export const getServerSideProps: GetServerSideProps = async ({ req, query }) => 
     searchParams.set("page", page);
   }
 
-  const forwardedProto = req.headers["x-forwarded-proto"];
-  const protocol = (
-    Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
-  )?.split(",")[0]?.trim() || "http";
-  const host = req.headers.host || "localhost:3000";
-  const fallbackOrigin = `${protocol}://${host}`;
   const queryString = searchParams.toString();
-  const requestUrl = buildApiUrl(
-    `/api/admin/transfers${queryString ? `?${queryString}` : ""}`,
-    { fallbackOrigin }
+  const requestUrl = buildInternalApiUrl(
+    `/api/admin/transfers${queryString ? `?${queryString}` : ""}`
   );
 
   const response = await fetch(requestUrl, {

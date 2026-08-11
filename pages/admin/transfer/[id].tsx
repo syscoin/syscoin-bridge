@@ -23,7 +23,7 @@ import { Web3Provider } from "components/Bridge/context/Web";
 import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModals/AddFreezeBurnTransactionModal";
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 import { useConstants } from "@contexts/useConstants";
-import { buildApiUrl } from "utils/api-base-url";
+import { buildInternalApiUrl } from "utils/api-base-url";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -232,15 +232,9 @@ export const getServerSideProps: GetServerSideProps = async ({
     };
   }
 
-  const forwardedProto = req.headers["x-forwarded-proto"];
-  const protocol = (
-    Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
-  )?.split(",")[0]?.trim() || "http";
-  const host = req.headers.host || "localhost:3000";
-  const fallbackOrigin = `${protocol}://${host}`;
-  const requestUrl = buildApiUrl(`/api/admin/transfers/${id}`, {
-    fallbackOrigin,
-  });
+  const requestUrl = buildInternalApiUrl(
+    `/api/admin/transfers/${encodeURIComponent(id)}`
+  );
 
   const response = await fetch(requestUrl, {
     headers: {

@@ -22,6 +22,18 @@ describe("admin Pages Router components", () => {
     }
   );
 
+  it.each(["pages/admin/index.tsx", "pages/admin/transfer/[id].tsx"])(
+    "uses only the configured internal API origin in %s",
+    (relativePath) => {
+      const source = readFileSync(join(process.cwd(), relativePath), "utf8");
+
+      expect(source).toContain("buildInternalApiUrl");
+      expect(source).not.toContain('req.headers["x-forwarded-proto"]');
+      expect(source).not.toContain("req.headers.host");
+      expect(source).not.toContain("fallbackOrigin");
+    }
+  );
+
   it("returns the authenticated user with the transfer list", () => {
     const source = readFileSync(
       join(process.cwd(), "pages/api/admin/transfers/index.ts"),
