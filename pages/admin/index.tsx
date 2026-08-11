@@ -1,7 +1,7 @@
 import { GetServerSideProps, NextPage } from "next";
 import { SessionUser, withSessionSsr } from "lib/session";
 import { Box, Button, Container, Typography } from "@mui/material";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/router";
 import AdminTransferList from "components/Admin/Transfer/List";
 import { ITransfer } from "@contexts/Transfer/types";
 import AdminTransferFilters from "components/Admin/Transfer/Filters";
@@ -13,15 +13,22 @@ type Props = {
   pageSize: number;
 };
 
-const AdminPage: NextPage<Props> = ({ user, transfers, total, pageSize }) => {
-  const { refresh, push } = useRouter();
+export const AdminPage: NextPage<Props> = ({
+  user,
+  transfers,
+  total,
+  pageSize,
+}) => {
+  const { push, replace } = useRouter();
 
-  const onLogout = () => {
-    fetch("/api/admin/logout", {
+  const onLogout = async () => {
+    const response = await fetch("/api/admin/logout", {
       credentials: "include",
-    }).then((res) => {
-      res.ok && refresh();
     });
+
+    if (response.ok) {
+      await replace("/admin/login");
+    }
   };
 
   const onPageChange = (page: number) => {

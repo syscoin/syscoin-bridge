@@ -58,9 +58,13 @@ const WelcomeModal = () => {
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          width: 500,
+          width: { xs: "calc(100% - 32px)", sm: 500 },
+          maxHeight: "calc(100vh - 32px)",
+          overflowY: "auto",
           bgcolor: "background.paper",
-          border: "2px solid #000",
+          color: "text.primary",
+          border: "2px solid",
+          borderColor: "primary.main",
           boxShadow: 24,
           borderRadius: 4,
           p: 4,
@@ -70,7 +74,7 @@ const WelcomeModal = () => {
         <List dense sx={{ my: 2 }}>
           {terms.map((term, i) => (
             <ListItem key={i}>
-              <ListItemIcon>
+              <ListItemIcon sx={{ color: "text.primary" }}>
                 <Check />
               </ListItemIcon>
               <Typography variant="body1">{term}</Typography>

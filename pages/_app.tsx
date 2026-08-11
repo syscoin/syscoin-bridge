@@ -8,11 +8,12 @@ import MetamaskProvider from "../contexts/Metamask/Provider";
 import "../styles/globals.css";
 import NEVMProvider from "@contexts/ConnectedWallet/NEVMProvider";
 import WelcomeModal from "components/WelcomeModal";
+import { isAdminRoute } from "utils/app-route";
 
 const queryClient = new QueryClient();
 
 function MyApp({ Component, pageProps, router }: AppProps) {
-  const isAdmin = router.pathname.includes("/admin");
+  const isAdmin = isAdminRoute(router.pathname, router.asPath);
   const isBridge = router.pathname.includes("/bridge");
 
   // Keep wallet/query providers mounted across client-side route changes.
