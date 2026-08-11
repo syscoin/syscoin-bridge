@@ -1,3 +1,5 @@
+import { resolveApiProxyTarget } from "./api-proxy-target";
+
 const stripTrailingSlashes = (value: string) => {
   let end = value.length;
   while (end > 0 && value[end - 1] === "/") {
@@ -18,7 +20,7 @@ export const API_BASE_URL = getApiBaseUrl();
 
 const getInternalApiBaseUrl = () => {
   const baseUrl = stripTrailingSlashes(
-    (process.env.INTERNAL_API_BASE_URL || "").trim()
+    (process.env.INTERNAL_API_BASE_URL || resolveApiProxyTarget()).trim()
   );
 
   if (!baseUrl) {

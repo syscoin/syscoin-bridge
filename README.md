@@ -212,7 +212,7 @@ so Compose never offers to recreate an existing Mongo data volume.
 
 When hosting the frontend separately from the backend services, set `NEXT_PUBLIC_API_BASE_URL` to the backend origin (for example, `https://backend.test.com`). Browser requests use that base URL when provided and otherwise remain relative to the current origin. The same variable enables a framework rewrite so hitting `/api/*` on the frontend domain proxies to the backend.
 
-Set `INTERNAL_API_BASE_URL` to the trusted backend origin used by server-side admin requests. Use the external backend origin for split deployments and `http://127.0.0.1:3000` when the API runs in the same service. Server-side admin requests fail closed when this variable is missing and never derive their destination from request headers.
+Set `INTERNAL_API_BASE_URL` to the trusted backend origin used by server-side admin requests. Use the external backend origin for split deployments and `http://127.0.0.1:3000` when the API runs in the same service. When this variable is missing, server-side admin requests use the same trusted API target as the framework proxy; if neither target is available, they fail closed. They never derive their destination from request headers.
 
 Vercel testnet previews automatically proxy `/api/*` to `https://bridge-api.tanenbaum.io` when no explicit API base is configured. The testnet backend accepts HTTPS `*.vercel.app` origins for these preview requests. Mainnet previews are never automatically connected to the production backend, and the mainnet backend continues to require an exact `CORS_ALLOWED_ORIGIN` match.
 
