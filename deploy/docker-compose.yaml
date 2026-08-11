@@ -86,6 +86,9 @@ services:
     environment:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
+      # Admin SSR runs in this same service and must never derive its API
+      # destination from request headers or an upgrade-persistent host env file.
+      INTERNAL_API_BASE_URL: "http://127.0.0.1:3000"
       # This managed Compose stack always uses its local authenticated Mongo.
       # Ignore legacy URIs whose embedded credentials can drift from the
       # initialized database volume.
