@@ -2,6 +2,7 @@ import { AdminService } from "api/services/admin";
 import dbConnect from "lib/mongodb";
 import { NextApiHandler } from "next";
 import { applyApiCors } from "utils/api/cors";
+import adminGuard from "utils/api/admin-guard";
 
 const adminService = new AdminService();
 
@@ -14,7 +15,7 @@ const isValidBody = (body: any): body is ICreateAdminBody => {
   return typeof body.address === "string" && typeof body.name === "string";
 };
 
-const handler: NextApiHandler = async (req, res) => {
+export const adminRequest: NextApiHandler = async (req, res) => {
   if (applyApiCors(req, res)) {
     return;
   }
@@ -26,7 +27,7 @@ const handler: NextApiHandler = async (req, res) => {
       return res.status(400).json({ message: "Missing address" });
     }
     try {
-      const admin = await adminService.getAdmin(address.toLocaleLowerCase());
+      const admin = await adminService.getAdmin(address);
       if (admin === null) {
         return res.status(404).json({ message: "Admin not found" });
       }
@@ -46,7 +47,7 @@ const handler: NextApiHandler = async (req, res) => {
       return res.status(400).json({ message: "Missing address or name" });
     }
     return adminService
-      .createAdmin(address.toLocaleLowerCase(), name)
+      .createAdmin(address, name)
       .then((admin) => {
         return res.status(200).json(admin);
       })
@@ -56,6 +57,15 @@ const handler: NextApiHandler = async (req, res) => {
   }
 
   return res.status(400).json({ message: "Invalid method" });
+};
+
+const guardedAdminRequest = adminGuard(adminRequest);
+
+const handler: NextApiHandler = (req, res) => {
+  if (req.method === "POST") {
+    return guardedAdminRequest(req, res);
+  }
+  return adminRequest(req, res);
 };
 
 export default handler;

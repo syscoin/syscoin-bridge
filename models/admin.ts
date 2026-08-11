@@ -12,6 +12,8 @@ const AdminSchema = new mongoose.Schema<IAdmin>({
     type: String,
     required: true,
     unique: true,
+    lowercase: true,
+    trim: true,
   },
   name: {
     type: String,
