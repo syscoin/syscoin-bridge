@@ -24,7 +24,6 @@ import AddFreezeBurnTransactionModal from "components/Admin/Transfer/AddLogModal
 import AddMintSysxTransaction from "components/Admin/Transfer/AddLogModals/AddMintSysxTransaction";
 import { useConstants } from "@contexts/useConstants";
 import { buildApiUrl } from "utils/api-base-url";
-import { withSessionSsr } from "lib/session";
 
 type Props = {
   initialTransfer: ITransfer;
@@ -220,71 +219,61 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   );
 };
 
-export const getServerSideProps: GetServerSideProps = withSessionSsr(
-  async ({ params, req }) => {
-    const { user } = req.session;
+export const getServerSideProps: GetServerSideProps = async ({
+  params,
+  req,
+}) => {
+  const rawId = params?.["id"];
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
-    if (!user) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-
-    const rawId = params?.["id"];
-    const id = Array.isArray(rawId) ? rawId[0] : rawId;
-
-    if (!id) {
-      return {
-        notFound: true,
-      };
-    }
-
-    const forwardedProto = req.headers["x-forwarded-proto"];
-    const protocol = (
-      Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
-    )?.split(",")[0]?.trim() || "http";
-    const host = req.headers.host || "localhost:3000";
-    const fallbackOrigin = `${protocol}://${host}`;
-    const requestUrl = buildApiUrl(`/api/admin/transfers/${id}`, {
-      fallbackOrigin,
-    });
-
-    const response = await fetch(requestUrl, {
-      headers: {
-        cookie: req.headers.cookie || "",
-      },
-    });
-
-    if (response.status === 401) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-
-    if (response.status === 404) {
-      return {
-        notFound: true,
-      };
-    }
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch transfer");
-    }
-
-    const transfer = await response.json();
-
+  if (!id) {
     return {
-      props: {
-        initialTransfer: transfer,
+      notFound: true,
+    };
+  }
+
+  const forwardedProto = req.headers["x-forwarded-proto"];
+  const protocol = (
+    Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
+  )?.split(",")[0]?.trim() || "http";
+  const host = req.headers.host || "localhost:3000";
+  const fallbackOrigin = `${protocol}://${host}`;
+  const requestUrl = buildApiUrl(`/api/admin/transfers/${id}`, {
+    fallbackOrigin,
+  });
+
+  const response = await fetch(requestUrl, {
+    headers: {
+      cookie: req.headers.cookie || "",
+    },
+  });
+
+  if (response.status === 401) {
+    return {
+      redirect: {
+        destination: "/admin/login",
+        permanent: false,
       },
     };
   }
-);
+
+  if (response.status === 404) {
+    return {
+      notFound: true,
+    };
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch transfer");
+  }
+
+  const transfer = await response.json();
+
+  return {
+    props: {
+      initialTransfer: transfer,
+    },
+  };
+};
 
 export default TransferDetailsPage;

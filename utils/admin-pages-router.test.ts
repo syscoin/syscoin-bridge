@@ -11,4 +11,23 @@ describe("admin Pages Router components", () => {
     expect(source).toContain('from "next/router"');
     expect(source).not.toContain('from "next/navigation"');
   });
+
+  it.each(["pages/admin/index.tsx", "pages/admin/transfer/[id].tsx"])(
+    "delegates session validation to the backend in %s",
+    (relativePath) => {
+      const source = readFileSync(join(process.cwd(), relativePath), "utf8");
+
+      expect(source).not.toContain("withSessionSsr");
+      expect(source).toContain("response.status === 401");
+    }
+  );
+
+  it("returns the authenticated user with the transfer list", () => {
+    const source = readFileSync(
+      join(process.cwd(), "pages/api/admin/transfers/index.ts"),
+      "utf8"
+    );
+
+    expect(source).toContain("user: req.session.user");
+  });
 });
