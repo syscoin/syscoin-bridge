@@ -46,7 +46,10 @@ BRIDGE_ENV_FILE="$test_dir/backend.env" \
           bridge.MONGO_ROOT_PASSWORD !== "compose-password") {
         throw new Error("Managed Compose lost the reconciled Mongo credentials");
       }
+      if (bridge.INTERNAL_API_BASE_URL !== "http://127.0.0.1:3000") {
+        throw new Error("Managed Compose did not provision the admin SSR origin");
+      }
     });
   '
 
-echo "Docker Compose Mongo configuration tests passed"
+echo "Docker Compose configuration tests passed"

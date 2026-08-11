@@ -1,11 +1,11 @@
 import { GetServerSideProps, NextPage } from "next";
-import { SessionUser, withSessionSsr } from "lib/session";
+import type { SessionUser } from "lib/session";
 import { Box, Button, Container, Typography } from "@mui/material";
 import { useRouter } from "next/router";
 import AdminTransferList from "components/Admin/Transfer/List";
 import { ITransfer } from "@contexts/Transfer/types";
 import AdminTransferFilters from "components/Admin/Transfer/Filters";
-import { buildApiUrl } from "utils/api-base-url";
+import { buildInternalApiUrl } from "utils/api-base-url";
 type Props = {
   user: SessionUser;
   transfers: ITransfer[];
@@ -68,78 +68,58 @@ export const AdminPage: NextPage<Props> = ({
 };
 
 // This gets called on every request
-export const getServerSideProps: GetServerSideProps = withSessionSsr(
-  async ({ req, query }) => {
-    const { user } = req.session;
+export const getServerSideProps: GetServerSideProps = async ({ req, query }) => {
+  const getQueryValue = (value?: string | string[]) =>
+    Array.isArray(value) ? value[0] : value;
 
-    if (!user) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
+  const searchParams = new URLSearchParams();
+  const id = getQueryValue(query.id);
+  const page = getQueryValue(query.page);
 
-    const getQueryValue = (value?: string | string[]) =>
-      Array.isArray(value) ? value[0] : value;
+  if (id) {
+    searchParams.set("id", id);
+  }
 
-    const searchParams = new URLSearchParams();
-    const id = getQueryValue(query.id);
-    const page = getQueryValue(query.page);
+  if (page) {
+    searchParams.set("page", page);
+  }
 
-    if (id) {
-      searchParams.set("id", id);
-    }
+  const queryString = searchParams.toString();
+  const requestUrl = buildInternalApiUrl(
+    `/api/admin/transfers${queryString ? `?${queryString}` : ""}`
+  );
 
-    if (page) {
-      searchParams.set("page", page);
-    }
+  const response = await fetch(requestUrl, {
+    headers: {
+      cookie: req.headers.cookie || "",
+    },
+  });
 
-    const forwardedProto = req.headers["x-forwarded-proto"];
-    const protocol = (
-      Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
-    )?.split(",")[0]?.trim() || "http";
-    const host = req.headers.host || "localhost:3000";
-    const fallbackOrigin = `${protocol}://${host}`;
-    const queryString = searchParams.toString();
-    const requestUrl = buildApiUrl(
-      `/api/admin/transfers${queryString ? `?${queryString}` : ""}`,
-      { fallbackOrigin }
-    );
-
-    const response = await fetch(requestUrl, {
-      headers: {
-        cookie: req.headers.cookie || "",
-      },
-    });
-
-    if (response.status === 401) {
-      return {
-        redirect: {
-          destination: "/admin/login",
-          permanent: false,
-        },
-      };
-    }
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch admin transfers");
-    }
-
-    const { transfers, total, pageSize } = await response.json();
-
-    const props: Props = {
-      user,
-      transfers,
-      total,
-      pageSize,
-    };
-
+  if (response.status === 401) {
     return {
-      props,
+      redirect: {
+        destination: "/admin/login",
+        permanent: false,
+      },
     };
   }
-);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch admin transfers");
+  }
+
+  const { transfers, total, pageSize, user } = await response.json();
+
+  const props: Props = {
+    user,
+    transfers,
+    total,
+    pageSize,
+  };
+
+  return {
+    props,
+  };
+};
 
 export default AdminPage;
