@@ -1,10 +1,17 @@
 import { Box, Button, TextField } from "@mui/material";
-import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 
 const AdminTransferFilters: React.FC = () => {
-  const { get } = useSearchParams();
-  const [id, setId] = useState(get("id"));
+  const { isReady, query } = useRouter();
+  const queryId = Array.isArray(query.id) ? query.id[0] : query.id;
+  const [id, setId] = useState(queryId ?? "");
+
+  useEffect(() => {
+    if (isReady) {
+      setId(queryId ?? "");
+    }
+  }, [isReady, queryId]);
 
   return (
     <Box component="form" sx={{ mt: 2, alignItems: "center", display: "flex" }}>
