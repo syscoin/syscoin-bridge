@@ -1,6 +1,9 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { toSyscoinBaseUnits } from "./syscoin-amount";
+import {
+  toNonnegativeSyscoinBaseUnits,
+  toSyscoinBaseUnits,
+} from "./syscoin-amount";
 
 describe("Syscoin amount conversion", () => {
   it("converts eight-decimal amounts without Number precision loss", () => {
@@ -16,6 +19,12 @@ describe("Syscoin amount conversion", () => {
     expect(toSyscoinBaseUnits("1")).toBe("100000000");
     expect(toSyscoinBaseUnits("0.00000001")).toBe("1");
     expect(toSyscoinBaseUnits("1.23")).toBe("123000000");
+  });
+
+  it("allows a rounded maximum below one base unit to resolve to zero", () => {
+    expect(toNonnegativeSyscoinBaseUnits("0")).toBe("0");
+    expect(toNonnegativeSyscoinBaseUnits("0.00000000")).toBe("0");
+    expect(toNonnegativeSyscoinBaseUnits("0.00000001")).toBe("1");
   });
 
   it("rejects malformed, nonpositive, and over-precision values", () => {
