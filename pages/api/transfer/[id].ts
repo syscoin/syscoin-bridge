@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import {
+  TransferNotFoundError,
   TransferService,
   TransferWriteUnauthorizedError,
 } from "api/services/transfer";
@@ -8,15 +9,25 @@ import { applyApiCors } from "utils/api/cors";
 
 const transferService = new TransferService();
 
-const getRequest = async (req: NextApiRequest, res: NextApiResponse) => {
+export const getRequest = async (
+  req: NextApiRequest,
+  res: NextApiResponse
+) => {
   const { id } = req.query;
 
   if (!id) {
     return res.status(400).json({ message: "Missing id" });
   }
 
-  const transfer = await transferService.getTransfer(id as string);
-  return res.status(200).json(transfer);
+  try {
+    const transfer = await transferService.getTransfer(id as string);
+    return res.status(200).json(transfer);
+  } catch (error) {
+    if (error instanceof TransferNotFoundError) {
+      return res.status(404).json({ message: error.message });
+    }
+    throw error;
+  }
 };
 
 export const patchRequest = async (
