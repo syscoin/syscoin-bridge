@@ -1,4 +1,5 @@
 const SYSCOIN_DECIMALS = 8;
+const SYSCOIN_BASE_UNIT_FACTOR = 10 ** SYSCOIN_DECIMALS;
 
 const parseSyscoinBaseUnits = (amount: string): bigint => {
   const normalized = String(amount).trim();
@@ -19,8 +20,15 @@ const parseSyscoinBaseUnits = (amount: string): bigint => {
   return BigInt(`${match[1]}${fraction.padEnd(SYSCOIN_DECIMALS, "0")}`);
 };
 
-export const toNonnegativeSyscoinBaseUnits = (amount: string): string =>
-  parseSyscoinBaseUnits(amount).toString();
+export const floorSyscoinBaseUnits = (amount: number): string => {
+  if (!Number.isFinite(amount)) {
+    throw new Error("Amount must be finite");
+  }
+
+  return BigInt(
+    Math.floor(Math.max(0, amount) * SYSCOIN_BASE_UNIT_FACTOR)
+  ).toString();
+};
 
 export const toSyscoinBaseUnits = (amount: string): string => {
   const baseUnits = parseSyscoinBaseUnits(amount);

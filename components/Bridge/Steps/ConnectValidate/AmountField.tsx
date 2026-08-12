@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import { useFormContext } from "react-hook-form";
 import {
-  toNonnegativeSyscoinBaseUnits,
+  floorSyscoinBaseUnits,
   toSyscoinBaseUnits,
 } from "utils/syscoin-amount";
 
@@ -34,9 +34,7 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
   const showSysx = transfer.type === "sys-to-nevm" && utxoAssetType === "sysx";
   const minimumBaseUnits = BigInt(toSyscoinBaseUnits(minAmount.toString()));
   const maximumBaseUnits = BigInt(
-    toNonnegativeSyscoinBaseUnits(
-      Math.max(0, maxAmountCalculated).toFixed(8)
-    )
+    floorSyscoinBaseUnits(maxAmountCalculated)
   );
 
   return (

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 
 import {
-  toNonnegativeSyscoinBaseUnits,
+  floorSyscoinBaseUnits,
   toSyscoinBaseUnits,
 } from "./syscoin-amount";
 
@@ -21,10 +21,12 @@ describe("Syscoin amount conversion", () => {
     expect(toSyscoinBaseUnits("1.23")).toBe("123000000");
   });
 
-  it("allows a rounded maximum below one base unit to resolve to zero", () => {
-    expect(toNonnegativeSyscoinBaseUnits("0")).toBe("0");
-    expect(toNonnegativeSyscoinBaseUnits("0.00000000")).toBe("0");
-    expect(toNonnegativeSyscoinBaseUnits("0.00000001")).toBe("1");
+  it("floors calculated maxima to whole Syscoin base units", () => {
+    expect(floorSyscoinBaseUnits(0)).toBe("0");
+    expect(floorSyscoinBaseUnits(0.000000004)).toBe("0");
+    expect(floorSyscoinBaseUnits(0.00000001)).toBe("1");
+    expect(floorSyscoinBaseUnits(0.010000006)).toBe("1000000");
+    expect(floorSyscoinBaseUnits(0.01000001)).toBe("1000001");
   });
 
   it("rejects malformed, nonpositive, and over-precision values", () => {
