@@ -7,18 +7,22 @@ import {
   Typography,
 } from "@mui/material";
 import { useFormContext } from "react-hook-form";
+import {
+  formatSyscoinBaseUnits,
+  toSyscoinBaseUnits,
+} from "utils/syscoin-amount";
 
 type Props = {
-  maxAmountCalculated: number;
+  maximumBaseUnits: string;
   minAmount: number;
-  balance?: number;
+  balanceLoaded: boolean;
   transfer: ITransfer;
 };
 
 export const ConnectValidateAmountField: React.FC<Props> = ({
-  maxAmountCalculated,
+  maximumBaseUnits,
   minAmount,
-  balance,
+  balanceLoaded,
   transfer,
 }) => {
   const {
@@ -28,6 +32,9 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
   } = useFormContext();
   const utxoAssetType = watch("utxoAssetType");
   const showSysx = transfer.type === "sys-to-nevm" && utxoAssetType === "sysx";
+  const minimumBaseUnits = BigInt(toSyscoinBaseUnits(minAmount.toString()));
+  const maximum = BigInt(maximumBaseUnits);
+
   return (
     <Box>
       <TextField
@@ -43,24 +50,46 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
           ),
         }}
         {...register("amount", {
-          valueAsNumber: true,
-          max: {
-            value: maxAmountCalculated,
-            message: `You can transfer up to ${maxAmountCalculated.toFixed(
-              4
-            )} ${showSysx ? "SYSX" : "SYS"}`,
-          },
-          min: {
-            value: minAmount,
-            message: `Amount must be at least ${minAmount}`,
-          },
           required: {
             message: "Amount is required",
             value: true,
           },
-          validate: (value) => (isNaN(value) ? "Must be a number" : undefined),
+          validate: {
+            validAmount: (value: string) => {
+              try {
+                toSyscoinBaseUnits(value);
+                return true;
+              } catch (error) {
+                return error instanceof Error ? error.message : "Invalid amount";
+              }
+            },
+            minimum: (value: string) => {
+              try {
+                return (
+                  BigInt(toSyscoinBaseUnits(value)) >= minimumBaseUnits ||
+                  `Amount must be at least ${minAmount}`
+                );
+              } catch {
+                return true;
+              }
+            },
+            maximum: (value: string) => {
+              try {
+                return (
+                  BigInt(toSyscoinBaseUnits(value)) <= maximum ||
+                  `You can transfer up to ${formatSyscoinBaseUnits(
+                    maximumBaseUnits
+                  )} ${
+                    showSysx ? "SYSX" : "SYS"
+                  }`
+                );
+              } catch {
+                return true;
+              }
+            },
+          },
         })}
-        disabled={balance === undefined}
+        disabled={!balanceLoaded}
         error={!!errors.amount}
         helperText={<>{errors.amount && errors.amount.message}</>}
         sx={{ mb: 2 }}

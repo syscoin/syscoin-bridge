@@ -55,17 +55,10 @@ jest.mock("models/sponsor-utxo-reservation", () => {
   };
 });
 
-jest.mock("satoshi-bitcoin", () => ({
-  __esModule: true,
-  default: {
-    toSatoshi: jest.fn(() => 100_000),
-  },
-}));
-
 jest.mock("syscoinjs-lib", () => ({
   syscoin: jest.fn(),
   utils: {
-    BN: jest.fn(function (this: any, value: number) {
+    BN: jest.fn(function (this: any, value: string | number) {
       this.value = value;
     }),
     syscoinNetworks: {

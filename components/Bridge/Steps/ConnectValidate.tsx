@@ -9,7 +9,14 @@ import {
   useForm,
   useFormContext,
 } from "react-hook-form";
-import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
+import {
+  useNevmBalanceBaseUnits,
+  useUtxoBalanceBaseUnits,
+} from "utils/balance-hooks";
+import {
+  getTransferableSyscoinBaseUnits,
+  toSyscoinBaseUnits,
+} from "utils/syscoin-amount";
 
 import { MIN_AMOUNT, MIN_GAS_AMOUNT } from "@constants";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
@@ -72,7 +79,7 @@ const NEVMWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
 };
 
 type ConnectValidateFormData = {
-  amount: number;
+  amount: string;
   nevmAddress: string;
   utxoAddress: string;
   utxoXpub: string;
@@ -81,7 +88,7 @@ type ConnectValidateFormData = {
 };
 
 export type ConnectValidateDraft = {
-  amount?: number;
+  amount?: string;
   nevmAddress: string;
   utxoAddress: string;
   utxoXpub: string;
@@ -94,21 +101,24 @@ type BridgeConnectValidateStepProps = {
 };
 
 const parseTransferAmount = (amount: string) => {
-  const parsedAmount = Number(amount);
-
-  return Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0.1;
+  try {
+    toSyscoinBaseUnits(amount);
+    return amount;
+  } catch {
+    return "0.1";
+  }
 };
 
 const hasDraftFormValues = (
   amount: string,
   utxoAssetType?: "sys" | "sysx"
 ) => {
-  const parsedAmount = Number(amount);
-
-  return (
-    (Number.isFinite(parsedAmount) && parsedAmount > 0) ||
-    Boolean(utxoAssetType)
-  );
+  try {
+    toSyscoinBaseUnits(amount);
+    return true;
+  } catch {
+    return Boolean(utxoAssetType);
+  }
 };
 
 const BridgeConnectValidateStep: React.FC<
@@ -139,8 +149,16 @@ const BridgeConnectValidateStep: React.FC<
   const nevmAddress = watch("nevmAddress");
 
   useEffect(() => {
+    let draftAmount: string | undefined;
+    try {
+      toSyscoinBaseUnits(amount);
+      draftAmount = amount;
+    } catch {
+      draftAmount = undefined;
+    }
+
     onDraftChange?.({
-      amount: Number.isFinite(amount) ? amount : undefined,
+      amount: draftAmount,
       nevmAddress,
       utxoAddress,
       utxoXpub,
@@ -164,7 +182,7 @@ const BridgeConnectValidateStep: React.FC<
       !hasDraftFormValues(transfer.amount, transfer.utxoAssetType)
     ) {
       reset({
-        amount: 0.1,
+        amount: "0.1",
         nevmAddress: "",
         utxoAddress: "",
         utxoXpub: "",
@@ -182,27 +200,26 @@ const BridgeConnectValidateStep: React.FC<
     transfer.utxoAssetType,
   ]);
 
-  const utxoBalance = useUtxoBalance(utxoXpub);
-  const sysxBalance = useUtxoBalance(utxoXpub, {
+  const utxoBalance = useUtxoBalanceBaseUnits(utxoXpub);
+  const sysxBalance = useUtxoBalanceBaseUnits(utxoXpub, {
     address: utxoAddress,
     assetGuid: SYSX_ASSET_GUID,
   });
-  const nevmBalance = useNevmBalance(nevmAddress);
+  const nevmBalance = useNevmBalanceBaseUnits(nevmAddress);
 
   const useSysx = utxoAssetType === "sysx";
 
-  const maxUtxoAmount = useSysx ? sysxBalance.data : utxoBalance.data;
-
-  const maxAmmount =
-    transfer.type === "sys-to-nevm" ? maxUtxoAmount : nevmBalance.data;
-
-  let maxAmountCalculated =
-    parseFloat(`${maxAmmount ?? "0"}`) -
-    (transfer.type === "sys-to-nevm" && useSysx ? 0 : MIN_GAS_AMOUNT);
-
-  if (maxAmountCalculated < 0) {
-    maxAmountCalculated = 0;
-  }
+  const maxUtxoBalance = useSysx ? sysxBalance.data : utxoBalance.data;
+  const maxBalance =
+    transfer.type === "sys-to-nevm" ? maxUtxoBalance : nevmBalance.data;
+  const maximumBaseUnits = getTransferableSyscoinBaseUnits({
+    balanceBaseUnits: maxBalance ?? "0",
+    balanceDecimals: transfer.type === "sys-to-nevm" ? 8 : 18,
+    reserveBaseUnits:
+      transfer.type === "sys-to-nevm" && useSysx
+        ? "0"
+        : toSyscoinBaseUnits(MIN_GAS_AMOUNT.toString()),
+  });
 
   const modifiedTransfer = { ...transfer, utxoAddress, utxoXpub, nevmAddress };
 
@@ -210,7 +227,7 @@ const BridgeConnectValidateStep: React.FC<
     const { amount, ...rest } = data;
     const modifiedTransfer: ITransfer = {
       ...transfer,
-      amount: amount.toString(),
+      amount,
       ...rest,
       useSysx,
       status:
@@ -255,9 +272,9 @@ const BridgeConnectValidateStep: React.FC<
           )}
         </Box>
         <ConnectValidateAmountField
-          maxAmountCalculated={maxAmountCalculated}
+          maximumBaseUnits={maximumBaseUnits}
           minAmount={MIN_AMOUNT}
-          balance={maxAmmount}
+          balanceLoaded={maxBalance !== undefined}
           transfer={modifiedTransfer}
         />
         <ConnectValidateAgreeToTermsCheckbox />

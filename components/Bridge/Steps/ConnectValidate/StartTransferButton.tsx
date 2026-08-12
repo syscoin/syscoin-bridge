@@ -8,7 +8,10 @@ import {
   isValidSYSAddress,
 } from "@sidhujag/sysweb3-utils";
 import { useFormContext } from "react-hook-form";
-import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
+import {
+  useNevmBalanceBaseUnits,
+  useUtxoBalanceBaseUnits,
+} from "utils/balance-hooks";
 import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
@@ -17,6 +20,10 @@ import {
   getSyscoinChainId,
   resolveSyscoinIsTestnet,
 } from "utils/network-config";
+import {
+  getTransferableSyscoinBaseUnits,
+  toSyscoinBaseUnits,
+} from "utils/syscoin-amount";
 
 const ErrorMessage = ({ message }: { message: string }) => (
   <Box sx={{ display: "flex", mb: 2 }}>
@@ -44,12 +51,24 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const utxoAssetType = watch("utxoAssetType");
   const useSysx = utxoAssetType === "sysx";
   const amount = watch("amount");
-  const utxoBalance = useUtxoBalance(utxoXpub);
-  const sysxBalance = useUtxoBalance(utxoXpub, {
+  const utxoBalance = useUtxoBalanceBaseUnits(utxoXpub);
+  const sysxBalance = useUtxoBalanceBaseUnits(utxoXpub, {
     address: utxoAddress,
     assetGuid: SYSX_ASSET_GUID,
   });
-  const nevmBalance = useNevmBalance(nevmAddress);
+  const nevmBalance = useNevmBalanceBaseUnits(nevmAddress);
+  const minimumAmountBaseUnits = BigInt(
+    toSyscoinBaseUnits(MIN_AMOUNT.toString())
+  );
+  const minimumGasBaseUnits = BigInt(
+    toSyscoinBaseUnits(MIN_GAS_AMOUNT.toString())
+  );
+  let amountBaseUnits: bigint | undefined;
+  try {
+    amountBaseUnits = BigInt(toSyscoinBaseUnits(amount));
+  } catch {
+    amountBaseUnits = undefined;
+  }
 
   const foundationFundingAvailable =
     isEnabled("foundationFundingAvailable") && transfer.type === "sys-to-nevm";
@@ -63,20 +82,28 @@ export const ConnectValidateStartTransferButton: React.FC<{
     Boolean(nevmAddress) &&
     nevmBalance.isFetched &&
     nevmBalance.data !== undefined &&
-    nevmBalance.data < MIN_GAS_AMOUNT;
+    BigInt(
+      getTransferableSyscoinBaseUnits({
+        balanceBaseUnits: nevmBalance.data,
+        balanceDecimals: 18,
+        reserveBaseUnits: "0",
+      })
+    ) < minimumGasBaseUnits;
 
   const isUtxoNotEnoughGas =
     !utxoSponsorshipAvailable &&
     Boolean(utxoXpub) &&
     utxoBalance.isFetched &&
     utxoBalance.data !== undefined &&
-    utxoBalance.data < MIN_GAS_AMOUNT;
+    BigInt(utxoBalance.data) < minimumGasBaseUnits;
 
   const isSysxNotEnoughBalance =
     useSysx &&
     transfer.type === "sys-to-nevm" &&
     sysxBalance.data !== undefined &&
-    (sysxBalance.data < MIN_AMOUNT || sysxBalance.data < amount);
+    (BigInt(sysxBalance.data) < minimumAmountBaseUnits ||
+      (amountBaseUnits !== undefined &&
+        BigInt(sysxBalance.data) < amountBaseUnits));
   const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain;
 
   const isUtxoValid =

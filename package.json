@@ -30,7 +30,6 @@
     "react-dom": "18.2.0",
     "react-hook-form": "^7.31.3",
     "react-query": "^3.39.1",
-    "satoshi-bitcoin": "^1.0.5",
     "syscoinjs-lib": "^1.0.273",
     "web3": "1.10.4"
   },

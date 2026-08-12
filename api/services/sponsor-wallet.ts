@@ -7,9 +7,9 @@ import SponsorWalletTransactions, {
   ISponsorWalletTransaction,
   SponsorWalletTransactionAction,
 } from "models/sponsor-wallet-transactions";
-import satoshibitcoin from "satoshi-bitcoin";
 import { syscoin, UTXOTransaction, utils as syscoinUtils } from "syscoinjs-lib";
 import web3 from "utils/get-web3";
+import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 import {
   MAINNET_BLOCKBOOK_URL,
   resolveUtxoBlockbookUrl,
@@ -675,9 +675,7 @@ export class SponsorWalletService {
           changeAddress: transfer.utxoAddress,
           outputs: [
             {
-              value: new syscoinUtils.BN(
-                Math.ceil(satoshibitcoin.toSatoshi(transfer.amount))
-              ),
+              value: new syscoinUtils.BN(toSyscoinBaseUnits(transfer.amount)),
               address: transfer.utxoAddress,
             },
           ],
