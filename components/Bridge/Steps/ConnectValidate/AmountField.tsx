@@ -8,21 +8,21 @@ import {
 } from "@mui/material";
 import { useFormContext } from "react-hook-form";
 import {
-  floorSyscoinBaseUnits,
+  formatSyscoinBaseUnits,
   toSyscoinBaseUnits,
 } from "utils/syscoin-amount";
 
 type Props = {
-  maxAmountCalculated: number;
+  maximumBaseUnits: string;
   minAmount: number;
-  balance?: number;
+  balanceLoaded: boolean;
   transfer: ITransfer;
 };
 
 export const ConnectValidateAmountField: React.FC<Props> = ({
-  maxAmountCalculated,
+  maximumBaseUnits,
   minAmount,
-  balance,
+  balanceLoaded,
   transfer,
 }) => {
   const {
@@ -33,9 +33,7 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
   const utxoAssetType = watch("utxoAssetType");
   const showSysx = transfer.type === "sys-to-nevm" && utxoAssetType === "sysx";
   const minimumBaseUnits = BigInt(toSyscoinBaseUnits(minAmount.toString()));
-  const maximumBaseUnits = BigInt(
-    floorSyscoinBaseUnits(maxAmountCalculated)
-  );
+  const maximum = BigInt(maximumBaseUnits);
 
   return (
     <Box>
@@ -78,8 +76,10 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
             maximum: (value: string) => {
               try {
                 return (
-                  BigInt(toSyscoinBaseUnits(value)) <= maximumBaseUnits ||
-                  `You can transfer up to ${maxAmountCalculated.toFixed(4)} ${
+                  BigInt(toSyscoinBaseUnits(value)) <= maximum ||
+                  `You can transfer up to ${formatSyscoinBaseUnits(
+                    maximumBaseUnits
+                  )} ${
                     showSysx ? "SYSX" : "SYS"
                   }`
                 );
@@ -89,7 +89,7 @@ export const ConnectValidateAmountField: React.FC<Props> = ({
             },
           },
         })}
-        disabled={balance === undefined}
+        disabled={!balanceLoaded}
         error={!!errors.amount}
         helperText={<>{errors.amount && errors.amount.message}</>}
         sx={{ mb: 2 }}

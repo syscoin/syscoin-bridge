@@ -1,7 +1,8 @@
 import { describe, expect, it } from "@jest/globals";
 
 import {
-  floorSyscoinBaseUnits,
+  formatSyscoinBaseUnits,
+  getTransferableSyscoinBaseUnits,
   toSyscoinBaseUnits,
 } from "./syscoin-amount";
 
@@ -21,12 +22,51 @@ describe("Syscoin amount conversion", () => {
     expect(toSyscoinBaseUnits("1.23")).toBe("123000000");
   });
 
-  it("floors calculated maxima to whole Syscoin base units", () => {
-    expect(floorSyscoinBaseUnits(0)).toBe("0");
-    expect(floorSyscoinBaseUnits(0.000000004)).toBe("0");
-    expect(floorSyscoinBaseUnits(0.00000001)).toBe("1");
-    expect(floorSyscoinBaseUnits(0.010000006)).toBe("1000000");
-    expect(floorSyscoinBaseUnits(0.01000001)).toBe("1000001");
+  it("derives transferable maxima from exact source-chain units", () => {
+    const reserveBaseUnits = toSyscoinBaseUnits("0.001");
+
+    expect(
+      getTransferableSyscoinBaseUnits({
+        balanceBaseUnits: "1000000000000001",
+        balanceDecimals: 18,
+        reserveBaseUnits,
+      })
+    ).toBe("0");
+    expect(
+      getTransferableSyscoinBaseUnits({
+        balanceBaseUnits: "11000006000000000",
+        balanceDecimals: 18,
+        reserveBaseUnits,
+      })
+    ).toBe("1000000");
+    expect(
+      getTransferableSyscoinBaseUnits({
+        balanceBaseUnits: "11000150000000000",
+        balanceDecimals: 18,
+        reserveBaseUnits,
+      })
+    ).toBe("1000015");
+    expect(
+      getTransferableSyscoinBaseUnits({
+        balanceBaseUnits: "1000015",
+        balanceDecimals: 8,
+        reserveBaseUnits: "0",
+      })
+    ).toBe("1000015");
+    expect(
+      getTransferableSyscoinBaseUnits({
+        balanceBaseUnits: "90071992547409910000000000",
+        balanceDecimals: 18,
+        reserveBaseUnits: "0",
+      })
+    ).toBe("9007199254740991");
+  });
+
+  it("formats exact Syscoin base units for validation messages", () => {
+    expect(formatSyscoinBaseUnits("0")).toBe("0");
+    expect(formatSyscoinBaseUnits("1")).toBe("0.00000001");
+    expect(formatSyscoinBaseUnits("1000015")).toBe("0.01000015");
+    expect(formatSyscoinBaseUnits("100000000")).toBe("1");
   });
 
   it("rejects malformed, nonpositive, and over-precision values", () => {
