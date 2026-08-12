@@ -29,6 +29,7 @@ import {
 import { Box, Typography } from "@mui/material";
 
 import { useTransfer } from "../context/TransferContext";
+import type { ConnectValidateDraft } from "../connect-validate-draft";
 import BridgeLoading from "../Loading";
 import { ConnectValidateAgreeToTermsCheckbox } from "./ConnectValidate/AgreeToTermsCheckbox";
 import { ConnectValidateAmountField } from "./ConnectValidate/AmountField";
@@ -84,14 +85,6 @@ type ConnectValidateFormData = {
   utxoAddress: string;
   utxoXpub: string;
   agreedToTerms: boolean;
-  utxoAssetType?: "sys" | "sysx";
-};
-
-export type ConnectValidateDraft = {
-  amount?: string;
-  nevmAddress: string;
-  utxoAddress: string;
-  utxoXpub: string;
   utxoAssetType?: "sys" | "sysx";
 };
 
