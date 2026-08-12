@@ -15,6 +15,14 @@ export class TransferWriteUnauthorizedError extends Error {
   }
 }
 
+export class TransferNotFoundError extends Error {
+  constructor() {
+    super("Transfer not found");
+    this.name = "TransferNotFoundError";
+    Object.setPrototypeOf(this, TransferNotFoundError.prototype);
+  }
+}
+
 type TransferWriteResult = {
   transfer: ITransfer;
 };
@@ -82,7 +90,7 @@ export class TransferService {
     const transfer = await TransferModel.findOne({ id });
 
     if (!transfer) {
-      throw new Error("Transfer not found");
+      throw new TransferNotFoundError();
     }
 
     return transfer as unknown as ITransfer;

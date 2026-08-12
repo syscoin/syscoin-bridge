@@ -23,6 +23,7 @@ import {
   ITransfer,
 } from "@contexts/Transfer/types";
 import {
+  TransferNotFoundError,
   TransferService,
   TransferWriteUnauthorizedError,
 } from "../transfer";
@@ -58,6 +59,14 @@ describe("TransferService write capabilities", () => {
       new TransferService().upsertTransfer(transfer)
     ).rejects.toBeInstanceOf(TransferWriteUnauthorizedError);
     expect(TransferModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("throws a typed error when a transfer does not exist", async () => {
+    TransferModelMock.findOne.mockResolvedValue(null);
+
+    await expect(
+      new TransferService().getTransfer("missing-transfer")
+    ).rejects.toBeInstanceOf(TransferNotFoundError);
   });
 
   it("updates only the URL-bound transfer when the capability matches", async () => {
