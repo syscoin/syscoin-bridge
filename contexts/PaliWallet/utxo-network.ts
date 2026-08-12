@@ -21,6 +21,19 @@ type PaliUtxoAccount = {
   address?: unknown;
 };
 
+type UtxoSelectionSetter = (selection: {
+  address: string;
+  xpub: string;
+}) => void;
+
+export const clearUtxoSelectionBeforeAccountChange = <T>(
+  setUtxo: UtxoSelectionSetter,
+  changeAccount: () => T
+): T => {
+  setUtxo({ address: "", xpub: "" });
+  return changeAccount();
+};
+
 export const discoverPaliUtxoAccount = async (
   provider: Pick<PaliProvider, "request">
 ): Promise<string | null> => {

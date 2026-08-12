@@ -16,6 +16,7 @@ import WalletSwitchConfirmCard from "./ConfirmCard";
 import { MIN_GAS_AMOUNT } from "@constants";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
+  clearUtxoSelectionBeforeAccountChange,
   connectPaliUtxoAccount,
   hasPaliUtxoAccountDetails,
   switchToSyscoinThenChangeAccount,
@@ -200,17 +201,22 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
     );
 
   const change = () => {
-    if (
-      isBitcoinBased &&
-      !hasPaliUtxoAccountDetails(connectedAccount, xpubAddress)
-    ) {
-      return connect();
-    }
+    return clearUtxoSelectionBeforeAccountChange(
+      setUtxo,
+      () => {
+        if (
+          isBitcoinBased &&
+          !hasPaliUtxoAccountDetails(connectedAccount, xpubAddress)
+        ) {
+          return connect();
+        }
 
-    return switchToSyscoinThenChangeAccount(
-      isBitcoinBased,
-      switchTo,
-      changeAccount
+        return switchToSyscoinThenChangeAccount(
+          isBitcoinBased,
+          switchTo,
+          changeAccount
+        );
+      }
     );
   };
 

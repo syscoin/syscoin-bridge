@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
+  clearUtxoSelectionBeforeAccountChange,
   connectPaliUtxoAccount,
   discoverPaliUtxoAccount,
   getPaliSyscoinSwitchRequest,
@@ -9,6 +10,19 @@ import {
 } from "./utxo-network";
 
 describe("Pali Syscoin UTXO network handling", () => {
+  it("clears the bridge selection before opening the account picker", async () => {
+    const calls: string[] = [];
+    const setUtxo = jest.fn(() => calls.push("clear"));
+    const changeAccount = jest.fn(async () => {
+      calls.push("change-account");
+    });
+
+    await clearUtxoSelectionBeforeAccountChange(setUtxo, changeAccount);
+
+    expect(setUtxo).toHaveBeenCalledWith({ address: "", xpub: "" });
+    expect(calls).toEqual(["clear", "change-account"]);
+  });
+
   it("discovers an existing account without opening an interactive request", async () => {
     const request = jest.fn(async () => ({ address: "sys1-existing" }));
 
