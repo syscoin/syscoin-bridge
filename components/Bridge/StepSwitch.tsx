@@ -15,7 +15,7 @@ import BridgeStepGenerateProofs from "./Steps/GenerateProofs";
 import BridgeStepMintSysx from "./Steps/MintSysx";
 import BridgeStepSubmitProofs from "./Steps/SubmitProofs";
 import { useTransfer } from "./context/TransferContext";
-import type { ConnectValidateDraft } from "./Steps/ConnectValidate";
+import type { ConnectValidateDraft } from "./connect-validate-draft";
 
 type BridgeStepSwitchProps = {
   onConnectValidateDraftChange?: (draft: ConnectValidateDraft) => void;

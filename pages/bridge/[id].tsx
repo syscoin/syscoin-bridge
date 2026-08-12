@@ -17,7 +17,12 @@ import TransferTitle from "components/Bridge/Transfer/Title";
 import BridgeSavingIndicator from "components/Bridge/SavingIndicator";
 import BridgeStepSwitch from "components/Bridge/StepSwitch";
 import BridgeStepper from "components/Bridge/Stepper";
-import type { ConnectValidateDraft } from "components/Bridge/Steps/ConnectValidate";
+import {
+  clearConnectValidateDraft,
+  type ConnectValidateDraft,
+  readConnectValidateDraft,
+  writeConnectValidateDraft,
+} from "components/Bridge/connect-validate-draft";
 import { SyscoinProvider } from "components/Bridge/context/Syscoin";
 import {
   TransferContextProvider,
@@ -26,11 +31,12 @@ import {
 import { Web3Provider } from "components/Bridge/context/Web";
 import { NextPage } from "next";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
 import BridgeTransferSwitchTypeCard from "components/Bridge/TransferSwitchTypeCard";
 import BridgeNewTransferButton from "components/Bridge/NewTransferButton";
+import BridgeLoading from "components/Bridge/Loading";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 
 const getDraftAmount = (amount?: string) => {
@@ -79,22 +85,43 @@ const createTransfer = (
 const isDirectionRoute = (id: unknown): id is TransferType =>
   id === "sys-to-nevm" || id === "nevm-to-sys";
 
+const getSessionStorage = () => {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return undefined;
+  }
+};
+
 const BridgePage: NextPage = () => {
-  const { query } = useRouter();
+  const { isReady, query } = useRouter();
   const connectValidateDraft = useRef<Partial<ConnectValidateDraft>>({});
+  const [isDraftHydrated, setIsDraftHydrated] = useState(false);
 
   useEffect(() => {
-    if (!isDirectionRoute(query.id)) {
+    if (!isReady) return;
+
+    const storage = getSessionStorage();
+    if (isDirectionRoute(query.id)) {
+      connectValidateDraft.current = storage
+        ? readConnectValidateDraft(storage)
+        : {};
+    } else {
       connectValidateDraft.current = {};
+      if (storage) clearConnectValidateDraft(storage);
     }
-  }, [query.id]);
+    setIsDraftHydrated(true);
+  }, [isReady, query.id]);
 
   const handleConnectValidateDraftChange = useCallback(
     (draft: ConnectValidateDraft) => {
-      connectValidateDraft.current = {
+      const nextDraft = {
         ...connectValidateDraft.current,
         ...draft,
       };
+      connectValidateDraft.current = nextDraft;
+      const storage = getSessionStorage();
+      if (storage) writeConnectValidateDraft(storage, nextDraft);
     },
     []
   );
@@ -102,12 +129,17 @@ const BridgePage: NextPage = () => {
   const initialTransfer = useMemo(() => {
     const id = query.id;
     if (isDirectionRoute(id)) {
-      return createTransfer(id, connectValidateDraft.current);
+      return createTransfer(
+        id,
+        isDraftHydrated ? connectValidateDraft.current : {}
+      );
     }
     return {
       id,
     } as ITransfer;
-  }, [query.id]);
+  }, [isDraftHydrated, query.id]);
+
+  const isLoadingDraft = isDirectionRoute(query.id) && !isDraftHydrated;
 
   return (
     <SyscoinProvider>
@@ -145,11 +177,15 @@ const BridgePage: NextPage = () => {
                 }}
               >
                 <CardContent>
-                  <BridgeStepSwitch
-                    onConnectValidateDraftChange={
-                      handleConnectValidateDraftChange
-                    }
-                  />
+                  {isLoadingDraft ? (
+                    <BridgeLoading />
+                  ) : (
+                    <BridgeStepSwitch
+                      onConnectValidateDraftChange={
+                        handleConnectValidateDraftChange
+                      }
+                    />
+                  )}
                   <BridgeSavingIndicator />
                 </CardContent>
               </Card>
