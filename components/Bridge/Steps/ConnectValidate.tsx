@@ -10,6 +10,7 @@ import {
   useFormContext,
 } from "react-hook-form";
 import { useNevmBalance, useUtxoBalance } from "utils/balance-hooks";
+import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 
 import { MIN_AMOUNT, MIN_GAS_AMOUNT } from "@constants";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
@@ -72,7 +73,7 @@ const NEVMWrapped: React.FC<{ transfer: ITransfer }> = ({ transfer }) => {
 };
 
 type ConnectValidateFormData = {
-  amount: number;
+  amount: string;
   nevmAddress: string;
   utxoAddress: string;
   utxoXpub: string;
@@ -81,7 +82,7 @@ type ConnectValidateFormData = {
 };
 
 export type ConnectValidateDraft = {
-  amount?: number;
+  amount?: string;
   nevmAddress: string;
   utxoAddress: string;
   utxoXpub: string;
@@ -94,21 +95,24 @@ type BridgeConnectValidateStepProps = {
 };
 
 const parseTransferAmount = (amount: string) => {
-  const parsedAmount = Number(amount);
-
-  return Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : 0.1;
+  try {
+    toSyscoinBaseUnits(amount);
+    return amount;
+  } catch {
+    return "0.1";
+  }
 };
 
 const hasDraftFormValues = (
   amount: string,
   utxoAssetType?: "sys" | "sysx"
 ) => {
-  const parsedAmount = Number(amount);
-
-  return (
-    (Number.isFinite(parsedAmount) && parsedAmount > 0) ||
-    Boolean(utxoAssetType)
-  );
+  try {
+    toSyscoinBaseUnits(amount);
+    return true;
+  } catch {
+    return Boolean(utxoAssetType);
+  }
 };
 
 const BridgeConnectValidateStep: React.FC<
@@ -139,8 +143,16 @@ const BridgeConnectValidateStep: React.FC<
   const nevmAddress = watch("nevmAddress");
 
   useEffect(() => {
+    let draftAmount: string | undefined;
+    try {
+      toSyscoinBaseUnits(amount);
+      draftAmount = amount;
+    } catch {
+      draftAmount = undefined;
+    }
+
     onDraftChange?.({
-      amount: Number.isFinite(amount) ? amount : undefined,
+      amount: draftAmount,
       nevmAddress,
       utxoAddress,
       utxoXpub,
@@ -164,7 +176,7 @@ const BridgeConnectValidateStep: React.FC<
       !hasDraftFormValues(transfer.amount, transfer.utxoAssetType)
     ) {
       reset({
-        amount: 0.1,
+        amount: "0.1",
         nevmAddress: "",
         utxoAddress: "",
         utxoXpub: "",
@@ -210,7 +222,7 @@ const BridgeConnectValidateStep: React.FC<
     const { amount, ...rest } = data;
     const modifiedTransfer: ITransfer = {
       ...transfer,
-      amount: amount.toString(),
+      amount,
       ...rest,
       useSysx,
       status:

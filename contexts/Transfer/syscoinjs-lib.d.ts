@@ -109,11 +109,6 @@ declare module "syscoinjs-lib" {
   }
 }
 
-declare module "satoshi-bitcoin" {
-  export function toSatoshi(amount: number | string): number;
-  export function toBitcoin(amount: number | string): number;
-}
-
 declare module "bitcoin-proof" {
   export function getProof(
     txIds: string[],

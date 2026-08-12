@@ -1,5 +1,5 @@
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
-import satoshibitcoin from "satoshi-bitcoin";
+import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 import { SYSX_ASSET_GUID } from "../constants";
 
 export const burnSysx = async (
@@ -21,7 +21,7 @@ export const burnSysx = async (
         changeAddress: assetChangeAddress,
         outputs: [
           {
-            value: new syscoinUtils.BN(satoshibitcoin.toSatoshi(amount)),
+            value: new syscoinUtils.BN(toSyscoinBaseUnits(amount)),
             address: sysChangeAddress,
           },
         ],

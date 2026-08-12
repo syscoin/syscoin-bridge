@@ -31,6 +31,18 @@ import TableRowsIcon from "@mui/icons-material/TableRows";
 import NextLink from "next/link";
 import BridgeTransferSwitchTypeCard from "components/Bridge/TransferSwitchTypeCard";
 import BridgeNewTransferButton from "components/Bridge/NewTransferButton";
+import { toSyscoinBaseUnits } from "utils/syscoin-amount";
+
+const getDraftAmount = (amount?: string) => {
+  if (amount === undefined) return undefined;
+
+  try {
+    toSyscoinBaseUnits(amount);
+    return amount;
+  } catch {
+    return undefined;
+  }
+};
 
 const NewTransferButton = () => {
   const { transfer } = useTransfer();
@@ -45,23 +57,24 @@ const NewTransferButton = () => {
 const createTransfer = (
   type: TransferType,
   draft: Partial<ConnectValidateDraft> = {}
-): ITransfer => ({
-  amount: "0",
-  id: crypto.randomUUID(),
-  type,
-  status: COMMON_STATUS.INITIALIZE,
-  logs: [],
-  createdAt: Date.now(),
-  version: "v2",
-  agreedToTerms: false,
-  ...(draft.amount !== undefined && Number.isFinite(draft.amount)
-    ? { amount: draft.amount.toString() }
-    : {}),
-  nevmAddress: draft.nevmAddress || undefined,
-  utxoAddress: draft.utxoAddress || undefined,
-  utxoXpub: draft.utxoXpub || undefined,
-  utxoAssetType: draft.utxoAssetType,
-});
+): ITransfer => {
+  const amount = getDraftAmount(draft.amount);
+
+  return {
+    amount: amount ?? "0",
+    id: crypto.randomUUID(),
+    type,
+    status: COMMON_STATUS.INITIALIZE,
+    logs: [],
+    createdAt: Date.now(),
+    version: "v2",
+    agreedToTerms: false,
+    nevmAddress: draft.nevmAddress || undefined,
+    utxoAddress: draft.utxoAddress || undefined,
+    utxoXpub: draft.utxoXpub || undefined,
+    utxoAssetType: draft.utxoAssetType,
+  };
+};
 
 const isDirectionRoute = (id: unknown): id is TransferType =>
   id === "sys-to-nevm" || id === "nevm-to-sys";

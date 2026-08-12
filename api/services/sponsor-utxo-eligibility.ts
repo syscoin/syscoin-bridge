@@ -5,8 +5,8 @@ import {
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
 } from "@contexts/Transfer/types";
-import satoshibitcoin from "satoshi-bitcoin";
 import web3 from "utils/get-web3";
+import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 import { AbiItem, toWei } from "web3-utils";
 import { assertV2ActivationBlock } from "./sponsor-eligibility";
 
@@ -39,7 +39,9 @@ export const assertSponsoredUtxoTransfer = (transfer: ITransfer) => {
   if (!transfer.utxoAddress || !transfer.utxoXpub || !transfer.nevmAddress) {
     throw new Error("Missing transfer addresses");
   }
-  if (Number(transfer.amount) < MIN_AMOUNT) {
+  const amountBaseUnits = BigInt(toSyscoinBaseUnits(transfer.amount));
+  const minimumBaseUnits = BigInt(toSyscoinBaseUnits(MIN_AMOUNT.toString()));
+  if (amountBaseUnits < minimumBaseUnits) {
     throw new Error("Transfer amount is below the bridge minimum");
   }
 };
@@ -91,9 +93,7 @@ export const assertSponsoredMintEligible = async (
     throw new Error("Freeze and burn transaction does not match this transfer");
   }
 
-  const amountSats = Math.ceil(
-    satoshibitcoin.toSatoshi(transfer.amount.toString())
-  ).toString();
+  const amountSats = toSyscoinBaseUnits(transfer.amount);
   const matchingEvent = receipt.logs.some((log) => {
     if (
       !log.address ||

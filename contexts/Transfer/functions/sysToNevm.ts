@@ -47,7 +47,7 @@ const runWithSysToNevmStateMachine = async (
       }
       const burnSysTransaction = await burnSysToSysx(
         syscoinInstance,
-        parseFloat(transfer.amount).toFixed(6),
+        transfer.amount,
         transfer.utxoXpub!,
         transfer.utxoAddress!
       );
