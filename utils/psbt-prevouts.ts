@@ -108,18 +108,19 @@ export const attachPsbtPrevouts = async (
         throw new Error(`Unable to fetch PSBT prevout ${txid}`);
       }
 
-      // The proxy returns a validated, witness-stripped parent transaction.
-      // Keep transaction parsing on the server so this browser path only
-      // hashes and attaches authenticated bytes.
-      const nonWitnessUtxo = hexToBytes(rawTransactionHex);
-      const previousTransactionHash =
-        syscoinUtils.bitcoinjs.crypto.hash256(nonWitnessUtxo);
+      const previousTransaction =
+        syscoinUtils.bitcoinjs.Transaction.fromBuffer(
+          hexToBytes(rawTransactionHex)
+        );
+      const nonWitnessTransaction = previousTransaction.clone();
+      nonWitnessTransaction.stripWitnesses();
+      const nonWitnessUtxo = nonWitnessTransaction.toBuffer();
 
       for (const inputIndex of inputIndexes) {
         if (
           !equalBytes(
             psbt.txInputs[inputIndex].hash,
-            previousTransactionHash
+            previousTransaction.getHash()
           )
         ) {
           throw new Error(`PSBT prevout ${txid} does not match its txid`);

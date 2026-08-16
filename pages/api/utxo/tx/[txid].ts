@@ -71,12 +71,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .json({ message: "Blockbook transaction does not match its ID" });
     }
 
-    previousTransaction.stripWitnesses();
     res.setHeader(
       "Cache-Control",
       "public, max-age=300, s-maxage=31536000, immutable"
     );
-    return res.status(200).json({ hex: previousTransaction.toHex() });
+    return res.status(200).json({ hex: transaction.hex });
   } catch {
     return res.status(502).json({ message: "UTXO Blockbook is unavailable" });
   }

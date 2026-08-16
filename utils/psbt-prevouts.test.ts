@@ -34,19 +34,13 @@ const createPsbt = (previousTransaction: any) => {
   return psbt;
 };
 
-const getNonWitnessHex = (transaction: any) => {
-  const nonWitnessTransaction = transaction.clone();
-  nonWitnessTransaction.stripWitnesses();
-  return nonWitnessTransaction.toHex();
-};
-
 describe("attachPsbtPrevouts", () => {
   it("deduplicates and attaches txid-bound parent transactions", async () => {
     const previousTransaction = createPreviousTransaction();
     const psbt = createPsbt(previousTransaction);
     const fetchRawTransaction = jest
       .fn<any>()
-      .mockResolvedValue({ hex: getNonWitnessHex(previousTransaction) });
+      .mockResolvedValue({ hex: previousTransaction.toHex() });
 
     await attachPsbtPrevouts(psbt, fetchRawTransaction);
 
@@ -70,7 +64,7 @@ describe("attachPsbtPrevouts", () => {
 
     await expect(
       attachPsbtPrevouts(psbt, async () => ({
-        hex: getNonWitnessHex(differentTransaction),
+        hex: differentTransaction.toHex(),
       }))
     ).rejects.toThrow("does not match its txid");
   });
@@ -78,14 +72,14 @@ describe("attachPsbtPrevouts", () => {
   it("accepts bitcoinjs Uint8Array hashes with the browser Buffer polyfill", async () => {
     const previousTransaction = createPreviousTransaction();
     const psbt = createPsbt(previousTransaction);
-    const nonWitnessHex = getNonWitnessHex(previousTransaction);
+    const rawTransactionHex = previousTransaction.toHex();
     const originalBuffer = global.Buffer;
     global.Buffer = BrowserBuffer as typeof Buffer;
 
     try {
       await expect(
         attachPsbtPrevouts(psbt, async () => ({
-          hex: nonWitnessHex,
+          hex: rawTransactionHex,
         }))
       ).resolves.toBe(psbt);
       expect(() => psbt.toBase64()).not.toThrow();

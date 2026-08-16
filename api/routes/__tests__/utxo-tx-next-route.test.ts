@@ -87,9 +87,7 @@ describe("UTXO transaction proxy", () => {
       { headers: { Accept: "application/json" } }
     );
     expect(response.statusCode).toBe(200);
-    const nonWitnessTransaction = transaction.clone();
-    nonWitnessTransaction.stripWitnesses();
-    expect(response.body).toEqual({ hex: nonWitnessTransaction.toHex() });
+    expect(response.body).toEqual({ hex: transaction.toHex() });
     expect(response.getHeader("Cache-Control")).toContain("immutable");
   });
 
