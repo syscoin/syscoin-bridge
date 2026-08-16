@@ -6,6 +6,7 @@ import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { useConstants } from "@contexts/useConstants";
 import { useFeatureFlags } from "./useFeatureFlags";
 import { requestSponsoredUtxo } from "./sponsored-utxo";
+import { exportPsbtWithPrevouts } from "utils/psbt-prevouts";
 
 export const useMintSysx = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
@@ -46,7 +47,7 @@ export const useMintSysx = (transfer: ITransfer) => {
         throw new Error("Unable to mint SYSX: insufficient SYS for fees");
       }
 
-      const psbt = utils.exportPsbtToJson(res.psbt, res.assets);
+      const psbt = await exportPsbtWithPrevouts(res.psbt, res.assets);
       const { tx, error } = await sendTransaction(psbt);
 
       if (error) {

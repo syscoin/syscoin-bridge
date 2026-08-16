@@ -19,10 +19,15 @@ const mockWeb3 = {
     toHex: jest.fn((value) => value),
   },
 };
+const mockExportPsbtWithPrevouts = jest.fn<any>();
 
 jest.mock("utils/get-web3", () => ({
   __esModule: true,
   default: mockWeb3,
+}));
+
+jest.mock("utils/psbt-prevouts", () => ({
+  exportPsbtWithPrevouts: mockExportPsbtWithPrevouts,
 }));
 
 jest.mock("models/sponsor-wallet-transactions", () => {
@@ -1073,9 +1078,7 @@ describe("SponsorWalletService", () => {
       jest
         .spyOn(service, "getUserInputFingerprint")
         .mockReturnValue("fingerprint");
-      (syscoinUtils.exportPsbtToJson as jest.Mock<any>).mockReturnValue(
-        exported
-      );
+      mockExportPsbtWithPrevouts.mockResolvedValue(exported);
       const store = jest
         .spyOn(service, "storePreparedUtxoBurn")
         .mockResolvedValue(undefined);
