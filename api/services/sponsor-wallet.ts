@@ -9,6 +9,7 @@ import SponsorWalletTransactions, {
 } from "models/sponsor-wallet-transactions";
 import { syscoin, UTXOTransaction, utils as syscoinUtils } from "syscoinjs-lib";
 import web3 from "utils/get-web3";
+import { exportPsbtWithPrevouts } from "utils/psbt-prevouts";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 import {
   MAINNET_BLOCKBOOK_URL,
@@ -406,9 +407,11 @@ export class SponsorWalletService {
         prepared.psbt,
         reservation.key
       );
-      const exported = syscoinUtils.exportPsbtToJson(
+      const exported = await exportPsbtWithPrevouts(
         prepared.psbt,
-        prepared.assets
+        prepared.assets,
+        (txid) =>
+          syscoinUtils.fetchBackendRawTx(getUtxoBlockbookUrl(), txid)
       );
       await this.storePreparedUtxoBurn(
         placeholder,

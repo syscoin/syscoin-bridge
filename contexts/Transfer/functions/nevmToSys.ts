@@ -8,6 +8,7 @@ import { COMMON_STATUS, ETH_TO_SYS_TRANSFER_STATUS, ITransfer } from "../types";
 import { syscoin, utils } from "syscoinjs-lib";
 import { SendUtxoTransaction } from "@contexts/ConnectedWallet/Provider";
 import burnSysx from "./burnSysx";
+import { exportPsbtWithPrevouts } from "utils/psbt-prevouts";
 import { toWei } from "web3-utils";
 import { captureException } from "@sentry/nextjs";
 import { useErc20ManagerContract } from "components/Bridge/hooks/useErc20ManagerContract";
@@ -173,7 +174,7 @@ const mintSysx = async (
   console.log("assetAllocationMint received", {
     res,
   });
-  const transaction = utils.exportPsbtToJson(res.psbt, res.assets);
+  const transaction = await exportPsbtWithPrevouts(res.psbt, res.assets);
   const mintSysxTransactionReceipt = await sendUtxoTransaction(transaction);
   dispatch(
     addLog(

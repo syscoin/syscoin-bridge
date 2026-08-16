@@ -1,5 +1,6 @@
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
+import { exportPsbtWithPrevouts } from "utils/psbt-prevouts";
 import { SYSX_ASSET_GUID } from "../constants";
 
 export const burnSysToSysx = async (
@@ -44,7 +45,7 @@ export const burnSysToSysx = async (
     throw new Error("Unable to create the SYS burn transaction");
   }
   console.log("burnSysToSysx", { res });
-  return syscoinUtils.exportPsbtToJson(res.psbt, res.assets);
+  return exportPsbtWithPrevouts(res.psbt, res.assets);
 };
 
 export default burnSysToSysx;
