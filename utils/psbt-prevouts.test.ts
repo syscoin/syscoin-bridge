@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { Buffer as BrowserBuffer } from "buffer/";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 
 import {
@@ -33,13 +34,19 @@ const createPsbt = (previousTransaction: any) => {
   return psbt;
 };
 
+const getNonWitnessHex = (transaction: any) => {
+  const nonWitnessTransaction = transaction.clone();
+  nonWitnessTransaction.stripWitnesses();
+  return nonWitnessTransaction.toHex();
+};
+
 describe("attachPsbtPrevouts", () => {
   it("deduplicates and attaches txid-bound parent transactions", async () => {
     const previousTransaction = createPreviousTransaction();
     const psbt = createPsbt(previousTransaction);
     const fetchRawTransaction = jest
       .fn<any>()
-      .mockResolvedValue({ hex: previousTransaction.toHex() });
+      .mockResolvedValue({ hex: getNonWitnessHex(previousTransaction) });
 
     await attachPsbtPrevouts(psbt, fetchRawTransaction);
 
@@ -63,9 +70,28 @@ describe("attachPsbtPrevouts", () => {
 
     await expect(
       attachPsbtPrevouts(psbt, async () => ({
-        hex: differentTransaction.toHex(),
+        hex: getNonWitnessHex(differentTransaction),
       }))
     ).rejects.toThrow("does not match its txid");
+  });
+
+  it("accepts bitcoinjs Uint8Array hashes with the browser Buffer polyfill", async () => {
+    const previousTransaction = createPreviousTransaction();
+    const psbt = createPsbt(previousTransaction);
+    const nonWitnessHex = getNonWitnessHex(previousTransaction);
+    const originalBuffer = global.Buffer;
+    global.Buffer = BrowserBuffer as typeof Buffer;
+
+    try {
+      await expect(
+        attachPsbtPrevouts(psbt, async () => ({
+          hex: nonWitnessHex,
+        }))
+      ).resolves.toBe(psbt);
+      expect(() => psbt.toBase64()).not.toThrow();
+    } finally {
+      global.Buffer = originalBuffer;
+    }
   });
 
   it("does not refetch an already attached parent transaction", async () => {

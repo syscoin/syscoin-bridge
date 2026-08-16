@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { utils as syscoinUtils } from "syscoinjs-lib";
 import { applyApiCors } from "utils/api/cors";
 import { firstConfiguredUtxoBlockbookUrl } from "utils/syscoin-urls";
 
@@ -54,11 +55,28 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         .status(502)
         .json({ message: "Blockbook returned an invalid transaction" });
     }
+
+    let previousTransaction;
+    try {
+      previousTransaction =
+        syscoinUtils.bitcoinjs.Transaction.fromHex(transaction.hex);
+    } catch {
+      return res
+        .status(502)
+        .json({ message: "Blockbook returned an invalid transaction" });
+    }
+    if (previousTransaction.getId().toLowerCase() !== txid.toLowerCase()) {
+      return res
+        .status(502)
+        .json({ message: "Blockbook transaction does not match its ID" });
+    }
+
+    previousTransaction.stripWitnesses();
     res.setHeader(
       "Cache-Control",
       "public, max-age=300, s-maxage=31536000, immutable"
     );
-    return res.status(200).json({ hex: transaction.hex });
+    return res.status(200).json({ hex: previousTransaction.toHex() });
   } catch {
     return res.status(502).json({ message: "UTXO Blockbook is unavailable" });
   }
