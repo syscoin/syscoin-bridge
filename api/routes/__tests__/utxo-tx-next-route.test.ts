@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { utils as syscoinUtils } from "syscoinjs-lib";
 import handler from "../../../pages/api/utxo/tx/[txid]";
 
 type MockResponse = NextApiResponse & {
@@ -51,6 +52,17 @@ const createRequest = (txid = "ab".repeat(32)) =>
 
 const originalEnvironment = { ...process.env };
 
+const createTransaction = () => {
+  const transaction = new syscoinUtils.bitcoinjs.Transaction();
+  transaction.addInput(Buffer.alloc(32), 0xffffffff);
+  transaction.addOutput(
+    Buffer.from("00140000000000000000000000000000000000000001", "hex"),
+    BigInt(5_000)
+  );
+  transaction.ins[0].witness = [Buffer.alloc(64, 1)];
+  return transaction;
+};
+
 afterEach(() => {
   process.env = { ...originalEnvironment };
   jest.restoreAllMocks();
@@ -59,11 +71,12 @@ afterEach(() => {
 describe("UTXO transaction proxy", () => {
   it("returns only immutable raw transaction data", async () => {
     process.env.UTXO_EXPLORER = "https://testnet-blockbook.example";
-    const txid = "ab".repeat(32);
+    const transaction = createTransaction();
+    const txid = transaction.getId();
     const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ confirmations: 5, hex: "00a1" }),
+      json: async () => ({ confirmations: 5, hex: transaction.toHex() }),
     } as Response);
     const response = createResponse();
 
@@ -74,8 +87,26 @@ describe("UTXO transaction proxy", () => {
       { headers: { Accept: "application/json" } }
     );
     expect(response.statusCode).toBe(200);
-    expect(response.body).toEqual({ hex: "00a1" });
+    expect(response.body).toEqual({ hex: transaction.toHex() });
     expect(response.getHeader("Cache-Control")).toContain("immutable");
+  });
+
+  it("rejects transaction data that does not match the requested ID", async () => {
+    process.env.UTXO_EXPLORER = "https://testnet-blockbook.example";
+    const transaction = createTransaction();
+    jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ hex: transaction.toHex() }),
+    } as Response);
+    const response = createResponse();
+
+    await handler(createRequest("ab".repeat(32)), response);
+
+    expect(response.statusCode).toBe(502);
+    expect(response.body).toEqual({
+      message: "Blockbook transaction does not match its ID",
+    });
   });
 
   it("rejects malformed transaction IDs without contacting Blockbook", async () => {
@@ -107,4 +138,3 @@ describe("UTXO transaction proxy", () => {
     });
   });
 });
-

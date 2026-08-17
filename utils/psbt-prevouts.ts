@@ -12,6 +12,26 @@ type RawTransactionFetcher = (
 
 const MAX_CONCURRENT_PREVOUT_FETCHES = 8;
 
+const equalBytes = (left: Uint8Array, right: Uint8Array) =>
+  left.length === right.length &&
+  left.every((value, index) => value === right[index]);
+
+const bytesToReversedHex = (bytes: Uint8Array) => {
+  let hex = "";
+  for (let index = bytes.length - 1; index >= 0; index -= 1) {
+    hex += bytes[index].toString(16).padStart(2, "0");
+  }
+  return hex;
+};
+
+const hexToBytes = (hex: string) => {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  }
+  return bytes;
+};
+
 const getRawTransactionHex = (response: RawTransactionResponse) => {
   if (typeof response === "string") return response;
   if (typeof response?.hex === "string") return response.hex;
@@ -61,7 +81,11 @@ export const attachPsbtPrevouts = async (
   psbt.txInputs.forEach((txInput: any, inputIndex: number) => {
     if (psbt.data.inputs[inputIndex]?.nonWitnessUtxo) return;
 
-    const txid = Buffer.from(txInput.hash).reverse().toString("hex");
+    if (!(txInput.hash instanceof Uint8Array) || txInput.hash.length !== 32) {
+      throw new Error("Unable to prepare PSBT prevouts");
+    }
+
+    const txid = bytesToReversedHex(txInput.hash);
     const inputIndexes = inputIndexesByTxid.get(txid);
     if (inputIndexes) inputIndexes.push(inputIndex);
     else inputIndexesByTxid.set(txid, [inputIndex]);
@@ -84,18 +108,18 @@ export const attachPsbtPrevouts = async (
         throw new Error(`Unable to fetch PSBT prevout ${txid}`);
       }
 
-      const rawTransaction = Buffer.from(rawTransactionHex, "hex");
       const previousTransaction =
-        syscoinUtils.bitcoinjs.Transaction.fromBuffer(rawTransaction);
+        syscoinUtils.bitcoinjs.Transaction.fromBuffer(
+          hexToBytes(rawTransactionHex)
+        );
       const nonWitnessTransaction = previousTransaction.clone();
-      nonWitnessTransaction.ins.forEach((input: any) => {
-        input.witness = [];
-      });
+      nonWitnessTransaction.stripWitnesses();
       const nonWitnessUtxo = nonWitnessTransaction.toBuffer();
 
       for (const inputIndex of inputIndexes) {
         if (
-          !Buffer.from(psbt.txInputs[inputIndex].hash).equals(
+          !equalBytes(
+            psbt.txInputs[inputIndex].hash,
             previousTransaction.getHash()
           )
         ) {

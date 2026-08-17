@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { Buffer as BrowserBuffer } from "buffer/";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 
 import {
@@ -66,6 +67,25 @@ describe("attachPsbtPrevouts", () => {
         hex: differentTransaction.toHex(),
       }))
     ).rejects.toThrow("does not match its txid");
+  });
+
+  it("accepts bitcoinjs Uint8Array hashes with the browser Buffer polyfill", async () => {
+    const previousTransaction = createPreviousTransaction();
+    const psbt = createPsbt(previousTransaction);
+    const rawTransactionHex = previousTransaction.toHex();
+    const originalBuffer = global.Buffer;
+    global.Buffer = BrowserBuffer as typeof Buffer;
+
+    try {
+      await expect(
+        attachPsbtPrevouts(psbt, async () => ({
+          hex: rawTransactionHex,
+        }))
+      ).resolves.toBe(psbt);
+      expect(() => psbt.toBase64()).not.toThrow();
+    } finally {
+      global.Buffer = originalBuffer;
+    }
   });
 
   it("does not refetch an already attached parent transaction", async () => {
