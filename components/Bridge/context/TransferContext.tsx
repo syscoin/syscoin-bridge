@@ -2,6 +2,10 @@ import { ITransfer } from "@contexts/Transfer/types";
 import { createContext, useContext } from "react";
 import { UseMutateFunction, useMutation, useQuery } from "react-query";
 import isTransfer from "utils/isTransfer";
+import {
+  getOrCreateTransferWriteToken,
+  getTransferWriteToken,
+} from "utils/transfer-write-token";
 
 export interface ITransferContext {
   transfer: ITransfer;
@@ -46,17 +50,6 @@ const buildTransferPath = (id: string) => {
   return `/api/transfer/${encodeURIComponent(id)}`;
 };
 
-const getOrCreateTransferWriteToken = (id: string) => {
-  const storageKey = `transfer-write-token-${id}`;
-  const existing = localStorage.getItem(storageKey);
-  if (existing) {
-    return existing;
-  }
-  const writeToken = crypto.randomUUID();
-  localStorage.setItem(storageKey, writeToken);
-  return writeToken;
-};
-
 export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
@@ -82,20 +75,30 @@ export const TransferContextProvider: React.FC<
     ["transfer", initialData.id],
     async (updatedTransfer: ITransfer) => {
       const url = buildTransferPath(initialData.id);
-      const writeToken = getOrCreateTransferWriteToken(initialData.id);
+      const writeToken =
+        getTransferWriteToken(initialData.id) ??
+        (initialData.status === "initialize"
+          ? getOrCreateTransferWriteToken(initialData.id)
+          : undefined);
       const res = await fetch(url, {
         method: "PATCH",
         body: JSON.stringify(updatedTransfer),
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${writeToken}`,
+          ...(writeToken
+            ? { Authorization: `Bearer ${writeToken}` }
+            : {}),
         },
       });
       const jsonData = await res.json();
       if (isTransfer(jsonData)) {
         return jsonData;
       }
-      throw new Error("Invalid transfer");
+      throw new Error(
+        typeof jsonData?.message === "string"
+          ? jsonData.message
+          : "Invalid transfer"
+      );
     },
     {
       onSuccess: () => refetchTransfer(),

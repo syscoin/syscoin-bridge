@@ -14,6 +14,7 @@ jest.mock("api/services/transfer", () => {
 
   return {
     TransferNotFoundError,
+    TransferWriteUnauthorizedError: class TransferWriteUnauthorizedError extends Error {},
     TransferService: jest.fn().mockImplementation(() => ({
       getTransfer: mockGetTransfer,
       upsertTransfer: mockUpsertTransfer,
@@ -33,6 +34,7 @@ const createResponse = () => {
   const response = {
     status: jest.fn(),
     json: jest.fn(),
+    setHeader: jest.fn(),
   };
   response.status.mockReturnValue(response);
   return response as unknown as NextApiResponse & typeof response;
@@ -41,7 +43,10 @@ const createResponse = () => {
 describe("transfer PATCH binding", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUpsertTransfer.mockResolvedValue({});
+    mockUpsertTransfer.mockResolvedValue({
+      transfer: { id: "transfer-id" },
+      writeToken: "accepted-token",
+    });
   });
 
   it("rejects a body that targets a different transfer than the URL", async () => {
@@ -56,6 +61,32 @@ describe("transfer PATCH binding", () => {
 
     expect(response.status).toHaveBeenCalledWith(400);
     expect(mockUpsertTransfer).not.toHaveBeenCalled();
+  });
+
+  it("offers both bearer and backup-cookie capabilities and refreshes the accepted cookie", async () => {
+    const request = {
+      query: { id: "transfer-id" },
+      body: { id: "transfer-id" },
+      headers: {
+        authorization: "Bearer replacement-token",
+        cookie: "transfer-write-token=original-token",
+        "x-forwarded-proto": "https",
+      },
+      socket: {},
+    } as unknown as NextApiRequest;
+    const response = createResponse();
+
+    await patchRequest(request, response);
+
+    expect(mockUpsertTransfer).toHaveBeenCalledWith(request.body, [
+      "replacement-token",
+      "original-token",
+    ]);
+    expect(response.setHeader).toHaveBeenCalledWith(
+      "Set-Cookie",
+      expect.stringContaining("transfer-write-token=accepted-token")
+    );
+    expect(response.status).toHaveBeenCalledWith(200);
   });
 });
 

@@ -87,8 +87,11 @@ Treat enabling `FOUNDATION_FUNDED=true` as an atomic V2 backend cutover:
    writes.
 5. Deploy the V2 backend and frontend together to every instance and allow its
    MongoDB indexes to be created. New transfers receive a per-transfer write
-   capability; pre-cutover rows without one are intentionally read-only through
-   the public API.
+   capability. The browser retains the active capability in memory and local
+   storage, while accepted writes refresh an HttpOnly backup cookie scoped to
+   that transfer's API path. The backend stores only the capability hash.
+   Pre-cutover rows without one are intentionally read-only through the public
+   API.
 6. Enable foundation funding only after all instances run the same V2 sponsor
    protocol.
 

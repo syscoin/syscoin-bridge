@@ -25,7 +25,10 @@ export class TransferNotFoundError extends Error {
 
 type TransferWriteResult = {
   transfer: ITransfer;
+  writeToken: string;
 };
+
+type WriteTokenCandidates = string | readonly string[] | undefined;
 
 const hashWriteToken = (writeToken: string) =>
   createHash("sha256").update(writeToken, "utf8").digest("hex");
@@ -37,6 +40,19 @@ const writeTokenMatches = (writeToken: string, expectedHash: string) => {
   const expected = Uint8Array.from(Buffer.from(expectedHash, "hex"));
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 };
+
+const normalizeWriteTokens = (writeTokens: WriteTokenCandidates): string[] =>
+  typeof writeTokens === "string"
+    ? [writeTokens]
+    : Array.from(new Set(writeTokens ?? [])).filter(Boolean);
+
+const findMatchingWriteToken = (
+  writeTokens: WriteTokenCandidates,
+  expectedHash: string
+) =>
+  normalizeWriteTokens(writeTokens).find((writeToken) =>
+    writeTokenMatches(writeToken, expectedHash)
+  );
 
 const toTransferUpdate = (transfer: ITransfer) => ({
   type: transfer.type,
@@ -98,7 +114,7 @@ export class TransferService {
 
   async getAuthorizedTransfer(
     id: string,
-    writeToken?: string
+    writeTokens?: WriteTokenCandidates
   ): Promise<ITransfer> {
     const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
       "+writeTokenHash"
@@ -108,9 +124,8 @@ export class TransferService {
       throw new Error("Transfer not found");
     }
     if (
-      !writeToken ||
       !transfer.writeTokenHash ||
-      !writeTokenMatches(writeToken, transfer.writeTokenHash)
+      !findMatchingWriteToken(writeTokens, transfer.writeTokenHash)
     ) {
       throw new TransferWriteUnauthorizedError();
     }
@@ -148,13 +163,14 @@ export class TransferService {
 
   async upsertTransfer(
     transfer: ITransfer,
-    writeToken?: string
+    writeTokens?: WriteTokenCandidates
   ): Promise<TransferWriteResult> {
     const existing = await TransferModel.findOne({ id: transfer.id }).select(
       "+writeTokenHash"
     );
 
     if (!existing) {
+      const [writeToken] = normalizeWriteTokens(writeTokens);
       if (!writeToken) {
         throw new TransferWriteUnauthorizedError();
       }
@@ -166,14 +182,13 @@ export class TransferService {
         writeTokenHash: hashWriteToken(writeToken),
       });
 
-      return { transfer: toPublicTransfer(created) };
+      return { transfer: toPublicTransfer(created), writeToken };
     }
 
-    if (
-      !writeToken ||
-      !existing.writeTokenHash ||
-      !writeTokenMatches(writeToken, existing.writeTokenHash)
-    ) {
+    const writeToken = existing.writeTokenHash
+      ? findMatchingWriteToken(writeTokens, existing.writeTokenHash)
+      : undefined;
+    if (!writeToken || !existing.writeTokenHash) {
       throw new TransferWriteUnauthorizedError();
     }
 
@@ -190,6 +205,6 @@ export class TransferService {
       throw new TransferWriteUnauthorizedError();
     }
 
-    return { transfer: toPublicTransfer(updatedTransfer) };
+    return { transfer: toPublicTransfer(updatedTransfer), writeToken };
   }
 }

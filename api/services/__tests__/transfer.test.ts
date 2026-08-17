@@ -79,7 +79,7 @@ describe("TransferService write capabilities", () => {
 
     await expect(
       new TransferService().upsertTransfer(transfer, writeToken)
-    ).resolves.toEqual({ transfer });
+    ).resolves.toEqual({ transfer, writeToken });
     expect(TransferModelMock.findOneAndUpdate).toHaveBeenCalledWith(
       { id: transfer.id, writeTokenHash },
       expect.objectContaining({
@@ -108,6 +108,22 @@ describe("TransferService write capabilities", () => {
     });
   });
 
+  it("accepts the original backup capability when a replacement bearer token is wrong", async () => {
+    const writeToken = "original-capability";
+    const writeTokenHash = createHash("sha256")
+      .update(writeToken)
+      .digest("hex");
+    findExisting({ ...transfer, writeTokenHash });
+    TransferModelMock.findOneAndUpdate.mockResolvedValue(transfer);
+
+    await expect(
+      new TransferService().upsertTransfer(transfer, [
+        "replacement-capability",
+        writeToken,
+      ])
+    ).resolves.toEqual({ transfer, writeToken });
+  });
+
   it("rejects sponsored actions without the transfer capability", async () => {
     findExisting({ ...transfer, writeTokenHash: "00".repeat(32) });
 
@@ -126,6 +142,7 @@ describe("TransferService write capabilities", () => {
     }, "new-transfer-capability");
 
     expect(result.transfer.version).toBe("v2");
+    expect(result.writeToken).toBe("new-transfer-capability");
     expect(result.transfer).not.toHaveProperty("writeTokenHash");
     expect(TransferModelMock.create).toHaveBeenCalledWith(
       expect.objectContaining({
