@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from "next";
+import { stripTrailingSlashes } from "../url";
 
 interface ApiCorsOptions {
   allowCredentials?: boolean;
@@ -16,14 +17,6 @@ const DEFAULT_ALLOWED_HEADERS = [
 
 const normalizeHeaderValue = (value?: string | string[]) =>
   Array.isArray(value) ? value[0] : value;
-
-const stripTrailingSlashes = (value: string) => {
-  let end = value.length;
-  while (end > 0 && value[end - 1] === "/") {
-    end -= 1;
-  }
-  return value.slice(0, end);
-};
 
 const normalizeOrigin = (origin: string) =>
   stripTrailingSlashes(origin.trim()).toLowerCase();

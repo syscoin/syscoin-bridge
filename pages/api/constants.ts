@@ -5,6 +5,7 @@ import {
   resolveSyscoinIsTestnet,
 } from "utils/network-config";
 import { firstConfiguredUtxoBlockbookUrl } from "utils/syscoin-urls";
+import { stripTrailingSlashes } from "utils/url";
 
 function handler(req: NextApiRequest, res: NextApiResponse) {
   if (
@@ -47,7 +48,9 @@ function handler(req: NextApiRequest, res: NextApiResponse) {
       ),
     },
     explorer: {
-      nevm: process.env.NEVM_EXPLORER,
+      nevm: process.env.NEVM_EXPLORER
+        ? stripTrailingSlashes(process.env.NEVM_EXPLORER)
+        : undefined,
       utxo: firstConfiguredUtxoBlockbookUrl(
         process.env.UTXO_EXPLORER,
         process.env.UTXO_RPC_URL,

@@ -16,10 +16,22 @@ describe("resolveUtxoBlockbookUrl", () => {
     );
   });
 
+  it("maps the legacy mainnet Blockbook host with a trailing slash", () => {
+    expect(resolveUtxoBlockbookUrl("https://blockbook.syscoin.org/")).toBe(
+      MAINNET_BLOCKBOOK_URL
+    );
+  });
+
   it("preserves custom Blockbook URLs", () => {
     expect(resolveUtxoBlockbookUrl("https://custom-blockbook.example")).toBe(
       "https://custom-blockbook.example"
     );
+  });
+
+  it("removes trailing slashes from custom Blockbook URLs", () => {
+    expect(
+      resolveUtxoBlockbookUrl("https://custom-blockbook.example///")
+    ).toBe("https://custom-blockbook.example");
   });
 
   it("uses the first configured Blockbook URL", () => {
