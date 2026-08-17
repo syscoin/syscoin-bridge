@@ -6,6 +6,10 @@ import {
 } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 import { applyApiCors } from "utils/api/cors";
+import {
+  getTransferWriteTokens,
+  setTransferWriteTokenCookie,
+} from "utils/api/transfer-write-capability";
 
 const transferService = new TransferService();
 
@@ -44,13 +48,11 @@ export const patchRequest = async (
   }
 
   try {
-    const authorization = req.headers.authorization;
-    const writeToken =
-      typeof authorization === "string" &&
-      authorization.startsWith("Bearer ")
-        ? authorization.slice("Bearer ".length)
-        : undefined;
-    const updated = await transferService.upsertTransfer(req.body, writeToken);
+    const updated = await transferService.upsertTransfer(
+      req.body,
+      getTransferWriteTokens(req)
+    );
+    setTransferWriteTokenCookie(req, res, id, updated.writeToken);
     res.status(200).json(updated.transfer);
   } catch (e) {
     if (e instanceof TransferWriteUnauthorizedError) {

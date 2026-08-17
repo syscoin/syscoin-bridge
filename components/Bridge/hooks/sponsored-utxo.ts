@@ -1,5 +1,6 @@
 import { UTXOTransaction } from "syscoinjs-lib";
 import { buildApiUrl } from "utils/api-base-url";
+import { getTransferWriteToken } from "utils/transfer-write-token";
 
 export type SponsoredUtxoResponse =
   | {
@@ -15,9 +16,7 @@ export const requestSponsoredUtxo = async (
   action: "mint" | "prepare-burn" | "submit-burn",
   transaction?: UTXOTransaction
 ): Promise<SponsoredUtxoResponse> => {
-  const writeToken = localStorage.getItem(
-    `transfer-write-token-${transferId}`
-  );
+  const writeToken = getTransferWriteToken(transferId);
   const response = await fetch(
     buildApiUrl(
       `/api/transfer/${encodeURIComponent(transferId)}/sponsored-utxo`

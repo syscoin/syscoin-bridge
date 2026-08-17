@@ -16,6 +16,7 @@ import dbConnect from "lib/mongodb";
 import { NextApiHandler } from "next";
 import { UTXOTransaction } from "syscoinjs-lib";
 import { applyApiCors } from "utils/api/cors";
+import { getTransferWriteTokens } from "utils/api/transfer-write-capability";
 
 type SponsoredUtxoRequest = {
   action?: "mint" | "prepare-burn" | "submit-burn";
@@ -46,15 +47,9 @@ const handler: NextApiHandler = async (req, res) => {
 
   try {
     await dbConnect();
-    const authorization = req.headers.authorization;
-    const writeToken =
-      typeof authorization === "string" &&
-      authorization.startsWith("Bearer ")
-        ? authorization.slice("Bearer ".length)
-        : undefined;
     const transfer = await transferService.getAuthorizedTransfer(
       id,
-      writeToken
+      getTransferWriteTokens(req)
     );
     const { action, transaction } = req.body as SponsoredUtxoRequest;
 
