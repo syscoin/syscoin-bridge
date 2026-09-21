@@ -5,6 +5,11 @@ const TransferModelMock = {
   findOne: jest.fn<any>(),
   findOneAndUpdate: jest.fn<any>(),
 };
+const mockAssertTransferCompleted = jest.fn<any>();
+
+jest.mock("../transfer-completion", () => ({
+  assertTransferCompleted: mockAssertTransferCompleted,
+}));
 
 jest.mock("models/transfer", () => ({
   __esModule: true,
@@ -19,6 +24,7 @@ jest.mock("../sponsor-wallet", () => ({
 
 import { createHash } from "crypto";
 import {
+  COMMON_STATUS,
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
 } from "@contexts/Transfer/types";
@@ -27,15 +33,16 @@ import {
   TransferService,
   TransferWriteUnauthorizedError,
 } from "../transfer";
+import { TransferValidationError } from "../transfer-validation";
 
 const transfer: ITransfer = {
-  id: "transfer-id",
+  id: "e8d6267c-f818-41b3-9ee0-09b71179c438",
   type: "nevm-to-sys",
   status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
   amount: "1",
   logs: [],
   createdAt: 1,
-  utxoAddress: "sys1destination",
+  utxoAddress: "sys1qtrgef9gy95ree902dkltyt4vcku8sg8ank49zp",
   nevmAddress: "0x1111111111111111111111111111111111111111",
   version: "v2",
   agreedToTerms: true,
@@ -50,6 +57,8 @@ const findExisting = (value: unknown) => {
 describe("TransferService write capabilities", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.IS_TESTNET = "false";
+    mockAssertTransferCompleted.mockResolvedValue(undefined);
   });
 
   it("rejects updates to an existing transfer without its write token", async () => {
@@ -160,5 +169,44 @@ describe("TransferService write capabilities", () => {
       new TransferService().upsertTransfer(transfer)
     ).rejects.toBeInstanceOf(TransferWriteUnauthorizedError);
     expect(TransferModelMock.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects creation already marked completed even with a caller's capability", async () => {
+    findExisting(null);
+
+    await expect(new TransferService().upsertTransfer({
+      ...transfer, status: COMMON_STATUS.COMPLETED,
+    }, "attacker-capability")).rejects.toBeInstanceOf(TransferValidationError);
+    expect(TransferModelMock.create).not.toHaveBeenCalled();
+  });
+
+  it("does not persist completed status when chain verification fails", async () => {
+    const writeToken = "secret-capability";
+    findExisting({ ...transfer, writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+    const error = new TransferValidationError("Settlement transaction does not match this transfer");
+    mockAssertTransferCompleted.mockRejectedValueOnce(error);
+    const completed = { ...transfer, status: COMMON_STATUS.COMPLETED };
+
+    await expect(new TransferService().upsertTransfer(completed, writeToken)).rejects.toBe(error);
+    expect(mockAssertTransferCompleted).toHaveBeenCalledWith(completed);
+    expect(TransferModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("revalidates completion on retries instead of trusting stored status", async () => {
+    const writeToken = "secret-capability";
+    const completed = { ...transfer, status: COMMON_STATUS.COMPLETED };
+    findExisting({ ...completed, writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+    TransferModelMock.findOneAndUpdate.mockResolvedValue(completed);
+
+    await expect(new TransferService().upsertTransfer(completed, writeToken)).resolves.toEqual({transfer: completed, writeToken});
+    expect(mockAssertTransferCompleted).toHaveBeenCalledWith(completed);
+  });
+
+  it("rejects changing the amount even when the write capability matches", async () => {
+    const writeToken = "secret-capability";
+    findExisting({ ...transfer, writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+
+    await expect(new TransferService().upsertTransfer({ ...transfer, amount: "1000000" }, writeToken)).rejects.toBeInstanceOf(TransferValidationError);
+    expect(TransferModelMock.findOneAndUpdate).not.toHaveBeenCalled();
   });
 });

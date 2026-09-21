@@ -46,12 +46,11 @@ export const assertSponsoredUtxoTransfer = (transfer: ITransfer) => {
   }
 };
 
-export const assertSponsoredMintEligible = async (
+export const assertFreezeBurnMatchesTransfer = async (
   transfer: ITransfer
 ): Promise<{ blockNumber: number; transactionHash: string }> => {
-  assertSponsoredUtxoTransfer(transfer);
   if (transfer.type !== "nevm-to-sys") {
-    throw new Error("Sponsored mint is only available for NEVM to SYS");
+    throw new Error("Freeze and burn is only available for NEVM to SYS");
   }
   if (!ERC20_MANAGER_CONTRACT_ADDRESS || !tokenFreezeAbi || !tokenFreezeSignature) {
     throw new Error("ERC20 manager contract is not configured");
@@ -76,8 +75,6 @@ export const assertSponsoredMintEligible = async (
   if (!transaction || !receipt) {
     throw new Error("Freeze and burn transaction was not found on NEVM");
   }
-  assertV2ActivationBlock(receipt.blockNumber);
-
   const managerAddress = normalizeAddress(ERC20_MANAGER_CONTRACT_ADDRESS);
   const nevmAddress = normalizeAddress(transfer.nevmAddress!);
   const amountWei = toWei(transfer.amount.toString(), "ether");
@@ -121,4 +118,13 @@ export const assertSponsoredMintEligible = async (
   }
 
   return { blockNumber: receipt.blockNumber, transactionHash };
+};
+
+export const assertSponsoredMintEligible = async (
+  transfer: ITransfer
+): Promise<{ blockNumber: number; transactionHash: string }> => {
+  assertSponsoredUtxoTransfer(transfer);
+  const source = await assertFreezeBurnMatchesTransfer(transfer);
+  assertV2ActivationBlock(source.blockNumber);
+  return source;
 };

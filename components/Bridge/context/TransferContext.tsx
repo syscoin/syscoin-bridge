@@ -1,5 +1,6 @@
-import { ITransfer } from "@contexts/Transfer/types";
-import { createContext, useContext } from "react";
+import { COMMON_STATUS, ITransfer } from "@contexts/Transfer/types";
+import { createContext, useContext, useState } from "react";
+import { Alert, Button } from "@mui/material";
 import { UseMutateFunction, useMutation, useQuery } from "react-query";
 import isTransfer from "utils/isTransfer";
 import {
@@ -53,6 +54,7 @@ const buildTransferPath = (id: string) => {
 export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
+  const [isRetryingSave, setIsRetryingSave] = useState(false);
   const { data: transfer, refetch: refetchTransfer } = useQuery(
     ["transfer", initialData.id],
     {
@@ -71,7 +73,13 @@ export const TransferContextProvider: React.FC<
     }
   );
 
-  const { mutate: saveTransfer, isLoading: isSaving } = useMutation(
+  const {
+    mutate: saveTransfer,
+    isLoading: isSaving,
+    isError: isSaveError,
+    error: saveError,
+    variables: unsavedTransfer,
+  } = useMutation(
     ["transfer", initialData.id],
     async (updatedTransfer: ITransfer) => {
       const url = buildTransferPath(initialData.id);
@@ -109,7 +117,32 @@ export const TransferContextProvider: React.FC<
     <TransferContext.Provider
       value={{ transfer: transfer ?? initialData, saveTransfer, isSaving }}
     >
-      {children}
+      {(isSaveError || isRetryingSave) && unsavedTransfer?.status === COMMON_STATUS.COMPLETED ? (
+        <Alert
+          severity={isSaving ? "info" : "error"}
+          sx={{ mt: 10, mx: 3 }}
+          action={
+            <Button
+              disabled={isSaving}
+              onClick={() => {
+                setIsRetryingSave(true);
+                // Retry persistence only, never the transaction-signing step.
+                saveTransfer(unsavedTransfer, {
+                  onSettled: () => setIsRetryingSave(false),
+                });
+              }}
+            >
+              Retry
+            </Button>
+          }
+        >
+          {isSaving
+            ? "Saving transfer..."
+            : `Unable to save transfer: ${
+                saveError instanceof Error ? saveError.message : "Please retry."
+              }`}
+        </Alert>
+      ) : children}
     </TransferContext.Provider>
   );
 };

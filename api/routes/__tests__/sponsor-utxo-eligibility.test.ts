@@ -31,6 +31,7 @@ jest.mock("utils/get-web3", () => ({
 }));
 
 import {
+  assertFreezeBurnMatchesTransfer,
   assertSponsoredMintEligible,
   assertSponsoredUtxoTransfer,
 } from "api/services/sponsor-utxo-eligibility";
@@ -100,11 +101,19 @@ describe("sponsored UTXO eligibility", () => {
   });
 
   it("rejects pre-activation mints", async () => {
-    mockWeb3.eth.getTransactionReceipt.mockResolvedValueOnce({
-      blockNumber: 99,
-    });
+    const receipt = await mockWeb3.eth.getTransactionReceipt();
+    mockWeb3.eth.getTransactionReceipt.mockResolvedValueOnce({ ...receipt, blockNumber: 99 });
     await expect(assertSponsoredMintEligible(transfer)).rejects.toThrow(
       "before the V2 activation block"
     );
+  });
+
+  it("verifies self-funded completion without sponsorship configuration or an xpub", async () => {
+    delete process.env.NEVM_V2_ACTIVATION_BLOCK;
+    await expect(assertFreezeBurnMatchesTransfer({ ...transfer, utxoXpub: undefined })).resolves.toEqual({
+      blockNumber: 100,
+      transactionHash: "0xburn",
+    });
+    await expect(assertSponsoredMintEligible(transfer)).rejects.toThrow("V2 activation block is not configured");
   });
 });

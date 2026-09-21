@@ -1,4 +1,5 @@
 import {
+  COMMON_STATUS,
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
   SYS_TO_ETH_TRANSFER_STATUS,
@@ -6,6 +7,12 @@ import {
 import TransferModel from "models/transfer";
 import { createHash, timingSafeEqual } from "crypto";
 import { SponsorWalletService } from "./sponsor-wallet";
+import {
+  assertNewTransfer,
+  assertTransferIdentityUnchanged,
+  assertValidTransferPayload,
+} from "./transfer-validation";
+import { assertTransferCompleted } from "./transfer-completion";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -165,6 +172,7 @@ export class TransferService {
     transfer: ITransfer,
     writeTokens?: WriteTokenCandidates
   ): Promise<TransferWriteResult> {
+    assertValidTransferPayload(transfer);
     const existing = await TransferModel.findOne({ id: transfer.id }).select(
       "+writeTokenHash"
     );
@@ -174,6 +182,7 @@ export class TransferService {
       if (!writeToken) {
         throw new TransferWriteUnauthorizedError();
       }
+      assertNewTransfer(transfer);
       const created = await TransferModel.create({
         ...toTransferUpdate(transfer),
         id: transfer.id,
@@ -192,6 +201,10 @@ export class TransferService {
       throw new TransferWriteUnauthorizedError();
     }
 
+    assertTransferIdentityUnchanged(transfer, existing as unknown as ITransfer);
+    if (transfer.status === COMMON_STATUS.COMPLETED) {
+      await assertTransferCompleted(transfer);
+    }
     await this.updateSponsorStatuses(transfer);
     const updatedTransfer = await TransferModel.findOneAndUpdate(
       {

@@ -5,6 +5,7 @@ import {
   TransferWriteUnauthorizedError,
 } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
+import { TransferValidationError } from "api/services/transfer-validation";
 import { applyApiCors } from "utils/api/cors";
 import {
   getTransferWriteTokens,
@@ -55,6 +56,9 @@ export const patchRequest = async (
     setTransferWriteTokenCookie(req, res, id, updated.writeToken);
     res.status(200).json(updated.transfer);
   } catch (e) {
+    if (e instanceof TransferValidationError) {
+      return res.status(400).json({ message: e.message });
+    }
     if (e instanceof TransferWriteUnauthorizedError) {
       return res.status(401).json({ message: e.message });
     }

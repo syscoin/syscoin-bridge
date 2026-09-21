@@ -28,6 +28,7 @@ jest.mock("utils/api/cors", () => ({
 
 import { NextApiRequest, NextApiResponse } from "next";
 import { TransferNotFoundError } from "api/services/transfer";
+import { TransferValidationError } from "api/services/transfer-validation";
 import { getRequest, patchRequest } from "pages/api/transfer/[id]";
 
 const createResponse = () => {
@@ -87,6 +88,22 @@ describe("transfer PATCH binding", () => {
       expect.stringContaining("transfer-write-token=accepted-token")
     );
     expect(response.status).toHaveBeenCalledWith(200);
+  });
+
+  it("returns 400 for invalid transfer data without setting a capability cookie", async () => {
+    mockUpsertTransfer.mockRejectedValueOnce(new TransferValidationError("Invalid transfer addresses"));
+    const request = {
+      query: { id: "transfer-id" },
+      body: { id: "transfer-id" },
+      headers: { authorization: "Bearer caller-supplied-token" },
+    } as unknown as NextApiRequest;
+    const response = createResponse();
+
+    await patchRequest(request, response);
+
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({ message: "Invalid transfer addresses" });
+    expect(response.setHeader).not.toHaveBeenCalled();
   });
 });
 
