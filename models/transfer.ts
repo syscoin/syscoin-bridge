@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 export type Transfer = mongoose.Document &
   ITransfer & {
     writeTokenHash?: string;
+    progressStatus?: ITransfer["status"];
   };
 
 const TransferLogSchema = new mongoose.Schema<ITransferLog>({
@@ -64,6 +65,10 @@ const TransferSchema = new mongoose.Schema<Transfer>({
     type: String,
   },
   writeTokenHash: {
+    type: String,
+    select: false,
+  },
+  progressStatus: {
     type: String,
     select: false,
   },

@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { utils as syscoinUtils } from "syscoinjs-lib";
 import handler from "../../../pages/api/utxo/xpub/[xpub]";
 
 type MockResponse = NextApiResponse & {
@@ -42,15 +43,27 @@ const createResponse = (): MockResponse => {
   return response as unknown as MockResponse;
 };
 
-const createRequest = (details = "basic") =>
+const account = syscoinUtils.bitcoinjs.bip32
+  .fromSeed(Buffer.alloc(32, 1), {
+    ...syscoinUtils.syscoinNetworks.testnet,
+    bip32: { public: 0x045f1cf6, private: 0x045f18bc },
+  })
+  .derivePath("m/84'/1'/0'");
+const xpub = account.neutered().toBase58();
+
+const createRequest = (details = "basic", requestedAccount: unknown = xpub) =>
   ({
     method: "GET",
     headers: {},
-    query: { xpub: "vpub-test", details },
+    query: { xpub: requestedAccount, details },
     socket: {},
   } as unknown as NextApiRequest);
 
 const originalEnvironment = { ...process.env };
+
+beforeEach(() => {
+  process.env.IS_TESTNET = "true";
+});
 
 afterEach(() => {
   process.env = { ...originalEnvironment };
@@ -71,7 +84,7 @@ describe("UTXO xpub proxy", () => {
     await handler(createRequest(), response);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://testnet-blockbook.example/api/v2/xpub/vpub-test?details=basic",
+      `https://testnet-blockbook.example/api/v2/xpub/${xpub}?details=basic`,
       { headers: { Accept: "application/json" } }
     );
     expect(response.statusCode).toBe(200);
@@ -89,7 +102,7 @@ describe("UTXO xpub proxy", () => {
     await handler(createRequest("everything"), createResponse());
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://testnet-blockbook.example/api/v2/xpub/vpub-test?details=basic",
+      `https://testnet-blockbook.example/api/v2/xpub/${xpub}?details=basic`,
       { headers: { Accept: "application/json" } }
     );
   });
@@ -108,5 +121,51 @@ describe("UTXO xpub proxy", () => {
     expect(response.body).toEqual({
       message: "UTXO Blockbook is not configured",
     });
+  });
+
+  it.each([
+    "vpub-test",
+    "../account",
+    "%2e%2e%2faccount",
+    "%252e%252e%252faccount",
+    `${xpub}/0/0`,
+    `${xpub}%2f0`,
+    `${xpub}?details=tokens`,
+    ` ${xpub}`,
+    account.toBase58(),
+    xpub.slice(0, -1) + (xpub.endsWith("1") ? "2" : "1"),
+  ])("rejects invalid accounts before contacting Blockbook: %s", async (value) => {
+    process.env.UTXO_EXPLORER = "https://testnet-blockbook.example";
+    const fetchMock = jest.spyOn(global, "fetch");
+    const response = createResponse();
+
+    await handler(createRequest("basic", value), response);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({ message: "Invalid xpub" });
+  });
+
+  it("rejects a public account for the other network", async () => {
+    process.env.IS_TESTNET = "false";
+    const fetchMock = jest.spyOn(global, "fetch");
+    const response = createResponse();
+
+    await handler(createRequest(), response);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({ message: "Invalid xpub" });
+  });
+
+  it("retains the missing-account error without contacting Blockbook", async () => {
+    const fetchMock = jest.spyOn(global, "fetch");
+    const response = createResponse();
+
+    await handler(createRequest("basic", ""), response);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({ message: "Missing xpub" });
   });
 });

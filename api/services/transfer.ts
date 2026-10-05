@@ -13,6 +13,7 @@ import {
   assertValidTransferPayload,
 } from "./transfer-validation";
 import { assertTransferCompleted } from "./transfer-completion";
+import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -27,6 +28,14 @@ export class TransferNotFoundError extends Error {
     super("Transfer not found");
     this.name = "TransferNotFoundError";
     Object.setPrototypeOf(this, TransferNotFoundError.prototype);
+  }
+}
+
+export class TransferWriteConflictError extends Error {
+  constructor() {
+    super("Transfer changed while saving; refresh before retrying");
+    this.name = "TransferWriteConflictError";
+    Object.setPrototypeOf(this, TransferWriteConflictError.prototype);
   }
 }
 
@@ -84,6 +93,7 @@ const toPublicTransfer = (transfer: unknown): ITransfer => {
       ? transfer.toObject()
       : { ...(transfer as Record<string, unknown>) };
   delete source.writeTokenHash;
+  delete source.progressStatus;
   delete source.__v;
   return source as ITransfer;
 };
@@ -137,7 +147,11 @@ export class TransferService {
       throw new TransferWriteUnauthorizedError();
     }
 
-    return toPublicTransfer(transfer);
+    const authorized = toPublicTransfer(transfer);
+    // Older stored rows predate payload validation. Do not forward malformed
+    // accounts or transaction references to sponsored transaction builders.
+    assertValidTransferPayload(authorized);
+    return authorized;
   }
 
   private async updateSponsorStatuses(transfer: ITransfer): Promise<void> {
@@ -174,7 +188,7 @@ export class TransferService {
   ): Promise<TransferWriteResult> {
     assertValidTransferPayload(transfer);
     const existing = await TransferModel.findOne({ id: transfer.id }).select(
-      "+writeTokenHash"
+      "+writeTokenHash +progressStatus"
     );
 
     if (!existing) {
@@ -189,6 +203,7 @@ export class TransferService {
         version: "v2",
         createdAt: Date.now(),
         writeTokenHash: hashWriteToken(writeToken),
+        progressStatus: transfer.status,
       });
 
       return { transfer: toPublicTransfer(created), writeToken };
@@ -202,6 +217,10 @@ export class TransferService {
     }
 
     assertTransferIdentityUnchanged(transfer, existing as unknown as ITransfer);
+    const priorProgress = {
+      ...toPublicTransfer(existing), status: existing.progressStatus ?? existing.status,
+    } as ITransfer;
+    transfer = await canonicalizeTransferProgress(transfer, priorProgress);
     if (transfer.status === COMMON_STATUS.COMPLETED) {
       await assertTransferCompleted(transfer);
     }
@@ -210,12 +229,14 @@ export class TransferService {
       {
         id: transfer.id,
         writeTokenHash: existing.writeTokenHash,
+        __v: existing.__v === undefined ? { $exists: false } : existing.__v,
       },
-      { $set: toTransferUpdate(transfer) },
+      { $set: { ...toTransferUpdate(transfer),
+        progressStatus: verifiedTransferProgressStatus(transfer, priorProgress) }, $inc: { __v: 1 } },
       { new: true }
     );
     if (!updatedTransfer) {
-      throw new TransferWriteUnauthorizedError();
+      throw new TransferWriteConflictError();
     }
 
     return { transfer: toPublicTransfer(updatedTransfer), writeToken };

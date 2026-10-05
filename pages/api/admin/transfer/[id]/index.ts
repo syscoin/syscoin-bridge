@@ -71,6 +71,11 @@ const AdminTransfer: NextApiHandler = adminSessionGuard(
         typeof transfer[property] === typeof to;
       if (isSameType && transfer[property] === from) {
         transfer[property] = to as never;
+        if (property === "status") {
+          // A signed administrator override explicitly resets public progress.
+          // Existing chain logs still prevent accidental repeat submissions.
+          transfer.set("progressStatus", undefined);
+        }
       }
     });
 

@@ -14,4 +14,8 @@ describe("Transfer model administrative compatibility", () => {
 
     expect(transfer.validateSync()).toBeUndefined();
   });
+
+  it("hides the server-owned progress checkpoint from default public queries", () => {
+    expect(TransferModel.schema.path("progressStatus").options.select).toBe(false);
+  });
 });
