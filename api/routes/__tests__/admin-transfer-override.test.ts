@@ -9,6 +9,7 @@ jest.mock("utils/api/verify-signature", () => ({ verifySignature: mockVerifySign
 
 import { NextApiRequest, NextApiResponse } from "next";
 import adminTransferHandler from "pages/api/admin/transfer/[id]";
+import mongoose from "mongoose";
 
 const request = (changes = [{ property: "status", from: "error", to: "burn-sysx" }]) => ({
   method: "POST", query: { id: "transfer-id" },
@@ -21,7 +22,8 @@ const response = () => {
   return res as unknown as NextApiResponse & typeof res;
 };
 const document = () => ({
-  status: "error", amount: "1", set: jest.fn(), save: jest.fn<any>().mockResolvedValue({ id: "transfer-id" }),
+  status: "error", amount: "1", set: jest.fn(), increment: jest.fn(),
+  save: jest.fn<any>().mockResolvedValue({ id: "transfer-id" }),
 });
 
 describe("signed administrator transfer overrides", () => {
@@ -37,6 +39,7 @@ describe("signed administrator transfer overrides", () => {
     await adminTransferHandler(request(), res);
     expect(transfer.status).toBe("burn-sysx");
     expect(transfer.set).toHaveBeenCalledWith("progressStatus", undefined);
+    expect(transfer.increment).toHaveBeenCalledTimes(1);
     expect(transfer.save).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -49,6 +52,7 @@ describe("signed administrator transfer overrides", () => {
     await adminTransferHandler(request(), res);
     expect(mockFindOne).not.toHaveBeenCalled();
     expect(transfer.set).not.toHaveBeenCalled();
+    expect(transfer.increment).not.toHaveBeenCalled();
     expect(transfer.save).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
   });
@@ -63,5 +67,21 @@ describe("signed administrator transfer overrides", () => {
     expect(transfer.amount).toBe("2");
     expect(transfer.status).toBe("error");
     expect(transfer.set).not.toHaveBeenCalled();
+    expect(transfer.increment).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a conflict if another writer advances the version first", async () => {
+    const transfer = document();
+    mockFindOne.mockResolvedValue(transfer);
+    transfer.save.mockRejectedValueOnce(new mongoose.Error.VersionError(
+      { _doc: { _id: "transfer-id" } } as any, 3, ["status"]
+    ));
+    const res = response();
+    await adminTransferHandler(request(), res);
+    expect(transfer.increment).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      message: "Transfer changed while saving; refresh before retrying",
+    });
   });
 });
