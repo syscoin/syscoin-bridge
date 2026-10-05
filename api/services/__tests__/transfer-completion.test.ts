@@ -98,6 +98,50 @@ const destinationBurn = () => ({
   ],
 });
 
+// A larger SYSX input leaves real allocation change on the native payout output.
+// Derive the provider metadata from the unsigned builder's serialized allocation.
+const mixedDestinationBurn = (sourceAddress = address) => {
+  const syscointx = jest.requireActual<any>("syscointx-js");
+  const bitcoin = jest.requireActual<any>("bitcoinjs-lib");
+  const BN = jest.requireActual<any>("bn.js");
+  const result = syscointx.assetAllocationBurn(
+    { ethaddress: Buffer.alloc(0) }, { rbf: true },
+    { assets: new Map(), utxos: [{
+      txId: "e".repeat(64), vout: 0, type: "BECH32", address: sourceAddress,
+      value: new BN("100000000"),
+      assetInfo: { assetGuid: assetInfo.assetGuid, value: new BN("12100000") },
+    }] },
+    new Map([[assetInfo.assetGuid, {
+      changeAddress: address, outputs: [{ address, value: new BN(assetInfo.value) }],
+    }]]), address, new BN(10)
+  );
+  expect(result.success).toBe(true);
+  expect(result.txVersion).toBe(138);
+  const burnIndex = result.outputs.findIndex((output: any) => output.script);
+  const payload = bitcoin.script.decompile(result.outputs[burnIndex].script)[1];
+  const allocations = syscointx.bufferUtils.deserializeAllocationBurn(Buffer.from(payload), true).allocation;
+  const vout = result.outputs.map((output: any, n: number) => {
+    const allocation = allocations.find((entry: any) => entry.values.some((value: any) => value.n === n));
+    const allocationValue = allocation?.values.find((value: any) => value.n === n);
+    return {
+      n, value: output.value.toString(), ...(output.script ? {} : { addresses: [output.address] }),
+      ...(allocation ? { assetInfo: { assetGuid: allocation.assetGuid, value: allocationValue.value.toString() } } : {}),
+    };
+  });
+  expect(vout[0]).toEqual({
+    n: 0, value: assetInfo.value, addresses: [address],
+    assetInfo: { assetGuid: assetInfo.assetGuid, value: "2100000" },
+  });
+  expect(vout[burnIndex].assetInfo).toEqual(assetInfo);
+  return {
+    ...destinationBurn(), vout,
+    vin: result.inputs.map((input: any, n: number) => ({
+      n, txid: input.txId, vout: input.vout, value: input.value.toString(), addresses: [input.address],
+      assetInfo: { assetGuid: input.assetInfo.assetGuid, value: input.assetInfo.value.toString() },
+    })),
+  };
+};
+
 // The real wallet selector may consume older equal-value SYSX instead of the mint.
 const olderSysxInputs = (version: number) => {
   const { coinSelectAsset } = jest.requireActual<any>("coinselectsyscoin");
@@ -203,6 +247,44 @@ describe("canonical transfer completion", () => {
     it("accepts confirmed mint and conversion with the matching freeze proof", async () => {
       await expect(assertTransferCompleted(transfer("nevm-to-sys"))).resolves.toBeUndefined();
       expect(mockAssertMintEligible).toHaveBeenCalledWith(transfer("nevm-to-sys"));
+    });
+
+    it("accepts native payout with SYSX change created by overage coin selection", async () => {
+      const burn = mixedDestinationBurn();
+      mockFetchRawTx.mockImplementation(async (_url: string, hash: string) => hash === mintHash ? mint() : burn);
+      await expect(assertTransferCompleted(transfer("nevm-to-sys"))).resolves.toBeUndefined();
+    });
+
+    it.each([
+      ["wrong amount", { value: "10000001" }],
+      ["wrong recipient", { addresses: [olderAddress] }],
+    ])("rejects mixed native/SYSX payout with %s", async (_label, payout) => {
+      const burn = mixedDestinationBurn();
+      burn.vout[0] = { ...burn.vout[0], ...payout };
+      mockFetchRawTx.mockImplementation(async (_url: string, hash: string) => hash === mintHash ? mint() : burn);
+      await expect(assertTransferCompleted(transfer("nevm-to-sys"))).rejects.toThrow("SYSX conversion does not match");
+    });
+
+    it("rejects a later matching native output when mixed payout output zero has the wrong recipient", async () => {
+      const burn = mixedDestinationBurn();
+      burn.vout[0] = { ...burn.vout[0], addresses: [olderAddress] };
+      const laterNative = burn.vout.find((output: any) => output.n > 0 && output.addresses && !output.assetInfo);
+      laterNative.value = assetInfo.value;
+      mockFetchRawTx.mockImplementation(async (_url: string, hash: string) => hash === mintHash ? mint() : burn);
+      await expect(assertTransferCompleted(transfer("nevm-to-sys"))).rejects.toThrow("SYSX conversion does not match");
+    });
+
+    it("keeps mixed payout SYSX inputs bound to the transfer account", async () => {
+      const burn = mixedDestinationBurn(olderAddress);
+      mockFetchRawTx.mockImplementation(async (_url: string, hash: string) => hash === mintHash ? mint() : burn);
+      await expect(assertTransferCompleted(transfer("nevm-to-sys"))).rejects.toThrow("transfer account");
+    });
+
+    it("still verifies the mint proof before accepting a mixed payout", async () => {
+      const burn = mixedDestinationBurn();
+      mockFetchRawTx.mockImplementation(async (_url: string, hash: string) => hash === mintHash ? mint() : burn);
+      mockDecodeMint.mockReturnValue({ blockhash: Buffer.alloc(32, 1), txpath: Buffer.from("80", "hex") });
+      await expect(assertTransferCompleted(transfer("nevm-to-sys"))).rejects.toThrow("does not prove");
     });
 
     it("accepts conversion of older SYSX selected from the same xpub", async () => {

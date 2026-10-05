@@ -243,8 +243,9 @@ export const canonicalizeTransferProgress = async (
           } else {
             const destination = syscoinUtils.bitcoinjs.address.toOutputScript(transfer.utxoAddress!,
               process.env.IS_TESTNET === "true" ? syscoinUtils.syscoinNetworks.testnet : syscoinUtils.syscoinNetworks.mainnet);
-            requireEvidence(burn.ethaddress.length === 0 && raw.outs.some((output: any) =>
-              output.value.toString() === amount && Buffer.from(output.script).equals(Uint8Array.from(destination))),
+            const payout = raw.outs[0];
+            requireEvidence(burn.ethaddress.length === 0 && payout &&
+              payout.value.toString() === amount && Buffer.from(payout.script).equals(Uint8Array.from(destination)),
             "SYSX conversion recipient does not match this transfer");
           }
           await assertAccountSysxInputs(transfer, tx);
