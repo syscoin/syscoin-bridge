@@ -123,6 +123,56 @@ const wireTransaction = (
     ],
   };
 };
+
+const mixedConversionTransaction = (options: {
+  recipient?: string; conversionValue?: string; laterMatchingOutput?: boolean;
+} = {}): UtxoTransaction => {
+  const { assetAllocationBurn, getAllocationsFromTx } = require("syscointx-js");
+  const result = assetAllocationBurn(
+    { ethaddress: Buffer.alloc(0) }, { rbf: true },
+    { assets: new Map(), utxos: [{
+      txId: "9".repeat(64), vout: 0, type: "BECH32", address,
+      value: new BN("100000000"),
+      assetInfo: { assetGuid: SYSX_ASSET_GUID, value: new BN("12100000") },
+    }] },
+    new Map([[SYSX_ASSET_GUID, {
+      changeAddress: address, outputs: [{ address, value: new BN(amount) }],
+    }]]), address, new BN(10)
+  );
+  expect(result.success).toBe(true);
+  const raw = new bitcoin.Transaction();
+  raw.version = result.txVersion;
+  raw.addInput(Buffer.alloc(32, 9), 0);
+  result.outputs.forEach((output: any, n: number) => {
+    const script = output.script ?? bitcoin.address.toOutputScript(
+      n === 0 ? options.recipient ?? output.address : output.address, syscoinUtils.syscoinNetworks.mainnet
+    );
+    raw.addOutput(script, BigInt(n === 0 ? options.conversionValue ?? output.value.toString() : output.value.toString()));
+  });
+  if (options.laterMatchingOutput) {
+    // Use the ordinary native change output so no extra allocation or funding is introduced.
+    raw.outs[raw.outs.length - 1].value = BigInt(amount);
+  }
+  const allocations = getAllocationsFromTx(raw);
+  const vout = raw.outs.map((output: any, n: number) => {
+    const allocation = allocations.find((entry: any) => entry.values.some((value: any) => value.n === n));
+    const allocationValue = allocation?.values.find((value: any) => value.n === n);
+    const opReturn = bitcoin.script.decompile(output.script)?.[0] === 0x6a;
+    return {
+      n, value: output.value.toString(), ...(opReturn ? {} : {
+        addresses: [bitcoin.address.fromOutputScript(output.script, syscoinUtils.syscoinNetworks.mainnet)],
+      }),
+      ...(allocation ? { assetInfo: { assetGuid: allocation.assetGuid, value: allocationValue.value.toString() } } : {}),
+    };
+  });
+  expect(vout[0].assetInfo).toEqual({ assetGuid: SYSX_ASSET_GUID, value: "2100000" });
+  return {
+    txid: raw.getId(), hex: raw.toHex(), tokenType: "SPTAssetAllocationBurnToSyscoin", confirmations: 1,
+    vin: [{ n: 0, txid: "9".repeat(64), vout: 0, value: "100000000", addresses: [address],
+      assetInfo: { assetGuid: SYSX_ASSET_GUID, value: "12100000" } }], vout,
+  };
+};
+
 const freeze = (changes: Record<string, unknown> = {}) => ({
   hash: freezeHash, from: recipient, to: manager, value: "100000000000000000",
   input: mockWeb3.eth.abi.encodeFunctionCall(managerAbi.find((method) => method.name === "freezeBurn")!,
@@ -384,6 +434,29 @@ describe("canonical transfer progress", () => {
       expect(mockFetchAccount).toHaveBeenCalledWith(expect.any(String), account, "details=tokens&tokens=used", true);
     }
   );
+
+  it("preserves real mixed native/SYSX conversion allocations at payout output zero", async () => {
+    const burn = mixedConversionTransaction();
+    installUtxo(burn);
+    const value = nevmTransfer({ status: "error", logs: [
+      log("burn-sysx", { tx: burn.txid }), log("burn-sysx", burn, 2),
+    ] });
+    const result = await canonicalizeTransferProgress(value);
+    expect(result.logs[1].payload.data).toEqual(burn);
+    expect(result.logs[1].payload.data.vout[0].assetInfo.value).toBe("2100000");
+  });
+
+  it.each([
+    ["wrong recipient", { recipient: olderAddress }],
+    ["wrong amount", { conversionValue: "10000001" }],
+    ["later matching output with wrong payout recipient", { recipient: olderAddress, laterMatchingOutput: true }],
+  ])("rejects mixed native/SYSX conversion with %s", async (_label, options) => {
+    const burn = mixedConversionTransaction(options);
+    installUtxo(burn);
+    await expect(canonicalizeTransferProgress(nevmTransfer({
+      status: "error", logs: [log("burn-sysx", { tx: burn.txid })],
+    }))).rejects.toThrow("SYSX conversion recipient does not match");
+  });
 
   it.each([undefined, { tokens: [{ type: "XPUBAddress", name: address }] },
     { tokens: [{ type: "ERC20", name: olderAddress }] }])(

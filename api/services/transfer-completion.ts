@@ -180,10 +180,11 @@ const assertNevmToSysCompleted = async (transfer: ITransfer, amount: string) => 
   const mintedOutputs = mint.vout.filter(
     (output) => isSysx(output, amount) && output.addresses?.includes(transfer.utxoAddress!)
   );
+  // Conversion pays native SYS in output zero, which can also carry SYSX change.
   requireEvidence(
     mintedOutputs.length > 0 &&
       burn.vout.some((output) => isSysx(output, amount)) &&
-      burn.vout.some((output) => !output.assetInfo && output.value === amount &&
+      burn.vout.some((output) => output.n === 0 && output.value === amount &&
         output.addresses?.includes(transfer.utxoAddress!)),
     "SYSX conversion does not match this transfer's mint, recipient and amount"
   );
