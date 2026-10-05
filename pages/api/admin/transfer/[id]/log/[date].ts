@@ -11,6 +11,8 @@ const AdminTransferLog: NextApiHandler = adminSessionGuard(async (req, res) => {
     const deleteResults = await TransferModel.updateMany(
       { id },
       {
+        // Invalidate public PATCH snapshots that still contain this log.
+        $inc: { __v: 1 },
         $pull: {
           logs: {
             date: date,

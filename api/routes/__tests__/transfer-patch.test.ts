@@ -11,9 +11,16 @@ jest.mock("api/services/transfer", () => {
       Object.setPrototypeOf(this, TransferNotFoundError.prototype);
     }
   }
+  class TransferWriteConflictError extends Error {
+    constructor() {
+      super("Transfer changed while saving; refresh before retrying");
+      Object.setPrototypeOf(this, TransferWriteConflictError.prototype);
+    }
+  }
 
   return {
     TransferNotFoundError,
+    TransferWriteConflictError,
     TransferWriteUnauthorizedError: class TransferWriteUnauthorizedError extends Error {},
     TransferService: jest.fn().mockImplementation(() => ({
       getTransfer: mockGetTransfer,
@@ -27,7 +34,7 @@ jest.mock("utils/api/cors", () => ({
 }));
 
 import { NextApiRequest, NextApiResponse } from "next";
-import { TransferNotFoundError } from "api/services/transfer";
+import { TransferNotFoundError, TransferWriteConflictError } from "api/services/transfer";
 import { TransferValidationError } from "api/services/transfer-validation";
 import { getRequest, patchRequest } from "pages/api/transfer/[id]";
 
@@ -103,6 +110,20 @@ describe("transfer PATCH binding", () => {
 
     expect(response.status).toHaveBeenCalledWith(400);
     expect(response.json).toHaveBeenCalledWith({ message: "Invalid transfer addresses" });
+    expect(response.setHeader).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 for a stale write without setting a capability cookie", async () => {
+    mockUpsertTransfer.mockRejectedValueOnce(new TransferWriteConflictError());
+    const request = {
+      query: { id: "transfer-id" }, body: { id: "transfer-id" }, headers: {},
+    } as unknown as NextApiRequest;
+    const response = createResponse();
+
+    await patchRequest(request, response);
+
+    expect(response.status).toHaveBeenCalledWith(409);
+    expect(response.json).toHaveBeenCalledWith({ message: "Transfer changed while saving; refresh before retrying" });
     expect(response.setHeader).not.toHaveBeenCalled();
   });
 });

@@ -25,7 +25,7 @@ const { fetchBackendAccount } = syscoinUtils as typeof syscoinUtils & {
   ) => Promise<{ tokens?: { type: string; name: string }[] } | undefined>;
 };
 
-type UtxoEntry = {
+export type UtxoEntry = {
   txid?: string;
   vout?: number;
   n: number;
@@ -33,7 +33,7 @@ type UtxoEntry = {
   value: string;
   assetInfo?: { assetGuid: string; value: string };
 };
-type UtxoTransaction = {
+export type UtxoTransaction = {
   txid: string;
   confirmations: number;
   tokenType: string;
@@ -42,7 +42,7 @@ type UtxoTransaction = {
   vout: UtxoEntry[];
 };
 
-const requireEvidence = (valid: unknown, message: string): void => {
+export const requireEvidence = (valid: unknown, message: string): void => {
   if (!valid) {
     throw new TransferValidationError(message);
   }
@@ -65,7 +65,7 @@ const transactionHash = (
   return hash.toLowerCase();
 };
 
-const blockbookUrl = () => resolveUtxoBlockbookUrl(process.env.UTXO_RPC_URL) ??
+export const blockbookUrl = () => resolveUtxoBlockbookUrl(process.env.UTXO_RPC_URL) ??
     resolveUtxoBlockbookUrl(process.env.UTXO_EXPLORER) ?? MAINNET_BLOCKBOOK_URL;
 
 const fetchUtxoTransaction = async (hash: string, tokenType: string) => {
@@ -82,8 +82,10 @@ const isSysx = (entry: UtxoEntry, amount?: string) =>
   String(entry.assetInfo?.assetGuid) === SYSX_ASSET_GUID &&
   (amount === undefined || entry.assetInfo?.value === amount);
 
-const assertAccountSysxInputs = async (transfer: ITransfer, burn: UtxoTransaction) => {
-  const inputs = burn.vin.filter((input) => isSysx(input));
+export const assertAccountInputs = async (
+  transfer: ITransfer, inputs: UtxoEntry[],
+  message = "Source transaction does not match the transfer account"
+) => {
   const addresses = new Set([transfer.utxoAddress]);
   const matches = () => inputs.length > 0 && inputs.every((input) =>
     input.addresses?.some((address) => addresses.has(address))
@@ -97,8 +99,12 @@ const assertAccountSysxInputs = async (transfer: ITransfer, burn: UtxoTransactio
       if (token.type === "XPUBAddress") addresses.add(token.name);
     }
   }
-  requireEvidence(matches(), "SYSX source burn does not match the transfer account");
+  requireEvidence(matches(), message);
 };
+
+export const assertAccountSysxInputs = async (transfer: ITransfer, burn: UtxoTransaction) =>
+  assertAccountInputs(transfer, burn.vin.filter((input) => isSysx(input)),
+    "SYSX source burn does not match the transfer account");
 
 const assertSysToNevmCompleted = async (transfer: ITransfer, amount: string) => {
   const hash = transactionHash(transfer, "submit-proofs", "hash");
@@ -143,7 +149,7 @@ const assertSysToNevmCompleted = async (transfer: ITransfer, amount: string) => 
 };
 
 // Syscoin mint proofs contain the RLP transaction index, not the NEVM txid.
-const encodedTransactionIndex = (index: number): string => {
+export const encodedTransactionIndex = (index: number): string => {
   requireEvidence(Number.isSafeInteger(index) && index >= 0, "Invalid freeze-burn transaction index");
   if (index === 0) return "80";
   const hex = index.toString(16).padStart(Math.ceil(index.toString(16).length / 2) * 2, "0");

@@ -6,9 +6,15 @@ const TransferModelMock = {
   findOneAndUpdate: jest.fn<any>(),
 };
 const mockAssertTransferCompleted = jest.fn<any>();
+const mockCanonicalizeTransferProgress = jest.fn<any>();
+const mockVerifiedTransferProgressStatus = jest.fn<any>();
 
 jest.mock("../transfer-completion", () => ({
   assertTransferCompleted: mockAssertTransferCompleted,
+}));
+jest.mock("../transfer-progress", () => ({
+  canonicalizeTransferProgress: mockCanonicalizeTransferProgress,
+  verifiedTransferProgressStatus: mockVerifiedTransferProgressStatus,
 }));
 
 jest.mock("models/transfer", () => ({
@@ -32,6 +38,7 @@ import {
   TransferNotFoundError,
   TransferService,
   TransferWriteUnauthorizedError,
+  TransferWriteConflictError,
 } from "../transfer";
 import { TransferValidationError } from "../transfer-validation";
 
@@ -59,6 +66,9 @@ describe("TransferService write capabilities", () => {
     jest.clearAllMocks();
     process.env.IS_TESTNET = "false";
     mockAssertTransferCompleted.mockResolvedValue(undefined);
+    mockCanonicalizeTransferProgress.mockImplementation(async (value: ITransfer) => value);
+    mockVerifiedTransferProgressStatus.mockImplementation((value: ITransfer, prior?: ITransfer) =>
+      value.status === COMMON_STATUS.ERROR ? prior?.status : value.status);
   });
 
   it("rejects updates to an existing transfer without its write token", async () => {
@@ -90,7 +100,7 @@ describe("TransferService write capabilities", () => {
       new TransferService().upsertTransfer(transfer, writeToken)
     ).resolves.toEqual({ transfer, writeToken });
     expect(TransferModelMock.findOneAndUpdate).toHaveBeenCalledWith(
-      { id: transfer.id, writeTokenHash },
+      { id: transfer.id, writeTokenHash, __v: { $exists: false } },
       expect.objectContaining({
         $set: expect.not.objectContaining({
           id: expect.anything(),
@@ -100,6 +110,7 @@ describe("TransferService write capabilities", () => {
       }),
       { new: true }
     );
+    expect(mockCanonicalizeTransferProgress).toHaveBeenCalledWith(transfer, transfer);
   });
 
   it("returns a transfer only when its capability matches", async () => {
@@ -139,6 +150,14 @@ describe("TransferService write capabilities", () => {
     await expect(
       new TransferService().getAuthorizedTransfer(transfer.id)
     ).rejects.toBeInstanceOf(TransferWriteUnauthorizedError);
+  });
+
+  it("rejects malformed legacy account data before authorizing sponsorship", async () => {
+    const writeToken = "secret-capability";
+    findExisting({ ...transfer, utxoXpub: "../../../api/status",
+      writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+    await expect(new TransferService().getAuthorizedTransfer(transfer.id, writeToken))
+      .rejects.toBeInstanceOf(TransferValidationError);
   });
 
   it("binds a new record to the supplied capability and forces V2", async () => {
@@ -208,5 +227,64 @@ describe("TransferService write capabilities", () => {
 
     await expect(new TransferService().upsertTransfer({ ...transfer, amount: "1000000" }, writeToken)).rejects.toBeInstanceOf(TransferValidationError);
     expect(TransferModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("does not persist intermediate progress rejected by chain validation", async () => {
+    const writeToken = "secret-capability";
+    findExisting({ ...transfer, writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+    const error = new TransferValidationError("Freeze transaction does not match this transfer");
+    mockCanonicalizeTransferProgress.mockRejectedValueOnce(error);
+    await expect(new TransferService().upsertTransfer(transfer, writeToken)).rejects.toBe(error);
+    expect(TransferModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it("persists canonical evidence rather than the client-reported payload", async () => {
+    const writeToken = "secret-capability";
+    const writeTokenHash = createHash("sha256").update(writeToken).digest("hex");
+    findExisting({ ...transfer, writeTokenHash, __v: 3 });
+    const canonical = { ...transfer, logs: [{ status: transfer.status, date: 1,
+      payload: { message: "transaction", data: { hash: `0x${"a".repeat(64)}` } } }] };
+    mockCanonicalizeTransferProgress.mockResolvedValueOnce(canonical);
+    TransferModelMock.findOneAndUpdate.mockResolvedValue(canonical);
+    await expect(new TransferService().upsertTransfer(transfer, writeToken)).resolves.toEqual({ transfer: canonical, writeToken });
+    expect(TransferModelMock.findOneAndUpdate).toHaveBeenCalledWith(
+      { id: transfer.id, writeTokenHash, __v: 3 },
+      { $set: expect.objectContaining({ logs: canonical.logs }), $inc: { __v: 1 } }, { new: true }
+    );
+  });
+
+  it("rejects a concurrent update rather than overwriting its history", async () => {
+    const writeToken = "secret-capability";
+    findExisting({ ...transfer, writeTokenHash: createHash("sha256").update(writeToken).digest("hex"), __v: 3 });
+    TransferModelMock.findOneAndUpdate.mockResolvedValueOnce(null);
+    await expect(new TransferService().upsertTransfer(transfer, writeToken)).rejects.toBeInstanceOf(TransferWriteConflictError);
+  });
+
+  it("retains a server-owned progress checkpoint across error states", async () => {
+    const writeToken = "secret-capability";
+    const priorStatus = ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_BURN_SYSX;
+    findExisting({ ...transfer, status: COMMON_STATUS.ERROR, progressStatus: priorStatus,
+      writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+    const errorTransfer = { ...transfer, status: COMMON_STATUS.ERROR };
+    TransferModelMock.findOneAndUpdate.mockResolvedValue({ ...errorTransfer, progressStatus: priorStatus });
+
+    const result = await new TransferService().upsertTransfer(errorTransfer, writeToken);
+
+    expect(mockCanonicalizeTransferProgress).toHaveBeenCalledWith(errorTransfer,
+      { ...transfer, status: priorStatus });
+    const update = TransferModelMock.findOneAndUpdate.mock.calls[0][1] as { $set: { progressStatus: unknown } };
+    expect(update.$set.progressStatus).toBe(priorStatus);
+    expect(result.transfer).not.toHaveProperty("progressStatus");
+  });
+
+  it("does not trust a checkpoint supplied by the client", async () => {
+    const writeToken = "secret-capability";
+    findExisting({ ...transfer, progressStatus: transfer.status,
+      writeTokenHash: createHash("sha256").update(writeToken).digest("hex") });
+    const supplied = { ...transfer, progressStatus: COMMON_STATUS.COMPLETED };
+    TransferModelMock.findOneAndUpdate.mockResolvedValue(transfer);
+    await new TransferService().upsertTransfer(supplied, writeToken);
+    const update = TransferModelMock.findOneAndUpdate.mock.calls[0][1] as { $set: { progressStatus: unknown } };
+    expect(update.$set.progressStatus).toBe(transfer.status);
   });
 });

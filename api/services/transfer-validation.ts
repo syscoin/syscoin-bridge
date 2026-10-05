@@ -6,6 +6,7 @@ import {
 } from "@contexts/Transfer/types";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
+import { isValidUtxoAccount } from "utils/utxo-account";
 import { isAddress } from "web3-utils";
 
 export class TransferValidationError extends Error {
@@ -67,7 +68,8 @@ export const assertValidTransferPayload = (transfer: ITransfer): void => {
     throw new TransferValidationError("Invalid UTXO address for this network");
   }
   assertValid(
-    transfer.utxoXpub === undefined || typeof transfer.utxoXpub === "string",
+    transfer.utxoXpub === undefined || transfer.utxoXpub === "" ||
+      isValidUtxoAccount(transfer.utxoXpub),
     "Invalid UTXO account"
   );
   assertValid(typeof transfer.amount === "string", "Invalid transfer amount");
@@ -103,10 +105,13 @@ export const assertValidTransferPayload = (transfer: ITransfer): void => {
           statuses.includes(log.payload.previousStatus)),
       "Invalid transfer log"
     );
-    for (const field of ["hash", "tx", "transactionHash"]) {
+    for (const field of ["hash", "tx", "txid", "transactionHash"]) {
+      const pattern = field === "tx" || field === "txid"
+        ? /^[a-f0-9]{64}$/i : /^0x[a-f0-9]{64}$/i;
       assertValid(
         log.payload.data[field] === undefined ||
-          typeof log.payload.data[field] === "string",
+          (typeof log.payload.data[field] === "string" &&
+            pattern.test(log.payload.data[field])),
         "Invalid transaction reference in transfer log"
       );
     }

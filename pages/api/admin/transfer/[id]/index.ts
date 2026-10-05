@@ -5,6 +5,7 @@ import { verifySignature } from "utils/api/verify-signature";
 import TransferModel from "models/transfer";
 import dbConnect from "lib/mongodb";
 import { ITransfer } from "@contexts/Transfer/types";
+import mongoose from "mongoose";
 
 interface OverrideTransferRequestBody {
   changes: Change[];
@@ -71,12 +72,28 @@ const AdminTransfer: NextApiHandler = adminSessionGuard(
         typeof transfer[property] === typeof to;
       if (isSameType && transfer[property] === from) {
         transfer[property] = to as never;
+        if (property === "status") {
+          // A signed administrator override explicitly resets public progress.
+          // Existing chain logs still prevent accidental repeat submissions.
+          transfer.set("progressStatus", undefined);
+        }
       }
     });
 
-    const updatedTransfer = await transfer.save();
-
-    return res.status(200).json(updatedTransfer);
+    // Scalar-only saves do not increment __v by default. Invalidate any public
+    // PATCH snapshot taken before this signed administrator override.
+    transfer.increment();
+    try {
+      const updatedTransfer = await transfer.save();
+      return res.status(200).json(updatedTransfer);
+    } catch (error) {
+      if (error instanceof mongoose.Error.VersionError) {
+        return res.status(409).json({
+          message: "Transfer changed while saving; refresh before retrying",
+        });
+      }
+      throw error;
+    }
   }
 );
 

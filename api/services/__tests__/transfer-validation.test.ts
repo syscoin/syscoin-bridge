@@ -67,6 +67,8 @@ describe("client transfer validation", () => {
     { ...transfer, nevmAddress: "0xattackercreate2" },
     { ...transfer, utxoAddress: "sys1attackercreate2" },
     { ...transfer, utxoXpub: { $ne: null } },
+    { ...transfer, utxoXpub: "../../../api/status" },
+    { ...transfer, utxoXpub: "xpub-invalid" },
     { ...transfer, agreedToTerms: false },
     { ...transfer, useSysx: "false" },
     { ...transfer, utxoAssetType: "other" },
@@ -174,6 +176,11 @@ describe("client transfer validation", () => {
     { ...validLog, payload: { message: "Burn", data: { tx: { $ne: null } } } },
     { ...validLog, payload: { message: "Burn", data: { hash: [] } } },
     { ...validLog, payload: { message: "Burn", data: { transactionHash: 1 } } },
+    { ...validLog, payload: { message: "Burn", data: { tx: "../../../api/status" } } },
+    { ...validLog, payload: { message: "Burn", data: { tx: "0x" + "a".repeat(64) } } },
+    { ...validLog, payload: { message: "Burn", data: { txid: "%252fapi%252fstatus" } } },
+    { ...validLog, payload: { message: "Burn", data: { hash: "a".repeat(64) } } },
+    { ...validLog, payload: { message: "Burn", data: { transactionHash: "0x00" } } },
   ])("rejects malformed log %#", (log) => {
     expect(() =>
       assertValidTransferPayload({ ...transfer, logs: [log] } as ITransfer)

@@ -36,9 +36,13 @@ Each step taken on the Bridge is stored in MongoDB. This allows the user to resu
 Public transfer writes validate network addresses, amounts and log structure.
 New records must start at the first transaction step, and their route, accounts,
 asset and amount cannot subsequently change. A write capability authorizes edits
-to that record; it is not wallet authentication. Before accepting `completed`,
-the backend fetches matching settlement evidence from the configured chains.
-Intermediate logs remain client-reported diagnostic data, not proof of payment.
+to that record; it is not wallet authentication. Progress and transaction references
+are verified against the configured chains before saving, and receipt/proof payloads
+are replaced with canonical backend evidence. Pending submissions and the existing
+zero-confirmation SYSX steps remain supported. Before accepting `completed`, the
+backend additionally requires matching confirmed settlement evidence. Saved history
+cannot be removed or rewritten, and concurrent updates use an optimistic version
+check. Error diagnostics and messages remain client-reported, not proof of payment.
 These checks do not deduplicate records that reference the same real transactions.
 
 ### Admin access

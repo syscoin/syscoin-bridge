@@ -3,6 +3,7 @@ import {
   TransferNotFoundError,
   TransferService,
   TransferWriteUnauthorizedError,
+  TransferWriteConflictError,
 } from "api/services/transfer";
 import dbConnect from "lib/mongodb";
 import { TransferValidationError } from "api/services/transfer-validation";
@@ -56,6 +57,9 @@ export const patchRequest = async (
     setTransferWriteTokenCookie(req, res, id, updated.writeToken);
     res.status(200).json(updated.transfer);
   } catch (e) {
+    if (e instanceof TransferWriteConflictError) {
+      return res.status(409).json({ message: e.message });
+    }
     if (e instanceof TransferValidationError) {
       return res.status(400).json({ message: e.message });
     }

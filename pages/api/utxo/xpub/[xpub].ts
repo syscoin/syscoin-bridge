@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { applyApiCors } from "utils/api/cors";
 import { firstConfiguredUtxoBlockbookUrl } from "utils/syscoin-urls";
+import { isValidUtxoAccount } from "utils/utxo-account";
 
 const allowedDetails = new Set(["basic", "tokenBalances"]);
 
@@ -24,6 +25,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const xpub = firstQueryValue(req.query.xpub);
   if (!xpub) {
     return res.status(400).json({ message: "Missing xpub" });
+  }
+  if (!isValidUtxoAccount(xpub)) {
+    return res.status(400).json({ message: "Invalid xpub" });
   }
 
   const requestedDetails = firstQueryValue(req.query.details);

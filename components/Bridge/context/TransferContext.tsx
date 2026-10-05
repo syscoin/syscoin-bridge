@@ -1,7 +1,7 @@
 import { COMMON_STATUS, ITransfer } from "@contexts/Transfer/types";
 import { createContext, useContext, useState } from "react";
 import { Alert, Button } from "@mui/material";
-import { UseMutateFunction, useMutation, useQuery } from "react-query";
+import { UseMutateFunction, useMutation, useQuery, useQueryClient } from "react-query";
 import isTransfer from "utils/isTransfer";
 import {
   getOrCreateTransferWriteToken,
@@ -55,6 +55,7 @@ export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
   const [isRetryingSave, setIsRetryingSave] = useState(false);
+  const queryClient = useQueryClient();
   const { data: transfer, refetch: refetchTransfer } = useQuery(
     ["transfer", initialData.id],
     {
@@ -109,7 +110,10 @@ export const TransferContextProvider: React.FC<
       );
     },
     {
-      onSuccess: () => refetchTransfer(),
+      onSuccess: (savedTransfer) => {
+        queryClient.setQueryData(["transfer", initialData.id], savedTransfer);
+        return refetchTransfer();
+      },
     }
   );
 
@@ -117,7 +121,9 @@ export const TransferContextProvider: React.FC<
     <TransferContext.Provider
       value={{ transfer: transfer ?? initialData, saveTransfer, isSaving }}
     >
-      {(isSaveError || isRetryingSave) && unsavedTransfer?.status === COMMON_STATUS.COMPLETED ? (
+      {(isSaveError || isRetryingSave) &&
+      unsavedTransfer &&
+      initialData.status !== COMMON_STATUS.INITIALIZE ? (
         <Alert
           severity={isSaving ? "info" : "error"}
           sx={{ mt: 10, mx: 3 }}
