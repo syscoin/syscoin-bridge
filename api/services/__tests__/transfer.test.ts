@@ -81,11 +81,24 @@ describe("TransferService write capabilities", () => {
   });
 
   it("throws a typed error when a transfer does not exist", async () => {
-    TransferModelMock.findOne.mockResolvedValue(null);
+    findExisting(null);
 
     await expect(
       new TransferService().getTransfer("missing-transfer")
     ).rejects.toBeInstanceOf(TransferNotFoundError);
+  });
+
+  it.each([undefined, null, "", "  ", [], [transfer.id], { $ne: null }, { $regex: ".*" }])(
+    "rejects a non-scalar or empty public transfer ID before querying", async (id) => {
+      await expect(new TransferService().getTransfer(id as any)).rejects.toBeInstanceOf(TransferValidationError);
+      expect(TransferModelMock.findOne).not.toHaveBeenCalled();
+    }
+  );
+
+  it("uses explicit equality for a valid public transfer ID", async () => {
+    findExisting(transfer);
+    await expect(new TransferService().getTransfer(transfer.id)).resolves.toEqual(transfer);
+    expect(TransferModelMock.findOne).toHaveBeenCalledWith({ id: { $eq: transfer.id } });
   });
 
   it("updates only the URL-bound transfer when the capability matches", async () => {

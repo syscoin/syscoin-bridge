@@ -133,6 +133,24 @@ describe("transfer GET errors", () => {
     jest.clearAllMocks();
   });
 
+  it.each([
+    { label: "whitespace-only", id: "   " },
+    { label: "non-scalar", id: ["first", "second"] },
+  ])("returns 400 for a $label transfer ID", async ({ id }) => {
+    mockGetTransfer.mockRejectedValueOnce(
+      new TransferValidationError("Invalid transfer ID")
+    );
+    const request = { query: { id } } as unknown as NextApiRequest;
+    const response = createResponse();
+
+    await getRequest(request, response);
+
+    expect(mockGetTransfer).toHaveBeenCalledWith(id);
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(response.json).toHaveBeenCalledWith({ message: "Invalid transfer ID" });
+    expect(response.setHeader).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when the transfer does not exist", async () => {
     mockGetTransfer.mockRejectedValue(new TransferNotFoundError());
     const request = {

@@ -14,6 +14,8 @@ import BridgeStepFreezeAndBurnSys from "./Steps/FreezeAndBurnSys";
 import BridgeStepGenerateProofs from "./Steps/GenerateProofs";
 import BridgeStepMintSysx from "./Steps/MintSysx";
 import BridgeStepSubmitProofs from "./Steps/SubmitProofs";
+import RecoverFreezeBurn from "./Steps/RecoverFreezeBurn";
+import { Alert } from "@mui/material";
 import { useTransfer } from "./context/TransferContext";
 import type { ConnectValidateDraft } from "./connect-validate-draft";
 
@@ -26,6 +28,11 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
 }) => {
   const { transfer } = useTransfer();
   if (transfer.type === "nevm-to-sys") {
+    if (transfer.status === COMMON_STATUS.ERROR) {
+      return transfer.freezeRecoveryAllowed === true
+        ? <RecoverFreezeBurn transferId={transfer.id} />
+        : <Alert severity="warning">This transfer cannot continue automatically. Please contact support.</Alert>;
+    }
     if (transfer.status === COMMON_STATUS.INITIALIZE) {
       return (
         <BridgeConnectValidateStep
@@ -76,7 +83,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
         />
       );
     } else if (
-      transfer.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_BURN_SYSX
+      transfer.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_BURN_SYSX ||
+      transfer.status === COMMON_STATUS.FINALIZING
     ) {
       return (
         <BridgeStepConfirmUTXOTransaction

@@ -29,6 +29,9 @@ export const getRequest = async (
     const transfer = await transferService.getTransfer(id as string);
     return res.status(200).json(transfer);
   } catch (error) {
+    if (error instanceof TransferValidationError) {
+      return res.status(400).json({ message: error.message });
+    }
     if (error instanceof TransferNotFoundError) {
       return res.status(404).json({ message: error.message });
     }

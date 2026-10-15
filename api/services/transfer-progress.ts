@@ -2,7 +2,7 @@ import { ERC20_MANAGER_CONTRACT_ADDRESS, RELAY_CONTRACT_ADDRESS } from "@constan
 import managerAbi from "@contexts/Transfer/abi/SyscoinERC20Manager";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
-import { COMMON_STATUS, ITransfer, ITransferLog, TransferStatus } from "@contexts/Transfer/types";
+import { COMMON_STATUS, ITransfer, ITransferLog } from "@contexts/Transfer/types";
 import { isDeepStrictEqual } from "util";
 import { SPVProof, utils as syscoinUtils } from "syscoinjs-lib";
 import web3 from "utils/get-web3";
@@ -16,6 +16,8 @@ import {
 import { getCanonicalProof } from "./sponsor-proof";
 import { assertFreezeBurnMatchesTransfer } from "./sponsor-utxo-eligibility";
 import { TransferValidationError } from "./transfer-validation";
+import { isErrorLog, routeSteps, stepForStatus, logProgressFloor } from "utils/transfer-progress";
+export { verifiedTransferProgressStatus } from "utils/transfer-progress";
 
 type Allocation = { assetGuid: string; values: { n: number; value: { toString(): string } }[] };
 const { getAllocationsFromTx, bufferUtils } = require("syscointx-js") as {
@@ -34,57 +36,12 @@ const sameAddress = (left?: string | null, right?: string | null) =>
   Boolean(left && right && left.toLowerCase() === right.toLowerCase());
 const isHash = (hash: unknown, nevm = false): hash is string =>
   typeof hash === "string" && (nevm ? /^0x[a-f0-9]{64}$/i : /^[a-f0-9]{64}$/i).test(hash);
-const isErrorLog = (log: ITransferLog) =>
-  Object.keys(log.payload.data).length === 1 && "error" in log.payload.data;
-const usesSysx = (transfer: ITransfer) => Boolean(transfer.useSysx || transfer.utxoAssetType === "sysx");
 const legacyFreezeAbi: AbiItem = {
   type: "function", name: "freezeBurnERC20", inputs: [
     { name: "value", type: "uint256" },
     { name: "assetGuid", type: "uint64" },
     { name: "syscoinAddr", type: "string" },
   ],
-};
-
-const routeSteps = (transfer: ITransfer): string[] => transfer.type === "sys-to-nevm"
-  ? [...(usesSysx(transfer) ? [] : ["burn-sys", "confirm-burn-sys"]),
-    "burn-sysx", "confirm-burn-sysx", "generate-proofs", "submit-proofs", "finalizing", "completed"]
-  : ["freeze-burn-sys", "confirm-freeze-burn-sys", "mint-sysx", "confirm-mint-sysx",
-    "burn-sysx", "confirm-burn-sysx", "finalizing", "completed"];
-
-const stepForStatus = (transfer: ITransfer, status: string) => status === "switch"
-  ? (transfer.type === "sys-to-nevm" ? "submit-proofs" : "mint-sysx") : status;
-
-// A recorded successful submission must never expose its signing control again.
-// Diagnostic errors do not move this lower bound; canonical confirmation logs do.
-const logProgressFloor = (transfer: ITransfer) => {
-  const steps = routeSteps(transfer);
-  return transfer.logs.reduce((floor, log) => {
-    if (isErrorLog(log)) return floor;
-    const data = log.payload.data;
-    let stage: string | undefined;
-    if (["burn-sys", "mint-sysx", "burn-sysx"].includes(log.status) && (data.tx || data.txid)) {
-      stage = data.txid
-        ? (log.status === "burn-sys" || log.status === "mint-sysx" ? "burn-sysx"
-          : transfer.type === "sys-to-nevm" ? "generate-proofs" : "finalizing")
-        : `confirm-${log.status}`;
-    } else if (log.status === "freeze-burn-sys" && data.hash) stage = "confirm-freeze-burn-sys";
-    else if (log.status === "confirm-freeze-burn-sys" && data.transactionHash) stage = "mint-sysx";
-    else if (log.status === "generate-proofs" && data.transaction) stage = "submit-proofs";
-    else if (log.status === "submit-proofs" && data.hash) stage = "finalizing";
-    else if (log.status === "finalizing" && data.transactionHash) stage = "finalizing";
-    return Math.max(floor, stage ? steps.indexOf(stage) : -1);
-  }, 0);
-};
-
-/** Server-owned high-water mark; only call after validating the same progress. */
-export const verifiedTransferProgressStatus = (
-  transfer: ITransfer, existing?: ITransfer
-): TransferStatus => {
-  const steps = routeSteps(transfer);
-  const index = Math.max(logProgressFloor(transfer),
-    steps.indexOf(stepForStatus(transfer, transfer.status)),
-    existing ? steps.indexOf(stepForStatus(existing, existing.status)) : -1);
-  return steps[index] as TransferStatus;
 };
 
 // Chain payloads are refreshed from trusted providers. Compare their stable

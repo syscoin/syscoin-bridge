@@ -3,21 +3,20 @@ import {
   ITransfer,
 } from "@contexts/Transfer/types";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import Web3 from "web3";
+import managerAbi from "@contexts/Transfer/abi/SyscoinERC20Manager";
 
 const mockWeb3 = {
   eth: {
-    abi: {
-      encodeEventSignature: jest.fn(() => "0xfreeze"),
-      decodeLog: jest.fn(() => ({
-        satoshiValue: "10000000",
-        syscoinAddr: "sys1destination",
-      })),
-    },
+    abi: new Web3().eth.abi,
     getTransaction: jest.fn<any>(),
     getTransactionReceipt: jest.fn<any>(),
+    getChainId: jest.fn<any>().mockResolvedValue(57),
+    getBlock: jest.fn<any>(),
   },
 };
 const managerAddress = "0x2222222222222222222222222222222222222222";
+const txHash = `0x${"a".repeat(64)}`, blockHash = `0x${"b".repeat(64)}`;
 
 jest.mock("@constants", () => ({
   ERC20_MANAGER_CONTRACT_ADDRESS:
@@ -47,7 +46,7 @@ const transfer: ITransfer = {
       status: ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
       payload: {
         message: "confirmed",
-        data: { transactionHash: "0xBURN" },
+        data: { transactionHash: txHash },
       },
     },
   ],
@@ -63,24 +62,29 @@ describe("sponsored UTXO eligibility", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.NEVM_V2_ACTIVATION_BLOCK = "100";
+    mockWeb3.eth.getBlock.mockImplementation(async (number: number) => ({ number, hash: blockHash, transactions: [txHash] }));
     mockWeb3.eth.getTransaction.mockResolvedValue({
+      hash: txHash, blockHash, blockNumber: 100, transactionIndex: 0,
       to: managerAddress,
       from: transfer.nevmAddress,
       value: "100000000000000000",
+      input: mockWeb3.eth.abi.encodeFunctionCall(managerAbi.find((item) => item.name === "freezeBurn")!,
+        ["100000000000000000", "0x0000000000000000000000000000000000000000", "0", transfer.utxoAddress!]),
     });
     mockWeb3.eth.getTransactionReceipt.mockResolvedValue({
       blockNumber: 100,
+      transactionHash: txHash, blockHash, transactionIndex: 0,
       status: true,
       to: managerAddress,
       logs: [
         {
           address: managerAddress,
           topics: [
-            "0xfreeze",
+            mockWeb3.eth.abi.encodeEventSignature(managerAbi.find((item) => item.name === "TokenFreeze")!),
             `0x${BigInt(123456).toString(16).padStart(64, "0")}`,
             `0x${transfer.nevmAddress!.slice(2).padStart(64, "0")}`,
           ],
-          data: "0x",
+          data: mockWeb3.eth.abi.encodeParameters(["uint256", "string"], ["10000000", transfer.utxoAddress!]),
         },
       ],
     });
@@ -96,12 +100,14 @@ describe("sponsored UTXO eligibility", () => {
   it("accepts a matching confirmed freeze burn", async () => {
     await expect(assertSponsoredMintEligible(transfer)).resolves.toEqual({
       blockNumber: 100,
-      transactionHash: "0xburn",
+      transactionHash: txHash,
     });
   });
 
   it("rejects pre-activation mints", async () => {
     const receipt = await mockWeb3.eth.getTransactionReceipt();
+    const transaction = await mockWeb3.eth.getTransaction();
+    mockWeb3.eth.getTransaction.mockResolvedValueOnce({ ...transaction, blockNumber: 99 });
     mockWeb3.eth.getTransactionReceipt.mockResolvedValueOnce({ ...receipt, blockNumber: 99 });
     await expect(assertSponsoredMintEligible(transfer)).rejects.toThrow(
       "before the V2 activation block"
@@ -112,7 +118,7 @@ describe("sponsored UTXO eligibility", () => {
     delete process.env.NEVM_V2_ACTIVATION_BLOCK;
     await expect(assertFreezeBurnMatchesTransfer({ ...transfer, utxoXpub: undefined })).resolves.toEqual({
       blockNumber: 100,
-      transactionHash: "0xburn",
+      transactionHash: txHash,
     });
     await expect(assertSponsoredMintEligible(transfer)).rejects.toThrow("V2 activation block is not configured");
   });

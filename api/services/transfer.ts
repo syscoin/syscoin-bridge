@@ -11,9 +11,12 @@ import {
   assertNewTransfer,
   assertTransferIdentityUnchanged,
   assertValidTransferPayload,
+  TransferValidationError,
 } from "./transfer-validation";
 import { assertTransferCompleted } from "./transfer-completion";
 import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
+import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
+import { continueNevmTransferAfterError, knownTransferProgressStatus } from "utils/transfer-progress";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -92,10 +95,18 @@ const toPublicTransfer = (transfer: unknown): ITransfer => {
     typeof transfer.toObject === "function"
       ? transfer.toObject()
       : { ...(transfer as Record<string, unknown>) };
+  // Only persisted server data may supply the hidden progress checkpoint.
+  const checkpoint = knownTransferProgressStatus(source as ITransfer, source.progressStatus);
+  const continuation = continueNevmTransferAfterError(source as ITransfer, checkpoint);
+  // Do not forward any stored/caller-supplied recovery flag as authority.
+  delete source.freezeRecoveryAllowed;
+  if (source.type === "nevm-to-sys" && continuation.status === COMMON_STATUS.ERROR) {
+    source.freezeRecoveryAllowed = checkpoint !== undefined;
+  }
   delete source.writeTokenHash;
   delete source.progressStatus;
   delete source.__v;
-  return source as ITransfer;
+  return { ...source, status: continuation.status } as ITransfer;
 };
 
 export class TransferService {
@@ -114,19 +125,23 @@ export class TransferService {
       }
       return acc;
     }, [] as Record<string, string>[]);
-    return TransferModel.find({
+    const transfers = await TransferModel.find({
       $or: queryConstraints,
-    }).sort({ createdAt: -1 }) as unknown as ITransfer[];
+    }).select("+progressStatus").sort({ createdAt: -1 });
+    return transfers.map(toPublicTransfer);
   }
 
   async getTransfer(id: string): Promise<ITransfer> {
-    const transfer = await TransferModel.findOne({ id });
+    if (typeof id !== "string" || id.trim().length === 0) {
+      throw new TransferValidationError("Invalid transfer ID");
+    }
+    const transfer = await TransferModel.findOne({ id: { $eq: id } }).select("+progressStatus");
 
     if (!transfer) {
       throw new TransferNotFoundError();
     }
 
-    return transfer as unknown as ITransfer;
+    return toPublicTransfer(transfer);
   }
 
   async getAuthorizedTransfer(
@@ -134,12 +149,10 @@ export class TransferService {
     writeTokens?: WriteTokenCandidates
   ): Promise<ITransfer> {
     const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
-      "+writeTokenHash"
+      "+writeTokenHash +progressStatus"
     );
 
-    if (!transfer) {
-      throw new Error("Transfer not found");
-    }
+    if (!transfer) throw new TransferNotFoundError();
     if (
       !transfer.writeTokenHash ||
       !findMatchingWriteToken(writeTokens, transfer.writeTokenHash)
@@ -152,6 +165,57 @@ export class TransferService {
     // accounts or transaction references to sponsored transaction builders.
     assertValidTransferPayload(authorized);
     return authorized;
+  }
+
+  async recoverFreezeBurn(
+    id: string, suppliedHash: string, writeTokens?: WriteTokenCandidates
+  ): Promise<ITransfer> {
+    const existing = await this.getAuthorizedTransfer(id, writeTokens);
+    if (!/^0x[0-9a-f]{64}$/i.test(suppliedHash)) {
+      throw new TransferValidationError("Invalid freeze and burn transaction hash");
+    }
+    const hash = suppliedHash.toLowerCase();
+    const sourceLogs = existing.logs.filter((log) =>
+      log.status === ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS && log.payload.data.hash
+    );
+    const receiptLogs = existing.logs.filter((log) =>
+      log.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS && log.payload.data.transactionHash
+    );
+    if ([...sourceLogs.map((log) => log.payload.data.hash),
+      ...receiptLogs.map((log) => log.payload.data.transactionHash)]
+      .some((value) => String(value).toLowerCase() !== hash)) {
+      throw new TransferWriteConflictError();
+    }
+    if (existing.type !== "nevm-to-sys" || existing.version !== "v2") {
+      throw new TransferValidationError("Recovery is only available for V2 NEVM to SYS transfers");
+    }
+    if (existing.status === COMMON_STATUS.ERROR && existing.freezeRecoveryAllowed !== true) {
+      throw new TransferWriteConflictError();
+    }
+    // A repeated recovery must not reset later progress or rewrite any logs.
+    const recoverable = new Set<string>([ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+      ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, COMMON_STATUS.ERROR]);
+    if (sourceLogs.length && receiptLogs.length && !recoverable.has(existing.status)) {
+      return existing;
+    }
+    if (!recoverable.has(existing.status)) {
+      throw new TransferWriteConflictError();
+    }
+    let receipt;
+    try { receipt = await getVerifiedFreezeBurnReceipt(existing, hash); }
+    catch (error) {
+      throw new TransferValidationError(error instanceof Error ? error.message : "Unable to verify freeze and burn");
+    }
+    const date = Date.now();
+    const logs = [...existing.logs];
+    if (!sourceLogs.length) logs.push({ status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+      date, payload: { message: "Freeze and burn SYS", data: { hash } } });
+    if (!receiptLogs.length) logs.push({ status: ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
+      date: date + 1, payload: { message: "Confirm NEVM Transaction", data: receipt } });
+    // Normal canonicalization, capability checks and version CAS remain the only writer.
+    const result = await this.upsertTransfer({ ...existing, logs,
+      status: ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX }, writeTokens);
+    return result.transfer;
   }
 
   private async updateSponsorStatuses(transfer: ITransfer): Promise<void> {
@@ -214,6 +278,13 @@ export class TransferService {
       : undefined;
     if (!writeToken || !existing.writeTokenHash) {
       throw new TransferWriteUnauthorizedError();
+    }
+
+    // A cleared/unknown checkpoint cannot be recreated by a public ERROR save.
+    // Only the independent signed administrator override can release this state.
+    if (existing.status === COMMON_STATUS.ERROR &&
+      !knownTransferProgressStatus(existing as unknown as ITransfer, existing.progressStatus)) {
+      throw new TransferWriteConflictError();
     }
 
     assertTransferIdentityUnchanged(transfer, existing as unknown as ITransfer);
