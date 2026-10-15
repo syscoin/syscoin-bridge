@@ -47,8 +47,9 @@ const mintHash = "b".repeat(64);
 const nevmHash = `0x${"c".repeat(64)}`;
 const blockHash = `0x${"d".repeat(64)}`;
 const assetInfo = { assetGuid: "123456", value: "10000000" };
-const address = "sys1destination";
-const olderAddress = "sys1otherderivedaddress";
+// Deterministic Syscoin P2WPKH destinations with 0x01/0x02 witness programs.
+const address = "sys1qqyqszqgpqyqszqgpqyqszqgpqyqszqgpvew0kr";
+const olderAddress = "sys1qqgpqyqszqgpqyqszqgpqyqszqgpqyqszaag2a4";
 const transfer = (type: ITransfer["type"] = "sys-to-nevm"): ITransfer => ({
   id: "transfer-1", type, status: COMMON_STATUS.COMPLETED, amount: "0.1",
   createdAt: 1, version: "v2", agreedToTerms: true,
