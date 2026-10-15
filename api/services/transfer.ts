@@ -127,7 +127,10 @@ export class TransferService {
   }
 
   async getTransfer(id: string): Promise<ITransfer> {
-    const transfer = await TransferModel.findOne({ id }).select("+progressStatus");
+    if (typeof id !== "string" || id.trim().length === 0) {
+      throw new TransferValidationError("Invalid transfer ID");
+    }
+    const transfer = await TransferModel.findOne({ id: { $eq: id } }).select("+progressStatus");
 
     if (!transfer) {
       throw new TransferNotFoundError();
