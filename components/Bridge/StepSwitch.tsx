@@ -15,6 +15,7 @@ import BridgeStepGenerateProofs from "./Steps/GenerateProofs";
 import BridgeStepMintSysx from "./Steps/MintSysx";
 import BridgeStepSubmitProofs from "./Steps/SubmitProofs";
 import RecoverFreezeBurn from "./Steps/RecoverFreezeBurn";
+import { continueNevmTransferAfterError } from "utils/transfer-progress";
 import { useTransfer } from "./context/TransferContext";
 import type { ConnectValidateDraft } from "./connect-validate-draft";
 
@@ -25,7 +26,7 @@ type BridgeStepSwitchProps = {
 const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
   onConnectValidateDraftChange,
 }) => {
-  const { transfer } = useTransfer();
+  const transfer = continueNevmTransferAfterError(useTransfer().transfer);
   if (transfer.type === "nevm-to-sys") {
     if (transfer.status === COMMON_STATUS.ERROR) {
       return <RecoverFreezeBurn transferId={transfer.id} />;
@@ -80,7 +81,8 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
         />
       );
     } else if (
-      transfer.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_BURN_SYSX
+      transfer.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_BURN_SYSX ||
+      transfer.status === COMMON_STATUS.FINALIZING
     ) {
       return (
         <BridgeStepConfirmUTXOTransaction

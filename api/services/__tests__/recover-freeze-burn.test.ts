@@ -8,7 +8,7 @@ import { createHash } from "crypto";
 const mockWeb3 = { eth: { abi: new Web3().eth.abi,
   getTransaction: jest.fn<any>(), getTransactionReceipt: jest.fn<any>(),
   getChainId: jest.fn<any>(), getBlock: jest.fn<any>() } };
-const mockModel = { findOne: jest.fn<any>(), findOneAndUpdate: jest.fn<any>() };
+const mockModel = { findOne: jest.fn<any>(), findOneAndUpdate: jest.fn<any>(), find: jest.fn<any>() };
 jest.mock("utils/get-web3", () => ({ __esModule: true, default: mockWeb3 }));
 jest.mock("models/transfer", () => ({ __esModule: true, default: mockModel }));
 jest.mock("../sponsor-wallet", () => ({ SponsorWalletService: jest.fn().mockImplementation(() => ({
@@ -48,6 +48,7 @@ beforeEach(() => {
   jest.clearAllMocks(); process.env.IS_TESTNET = "false";
   stored = { ...transfer, logs: [], writeTokenHash: tokenHash, __v: 3, progressStatus: transfer.status };
   mockModel.findOne.mockImplementation(() => ({ select: async () => clone(stored) }));
+  mockModel.find.mockImplementation(() => ({ select: () => ({ sort: async () => [clone(stored)] }) }));
   mockModel.findOneAndUpdate.mockImplementation(async (filter: any, update: any) => {
     if (filter.__v !== stored.__v) return null;
     stored = { ...stored, ...update.$set, __v: stored.__v + 1 };
@@ -84,6 +85,56 @@ describe("capability-authorized existing freeze recovery", () => {
     expect(result.status).toBe("completed"); expect(stored).toEqual(snapshot);
     expect(mockModel.findOneAndUpdate).not.toHaveBeenCalled();
     expect(mockWeb3.eth.getTransaction).not.toHaveBeenCalled();
+  });
+  it("recovers an early persisted error at the freeze checkpoint", async () => {
+    stored.status = "error";
+    const result = await new TransferService().recoverFreezeBurn(transfer.id, hash, token);
+    expect(result.status).toBe("mint-sysx");
+    expect(result.logs).toHaveLength(2);
+  });
+  it.each(["confirm-mint-sysx", "burn-sysx", "confirm-burn-sysx", "finalizing", "completed"])(
+    "keeps a repeated recovery at the server-owned %s error checkpoint", async (checkpoint) => {
+      const service = new TransferService();
+      await service.recoverFreezeBurn(transfer.id, hash, token);
+      stored.status = "error"; stored.progressStatus = checkpoint;
+      const snapshot = clone(stored);
+      jest.clearAllMocks();
+      const result = await service.recoverFreezeBurn(transfer.id, hash, token);
+      expect(result.status).toBe(checkpoint);
+      expect(stored).toEqual(snapshot);
+      expect(result).not.toHaveProperty("progressStatus");
+      expect(mockModel.findOneAndUpdate).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.getTransaction).not.toHaveBeenCalled();
+    }
+  );
+  it("returns the later error checkpoint on a public read without leaking hidden state", async () => {
+    stored.status = "error"; stored.progressStatus = "burn-sysx";
+    mockModel.findOne.mockReturnValue({ select: async () => clone(stored) });
+    const value = await new TransferService().getTransfer(transfer.id);
+    expect(value.status).toBe("burn-sysx");
+    expect(value).not.toHaveProperty("progressStatus");
+    expect(value).not.toHaveProperty("writeTokenHash");
+  });
+  it("projects list and authorized reads from hidden progress when logs still reflect only freeze", async () => {
+    const service = new TransferService(); await service.recoverFreezeBurn(transfer.id, hash, token);
+    stored.status = "error"; stored.progressStatus = "burn-sysx";
+    for (const value of [await service.getAuthorizedTransfer(transfer.id, token),
+      ...(await service.getAll({ nevmAddress: owner }))]) {
+      expect(value.status).toBe("burn-sysx");
+      expect(value.logs.map((log) => log.status)).toEqual(["freeze-burn-sys", "confirm-freeze-burn-sys"]);
+      expect(value).not.toHaveProperty("progressStatus");
+      expect(value).not.toHaveProperty("writeTokenHash");
+      expect(value).not.toHaveProperty("__v");
+    }
+    expect(stored.status).toBe("error");
+  });
+  it("derives later continuation from stored logs for records predating hidden checkpoints", async () => {
+    const service = new TransferService(); await service.recoverFreezeBurn(transfer.id, hash, token);
+    stored.status = "error"; delete stored.progressStatus;
+    stored.logs.push({ status: "mint-sysx", date: 3, payload: { message: "Mint", data: { tx: "c".repeat(64) } } });
+    const snapshot = clone(stored);
+    expect((await service.recoverFreezeBurn(transfer.id, hash, token)).status).toBe("confirm-mint-sysx");
+    expect(stored).toEqual(snapshot);
   });
   it("preserves prior error history", async () => {
     stored.logs.push({ status: "freeze-burn-sys", date: 1, payload: { message: "Failed", data: { error: "RPC disconnected" } } });

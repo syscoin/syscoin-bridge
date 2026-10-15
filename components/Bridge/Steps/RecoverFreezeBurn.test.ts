@@ -79,6 +79,7 @@ describe("freeze controls while recovery is pending", () => {
 
 describe("persisted error recovery routing", () => {
   const recover = () => null;
+  const steps = new Map<string, () => null>();
   let transfer: any;
   const code = ts.transpileModule(readFileSync(join(__dirname, "../StepSwitch.tsx"), "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true },
@@ -87,14 +88,38 @@ describe("persisted error recovery routing", () => {
   new Function("require", "exports", code)((name: string) => {
     if (name === "./context/TransferContext") return { useTransfer: () => ({ transfer }) };
     if (name === "./Steps/RecoverFreezeBurn") return { __esModule: true, default: recover };
-    if (name.startsWith("./Steps/")) return { __esModule: true, default: () => null };
+    if (name.startsWith("./Steps/")) {
+      if (!steps.has(name)) steps.set(name, () => null);
+      return { __esModule: true, default: steps.get(name) };
+    }
     return require(name);
   }, switchExports);
   it("offers only recovery, not new signing, for a persisted NEVM error", () => {
-    transfer = { type: "nevm-to-sys", status: "error", id: "transfer-1" };
+    transfer = { type: "nevm-to-sys", status: "error", id: "transfer-1", logs: [] };
     const element = switchExports.default({});
     expect(element.type).toBe(recover); expect(element.props.transferId).toBe("transfer-1");
     transfer = { ...transfer, type: "sys-to-nevm" };
     expect(switchExports.default({})).toBeNull();
+  });
+  it("keeps a freeze submission error recovery-only instead of re-signing", () => {
+    transfer = { type: "nevm-to-sys", status: "error", id: "transfer-1", logs: [
+      { status: "freeze-burn-sys", payload: { data: { hash: `0x${"a".repeat(64)}` } } },
+    ] };
+    expect(switchExports.default({}).type).toBe(recover);
+  });
+  it.each([
+    ["confirm-freeze-burn-sys", { transactionHash: `0x${"a".repeat(64)}` }, "./Steps/MintSysx", undefined],
+    ["mint-sysx", { tx: "b".repeat(64) }, "./Steps/ConfirmUTXOTransaction", "mint-sysx"],
+    ["mint-sysx", { txid: "b".repeat(64) }, "./Steps/BurnSysx", undefined],
+    ["burn-sysx", { tx: "c".repeat(64) }, "./Steps/ConfirmUTXOTransaction", "burn-sysx"],
+    ["burn-sysx", { txid: "c".repeat(64) }, "./Steps/ConfirmUTXOTransaction", "burn-sysx"],
+  ])("continues later %s error at the recorded checkpoint", (status, data, component, sourceStatus) => {
+    transfer = { type: "nevm-to-sys", status: "error", id: "transfer-1", logs: [
+      { status, payload: { data } },
+    ] };
+    const element = switchExports.default({});
+    expect(element.type).toBe(steps.get(component as string));
+    expect(element.props.sourceStatus).toBe(sourceStatus);
+    expect(element.type).not.toBe(recover);
   });
 });

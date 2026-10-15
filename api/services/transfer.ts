@@ -16,6 +16,7 @@ import {
 import { assertTransferCompleted } from "./transfer-completion";
 import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
 import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
+import { continueNevmTransferAfterError } from "utils/transfer-progress";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -94,10 +95,13 @@ const toPublicTransfer = (transfer: unknown): ITransfer => {
     typeof transfer.toObject === "function"
       ? transfer.toObject()
       : { ...(transfer as Record<string, unknown>) };
+  // Only persisted server data may supply the hidden progress checkpoint.
+  const continuation = continueNevmTransferAfterError(source as ITransfer,
+    { ...source, status: source.progressStatus ?? source.status } as ITransfer);
   delete source.writeTokenHash;
   delete source.progressStatus;
   delete source.__v;
-  return source as ITransfer;
+  return { ...source, status: continuation.status } as ITransfer;
 };
 
 export class TransferService {
@@ -116,19 +120,20 @@ export class TransferService {
       }
       return acc;
     }, [] as Record<string, string>[]);
-    return TransferModel.find({
+    const transfers = await TransferModel.find({
       $or: queryConstraints,
-    }).sort({ createdAt: -1 }) as unknown as ITransfer[];
+    }).select("+progressStatus").sort({ createdAt: -1 });
+    return transfers.map(toPublicTransfer);
   }
 
   async getTransfer(id: string): Promise<ITransfer> {
-    const transfer = await TransferModel.findOne({ id });
+    const transfer = await TransferModel.findOne({ id }).select("+progressStatus");
 
     if (!transfer) {
       throw new TransferNotFoundError();
     }
 
-    return transfer as unknown as ITransfer;
+    return toPublicTransfer(transfer);
   }
 
   async getAuthorizedTransfer(
@@ -136,7 +141,7 @@ export class TransferService {
     writeTokens?: WriteTokenCandidates
   ): Promise<ITransfer> {
     const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
-      "+writeTokenHash"
+      "+writeTokenHash +progressStatus"
     );
 
     if (!transfer) throw new TransferNotFoundError();

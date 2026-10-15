@@ -81,7 +81,7 @@ describe("TransferService write capabilities", () => {
   });
 
   it("throws a typed error when a transfer does not exist", async () => {
-    TransferModelMock.findOne.mockResolvedValue(null);
+    findExisting(null);
 
     await expect(
       new TransferService().getTransfer("missing-transfer")

@@ -73,6 +73,14 @@ describe("transfer save recovery", () => {
     expect(element.props.value.transfer).toBe(persisted);
     expect(renderToStaticMarkup(element)).toContain("Transaction step");
   });
+  it("gives later errored children their continuation status, not a freeze-recovery context", () => {
+    cachedTransfer = { ...persisted, type: "nevm-to-sys", status: "error", logs: [
+      { status: "mint-sysx", payload: { data: { tx: "a".repeat(64) } } },
+    ] };
+    const element = renderProvider();
+    expect(element.props.value.transfer.status).toBe("confirm-mint-sysx");
+    expect((cachedTransfer as any).status).toBe("error");
+  });
 
   it("shows failed completion saves without advancing or rerunning the transaction step", () => {
     mutation = { isError: true, error: new Error("Unable to verify transfer completion"), variables: pending };
