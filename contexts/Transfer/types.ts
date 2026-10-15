@@ -79,4 +79,6 @@ export interface ITransfer {
   agreedToTerms: boolean;
   useSysx?: boolean;
   utxoAssetType?: "sys" | "sysx";
+  /** Computed response-only recovery availability; never accepted as write authority. */
+  freezeRecoveryAllowed?: boolean;
 }

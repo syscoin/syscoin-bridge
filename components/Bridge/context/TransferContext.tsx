@@ -3,7 +3,6 @@ import { createContext, useContext, useState } from "react";
 import { Alert, Button } from "@mui/material";
 import { UseMutateFunction, useMutation, useQuery, useQueryClient } from "react-query";
 import isTransfer from "utils/isTransfer";
-import { continueNevmTransferAfterError } from "utils/transfer-progress";
 import {
   getOrCreateTransferWriteToken,
   getTransferWriteToken,
@@ -120,7 +119,7 @@ export const TransferContextProvider: React.FC<
 
   return (
     <TransferContext.Provider
-      value={{ transfer: continueNevmTransferAfterError(transfer ?? initialData), saveTransfer, isSaving }}
+      value={{ transfer: transfer ?? initialData, saveTransfer, isSaving }}
     >
       {(isSaveError || isRetryingSave) &&
       unsavedTransfer &&

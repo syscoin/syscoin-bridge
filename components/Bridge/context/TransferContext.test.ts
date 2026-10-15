@@ -73,13 +73,18 @@ describe("transfer save recovery", () => {
     expect(element.props.value.transfer).toBe(persisted);
     expect(renderToStaticMarkup(element)).toContain("Transaction step");
   });
-  it("gives later errored children their continuation status, not a freeze-recovery context", () => {
+  it("does not infer permission to continue an error from client-visible logs", () => {
     cachedTransfer = { ...persisted, type: "nevm-to-sys", status: "error", logs: [
       { status: "mint-sysx", payload: { data: { tx: "a".repeat(64) } } },
     ] };
     const element = renderProvider();
-    expect(element.props.value.transfer.status).toBe("confirm-mint-sysx");
+    expect(element.props.value.transfer).toBe(cachedTransfer);
+    expect(element.props.value.transfer.status).toBe("error");
     expect((cachedTransfer as any).status).toBe("error");
+  });
+  it("retains the server-projected continuation without independently interpreting logs", () => {
+    cachedTransfer = { ...persisted, type: "nevm-to-sys", status: "confirm-mint-sysx", logs: [] };
+    expect(renderProvider().props.value.transfer).toBe(cachedTransfer);
   });
 
   it("shows failed completion saves without advancing or rerunning the transaction step", () => {

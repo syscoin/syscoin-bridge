@@ -16,7 +16,7 @@ import {
 import { assertTransferCompleted } from "./transfer-completion";
 import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
 import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
-import { continueNevmTransferAfterError } from "utils/transfer-progress";
+import { continueNevmTransferAfterError, knownTransferProgressStatus } from "utils/transfer-progress";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -96,8 +96,13 @@ const toPublicTransfer = (transfer: unknown): ITransfer => {
       ? transfer.toObject()
       : { ...(transfer as Record<string, unknown>) };
   // Only persisted server data may supply the hidden progress checkpoint.
-  const continuation = continueNevmTransferAfterError(source as ITransfer,
-    { ...source, status: source.progressStatus ?? source.status } as ITransfer);
+  const checkpoint = knownTransferProgressStatus(source as ITransfer, source.progressStatus);
+  const continuation = continueNevmTransferAfterError(source as ITransfer, checkpoint);
+  // Do not forward any stored/caller-supplied recovery flag as authority.
+  delete source.freezeRecoveryAllowed;
+  if (source.type === "nevm-to-sys" && continuation.status === COMMON_STATUS.ERROR) {
+    source.freezeRecoveryAllowed = checkpoint !== undefined;
+  }
   delete source.writeTokenHash;
   delete source.progressStatus;
   delete source.__v;
@@ -183,6 +188,9 @@ export class TransferService {
     }
     if (existing.type !== "nevm-to-sys" || existing.version !== "v2") {
       throw new TransferValidationError("Recovery is only available for V2 NEVM to SYS transfers");
+    }
+    if (existing.status === COMMON_STATUS.ERROR && existing.freezeRecoveryAllowed !== true) {
+      throw new TransferWriteConflictError();
     }
     // A repeated recovery must not reset later progress or rewrite any logs.
     const recoverable = new Set<string>([ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
@@ -270,6 +278,13 @@ export class TransferService {
       : undefined;
     if (!writeToken || !existing.writeTokenHash) {
       throw new TransferWriteUnauthorizedError();
+    }
+
+    // A cleared/unknown checkpoint cannot be recreated by a public ERROR save.
+    // Only the independent signed administrator override can release this state.
+    if (existing.status === COMMON_STATUS.ERROR &&
+      !knownTransferProgressStatus(existing as unknown as ITransfer, existing.progressStatus)) {
+      throw new TransferWriteConflictError();
     }
 
     assertTransferIdentityUnchanged(transfer, existing as unknown as ITransfer);

@@ -45,11 +45,20 @@ export const verifiedTransferProgressStatus = (
   return steps[index] as TransferStatus;
 };
 
-/** Display continuation only; never authorizes progress or accepts a client checkpoint. */
-export const continueNevmTransferAfterError = (transfer: ITransfer, prior?: ITransfer): ITransfer => {
+/** Only a persisted server checkpoint can release an errored transfer. */
+export const knownTransferProgressStatus = (transfer: ITransfer, checkpoint: unknown): TransferStatus | undefined => {
+  if (typeof checkpoint !== "string") return undefined;
+  const status = stepForStatus(transfer, checkpoint);
+  return routeSteps(transfer).includes(status) ? status as TransferStatus : undefined;
+};
+
+/** Server-only response projection; never infer authority from error logs alone. */
+export const continueNevmTransferAfterError = (transfer: ITransfer, checkpoint: unknown): ITransfer => {
   if (transfer.type !== "nevm-to-sys" || transfer.status !== COMMON_STATUS.ERROR) return transfer;
-  const checkpoint = verifiedTransferProgressStatus(transfer, prior);
-  if (checkpoint === ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS ||
-    checkpoint === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS) return transfer;
-  return { ...transfer, status: checkpoint };
+  const priorStatus = knownTransferProgressStatus(transfer, checkpoint);
+  if (!priorStatus) return transfer;
+  const status = verifiedTransferProgressStatus(transfer, { ...transfer, status: priorStatus });
+  if (status === ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS ||
+    status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS) return transfer;
+  return { ...transfer, status };
 };

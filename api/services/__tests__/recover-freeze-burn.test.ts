@@ -11,6 +11,9 @@ const mockWeb3 = { eth: { abi: new Web3().eth.abi,
 const mockModel = { findOne: jest.fn<any>(), findOneAndUpdate: jest.fn<any>(), find: jest.fn<any>() };
 jest.mock("utils/get-web3", () => ({ __esModule: true, default: mockWeb3 }));
 jest.mock("models/transfer", () => ({ __esModule: true, default: mockModel }));
+jest.mock("lib/mongodb", () => jest.fn());
+jest.mock("utils/api/admin-session-guard", () => ({ __esModule: true, default: (handler: unknown) => handler }));
+jest.mock("utils/api/verify-signature", () => ({ verifySignature: jest.fn(() => true) }));
 jest.mock("../sponsor-wallet", () => ({ SponsorWalletService: jest.fn().mockImplementation(() => ({
   updateSponsorWalletTransactionStatus: jest.fn(), updateUtxoSponsorWalletTransactionStatus: jest.fn(),
 })) }));
@@ -19,6 +22,9 @@ jest.mock("@constants", () => ({ ERC20_MANAGER_CONTRACT_ADDRESS: "0x222222222222
 import { TransferService, TransferWriteConflictError, TransferWriteUnauthorizedError } from "../transfer";
 import { getVerifiedFreezeBurnReceipt } from "../sponsor-utxo-eligibility";
 import { TransferValidationError } from "../transfer-validation";
+import adminTransferHandler from "pages/api/admin/transfer/[id]";
+import { getRequest, patchRequest } from "pages/api/transfer/[id]";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 const manager = "0x2222222222222222222222222222222222222222";
 const owner = "0x1111111111111111111111111111111111111111";
@@ -44,6 +50,11 @@ const receipt = (amount = "100000000", recipient = transfer.utxoAddress!, asset 
 });
 let stored: any;
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const response = () => {
+  const res = { status: jest.fn(), json: jest.fn(), setHeader: jest.fn() };
+  res.status.mockReturnValue(res);
+  return res as unknown as NextApiResponse & typeof res;
+};
 beforeEach(() => {
   jest.clearAllMocks(); process.env.IS_TESTNET = "false";
   stored = { ...transfer, logs: [], writeTokenHash: tokenHash, __v: 3, progressStatus: transfer.status };
@@ -68,8 +79,10 @@ describe("capability-authorized existing freeze recovery", () => {
     expect(result.logs[0].payload.data).toEqual({ hash });
     expect(result.logs[1].payload.data).toEqual(receipt());
     expect(result).not.toHaveProperty("writeTokenHash");
+    expect(result).not.toHaveProperty("freezeRecoveryAllowed");
     expect(mockModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
     expect(mockModel.findOneAndUpdate.mock.calls[0][0]).toEqual({ id: transfer.id, writeTokenHash: tokenHash, __v: 3 });
+    expect(mockModel.findOneAndUpdate.mock.calls[0][1].$set).not.toHaveProperty("freezeRecoveryAllowed");
     expect(mockWeb3.eth.getTransaction.mock.calls.every(([value]) => value === hash)).toBe(true);
   });
   it.each([undefined, "wrong-capability"])("refuses unauthorized recovery before chain reads", async (capability) => {
@@ -88,6 +101,7 @@ describe("capability-authorized existing freeze recovery", () => {
   });
   it("recovers an early persisted error at the freeze checkpoint", async () => {
     stored.status = "error";
+    expect((await new TransferService().getTransfer(transfer.id)).freezeRecoveryAllowed).toBe(true);
     const result = await new TransferService().recoverFreezeBurn(transfer.id, hash, token);
     expect(result.status).toBe("mint-sysx");
     expect(result.logs).toHaveLength(2);
@@ -128,13 +142,67 @@ describe("capability-authorized existing freeze recovery", () => {
     }
     expect(stored.status).toBe("error");
   });
-  it("derives later continuation from stored logs for records predating hidden checkpoints", async () => {
+  it.each([undefined, null, "error", "unknown-checkpoint"])(
+    "does not release an error from logs or a forged recovery flag without a known checkpoint (%s)", async (checkpoint) => {
     const service = new TransferService(); await service.recoverFreezeBurn(transfer.id, hash, token);
-    stored.status = "error"; delete stored.progressStatus;
+    stored.status = "error"; stored.progressStatus = checkpoint;
+    stored.freezeRecoveryAllowed = true;
     stored.logs.push({ status: "mint-sysx", date: 3, payload: { message: "Mint", data: { tx: "c".repeat(64) } } });
     const snapshot = clone(stored);
-    expect((await service.recoverFreezeBurn(transfer.id, hash, token)).status).toBe("confirm-mint-sysx");
+    jest.clearAllMocks();
+    for (const value of [await service.getTransfer(transfer.id),
+      await service.getAuthorizedTransfer(transfer.id, token), ...(await service.getAll({ nevmAddress: owner }))]) {
+      expect(value.status).toBe("error");
+      expect(value.freezeRecoveryAllowed).toBe(false);
+      expect(value).not.toHaveProperty("progressStatus");
+      expect(value).not.toHaveProperty("writeTokenHash");
+      expect(value).not.toHaveProperty("__v");
+    }
+    await expect(service.recoverFreezeBurn(transfer.id, hash, token)).rejects.toBeInstanceOf(TransferWriteConflictError);
     expect(stored).toEqual(snapshot);
+    expect(mockWeb3.eth.getTransaction).not.toHaveBeenCalled();
+    expect(mockModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+  it("honors an actual signed admin stop across GET/list/auth, recovery and capability PATCH", async () => {
+    const service = new TransferService(); await service.recoverFreezeBurn(transfer.id, hash, token);
+    stored.status = "burn-sysx"; stored.progressStatus = "burn-sysx";
+    const document = { ...clone(stored),
+      set: jest.fn((key: string, value: unknown) => { document[key] = value; }),
+      increment: jest.fn(() => { document.__v += 1; }),
+      save: jest.fn<any>().mockImplementation(async () => { stored = clone(document); return stored; }),
+    } as any;
+    mockModel.findOne.mockReturnValueOnce(Promise.resolve(document));
+    const stopped = response();
+    await adminTransferHandler({ method: "POST", query: { id: transfer.id },
+      session: { user: { address: owner } }, body: { signedMessage: "verified-admin-signature",
+        changes: [{ property: "status", from: "burn-sysx", to: "error" }] },
+    } as unknown as NextApiRequest, stopped);
+    expect(stopped.status).toHaveBeenCalledWith(200);
+    expect(document.set).toHaveBeenCalledWith("progressStatus", undefined);
+    expect(stored.progressStatus).toBeUndefined();
+    const snapshot = clone(stored);
+    jest.clearAllMocks();
+    const read = response();
+    await getRequest({ query: { id: transfer.id } } as unknown as NextApiRequest, read);
+    const values = [read.json.mock.calls[0][0] as ITransfer,
+      await service.getAuthorizedTransfer(transfer.id, token), ...(await service.getAll({ nevmAddress: owner }))];
+    for (const value of values) {
+      expect(value.status).toBe("error"); expect(value.freezeRecoveryAllowed).toBe(false);
+      expect(value).not.toHaveProperty("progressStatus");
+      expect(value).not.toHaveProperty("writeTokenHash"); expect(value).not.toHaveProperty("__v");
+    }
+    await expect(service.recoverFreezeBurn(transfer.id, hash, token)).rejects.toBeInstanceOf(TransferWriteConflictError);
+    for (const status of ["error", "mint-sysx", "burn-sysx"]) {
+      const patched = response();
+      await patchRequest({ query: { id: transfer.id }, headers: { authorization: `Bearer ${token}` },
+        body: { ...values[0], status, progressStatus: "burn-sysx", freezeRecoveryAllowed: true },
+      } as unknown as NextApiRequest, patched);
+      expect(patched.status).toHaveBeenCalledWith(409);
+      expect(patched.setHeader).not.toHaveBeenCalled();
+    }
+    expect(stored).toEqual(snapshot);
+    expect(mockWeb3.eth.getTransaction).not.toHaveBeenCalled();
+    expect(mockModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
   it("preserves prior error history", async () => {
     stored.logs.push({ status: "freeze-burn-sys", date: 1, payload: { message: "Failed", data: { error: "RPC disconnected" } } });
