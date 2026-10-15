@@ -14,6 +14,7 @@ import BridgeStepFreezeAndBurnSys from "./Steps/FreezeAndBurnSys";
 import BridgeStepGenerateProofs from "./Steps/GenerateProofs";
 import BridgeStepMintSysx from "./Steps/MintSysx";
 import BridgeStepSubmitProofs from "./Steps/SubmitProofs";
+import RecoverFreezeBurn from "./Steps/RecoverFreezeBurn";
 import { useTransfer } from "./context/TransferContext";
 import type { ConnectValidateDraft } from "./connect-validate-draft";
 
@@ -26,6 +27,9 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
 }) => {
   const { transfer } = useTransfer();
   if (transfer.type === "nevm-to-sys") {
+    if (transfer.status === COMMON_STATUS.ERROR) {
+      return <RecoverFreezeBurn transferId={transfer.id} />;
+    }
     if (transfer.status === COMMON_STATUS.INITIALIZE) {
       return (
         <BridgeConnectValidateStep

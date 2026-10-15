@@ -11,9 +11,11 @@ import {
   assertNewTransfer,
   assertTransferIdentityUnchanged,
   assertValidTransferPayload,
+  TransferValidationError,
 } from "./transfer-validation";
 import { assertTransferCompleted } from "./transfer-completion";
 import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
+import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -137,9 +139,7 @@ export class TransferService {
       "+writeTokenHash"
     );
 
-    if (!transfer) {
-      throw new Error("Transfer not found");
-    }
+    if (!transfer) throw new TransferNotFoundError();
     if (
       !transfer.writeTokenHash ||
       !findMatchingWriteToken(writeTokens, transfer.writeTokenHash)
@@ -152,6 +152,54 @@ export class TransferService {
     // accounts or transaction references to sponsored transaction builders.
     assertValidTransferPayload(authorized);
     return authorized;
+  }
+
+  async recoverFreezeBurn(
+    id: string, suppliedHash: string, writeTokens?: WriteTokenCandidates
+  ): Promise<ITransfer> {
+    const existing = await this.getAuthorizedTransfer(id, writeTokens);
+    if (!/^0x[0-9a-f]{64}$/i.test(suppliedHash)) {
+      throw new TransferValidationError("Invalid freeze and burn transaction hash");
+    }
+    const hash = suppliedHash.toLowerCase();
+    const sourceLogs = existing.logs.filter((log) =>
+      log.status === ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS && log.payload.data.hash
+    );
+    const receiptLogs = existing.logs.filter((log) =>
+      log.status === ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS && log.payload.data.transactionHash
+    );
+    if ([...sourceLogs.map((log) => log.payload.data.hash),
+      ...receiptLogs.map((log) => log.payload.data.transactionHash)]
+      .some((value) => String(value).toLowerCase() !== hash)) {
+      throw new TransferWriteConflictError();
+    }
+    if (existing.type !== "nevm-to-sys" || existing.version !== "v2") {
+      throw new TransferValidationError("Recovery is only available for V2 NEVM to SYS transfers");
+    }
+    // A repeated recovery must not reset later progress or rewrite any logs.
+    const recoverable = new Set<string>([ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+      ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, COMMON_STATUS.ERROR]);
+    if (sourceLogs.length && receiptLogs.length && !recoverable.has(existing.status)) {
+      return existing;
+    }
+    if (!recoverable.has(existing.status)) {
+      throw new TransferWriteConflictError();
+    }
+    let receipt;
+    try { receipt = await getVerifiedFreezeBurnReceipt(existing, hash); }
+    catch (error) {
+      throw new TransferValidationError(error instanceof Error ? error.message : "Unable to verify freeze and burn");
+    }
+    const date = Date.now();
+    const logs = [...existing.logs];
+    if (!sourceLogs.length) logs.push({ status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+      date, payload: { message: "Freeze and burn SYS", data: { hash } } });
+    if (!receiptLogs.length) logs.push({ status: ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS,
+      date: date + 1, payload: { message: "Confirm NEVM Transaction", data: receipt } });
+    // Normal canonicalization, capability checks and version CAS remain the only writer.
+    const result = await this.upsertTransfer({ ...existing, logs,
+      status: ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX }, writeTokens);
+    return result.transfer;
   }
 
   private async updateSponsorStatuses(transfer: ITransfer): Promise<void> {

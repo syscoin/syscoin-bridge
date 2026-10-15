@@ -11,6 +11,8 @@ const mockWeb3 = {
     abi: new Web3().eth.abi,
     getTransaction: jest.fn<any>(),
     getTransactionReceipt: jest.fn<any>(),
+    getChainId: jest.fn<any>(),
+    getBlock: jest.fn<any>(),
   },
 };
 const mockFetchRawTx = jest.fn<any>();
@@ -175,6 +177,7 @@ const mixedConversionTransaction = (options: {
 
 const freeze = (changes: Record<string, unknown> = {}) => ({
   hash: freezeHash, from: recipient, to: manager, value: "100000000000000000",
+  blockNumber: 100, blockHash, transactionIndex: 0,
   input: mockWeb3.eth.abi.encodeFunctionCall(managerAbi.find((method) => method.name === "freezeBurn")!,
     ["100000000000000000", "0x0000000000000000000000000000000000000000", "0", address]),
   ...changes,
@@ -235,6 +238,9 @@ describe("canonical transfer progress", () => {
     mockFetchProof.mockResolvedValue(undefined);
     mockWeb3.eth.getTransaction.mockResolvedValue(null);
     mockWeb3.eth.getTransactionReceipt.mockResolvedValue(null);
+    mockWeb3.eth.getChainId.mockResolvedValue(57);
+    mockWeb3.eth.getBlock.mockResolvedValue({ number: 100, hash: blockHash,
+      transactions: Array.from({ length: 257 }, () => freezeHash) });
   });
   afterEach(() => {
     if (originalTestnet === undefined) delete process.env.IS_TESTNET;
@@ -417,7 +423,7 @@ describe("canonical transfer progress", () => {
   it.each([0, 1, 127, 128, 256])("binds mint proof to RLP transaction index %i", async (index) => {
     const mint = wireTransaction("mint-sysx", { txpath: encodedTransactionIndex(index) });
     installUtxo(mint);
-    mockWeb3.eth.getTransaction.mockResolvedValue(freeze());
+    mockWeb3.eth.getTransaction.mockResolvedValue(freeze({ transactionIndex: index }));
     mockWeb3.eth.getTransactionReceipt.mockResolvedValue(freezeReceipt({ transactionIndex: index }));
     await expect(canonicalizeTransferProgress(mintTransfer(mint))).resolves.toBeDefined();
   });

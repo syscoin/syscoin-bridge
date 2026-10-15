@@ -2,6 +2,8 @@ import { Alert, Box, Button, Typography } from "@mui/material";
 import NEVMStepWrapper from "../NEVMStepWrapepr";
 import { useTransfer } from "../context/TransferContext";
 import { useFreezeAndBurn } from "../hooks/useFreezeAndBurn";
+import RecoverFreezeBurn from "./RecoverFreezeBurn";
+import { useIsMutating, useQueryClient } from "react-query";
 import {
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransferLog,
@@ -14,6 +16,9 @@ type Props = {
 
 const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
+  const queryClient = useQueryClient();
+  const recoveryFilter = { mutationKey: ["recover-freeze-burn", transfer.id], exact: true };
+  const isRecovering = useIsMutating(recoveryFilter) > 0;
 
   const {
     mutate: freezeAndBurn,
@@ -64,6 +69,7 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
   };
 
   const sign = () => {
+    if (isRecovering || queryClient.isMutating(recoveryFilter) > 0) return;
     freezeAndBurn(undefined, {
       onSuccess: onSignatureSuccess,
       onError: onSignatureError,
@@ -86,9 +92,9 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
       errorMessage = signError.message;
     }
     return (
-      <Alert severity="error" action={<Button onClick={sign}>Retry</Button>}>
+      <><Alert severity="error" action={<Button disabled={isRecovering} onClick={sign}>Retry</Button>}>
         Unable to freeze and burn SYS: {errorMessage}
-      </Alert>
+      </Alert><RecoverFreezeBurn transferId={transfer.id} /></>
     );
   }
 
@@ -100,9 +106,10 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYS
       </Typography>
-      <Button color="primary" variant="contained" onClick={sign}>
+      <Button color="primary" variant="contained" disabled={isRecovering} onClick={sign}>
         Confirm
       </Button>
+      <RecoverFreezeBurn transferId={transfer.id} />
     </Box>
   );
 };
