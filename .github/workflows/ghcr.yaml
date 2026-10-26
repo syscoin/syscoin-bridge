@@ -20,10 +20,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js v24
+      - name: Set up Node.js v26.12.1
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '26.12.1'
           cache: 'yarn'
 
       - name: Set up QEMU
@@ -57,6 +57,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
+          pull: true
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -185,6 +186,13 @@ jobs:
             container_id=$(sudo env BRIDGE_IMAGE="$BRIDGE_IMAGE" docker-compose ps -q syscoin-bridge)
             test -n "$container_id"
             test "$(sudo docker inspect --format "{{.Config.Image}}" "$container_id")" = "$BRIDGE_IMAGE"
+            sudo docker exec "$container_id" node -e '
+              const [major, minor, patch] = process.versions.node.split(".").map(Number);
+              if (major !== 26 || minor < 12 || (minor === 12 && patch < 1)) {
+                throw new Error("Node.js >=26.12.1 <27 is required");
+              }
+              console.log(`Node.js ${process.versions.node}`);
+            '
             test "$(curl -fsS "http://127.0.0.1:$BRIDGE_PORT/api/health")" = '{"message":"ok"}'
 
       - name: Verify ${{ matrix.name }} public API
