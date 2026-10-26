@@ -122,6 +122,10 @@ instances is unsupported.
 
 This project uses Node.js v26.12.1. We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
 
+Vercel currently offers only Node.js 24 for this project's managed builds. The
+package engine range also permits patched Node.js 24.22.1 or newer 24.x for that
+platform; local development, CI, and Docker remain on Node.js 26.12.1 or newer 26.x.
+
 ```bash
 # Install nvm (if not already installed)
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
