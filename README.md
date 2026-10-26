@@ -115,12 +115,12 @@ instances is unsupported.
 
 ### Prerequisites
 
-- NodeJS 24+ (recommended to use `nvm` to install NodeJS)
+- Node.js 26.12.1 or newer 26.x (recommended to use `nvm` to install Node.js)
 - Yarn (recommended to use `npm install -g yarn` to install Yarn)
 
 ### Node Version Management with nvm
 
-This project uses Node.js v24. We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
+This project uses Node.js v26.12.1. We recommend using [nvm](https://github.com/nvm-sh/nvm) to manage Node versions:
 
 ```bash
 # Install nvm (if not already installed)
@@ -133,9 +133,9 @@ source ~/.bashrc  # or ~/.zshrc
 nvm install
 nvm use
 
-# Or manually install Node v24
-nvm install 24
-nvm use 24
+# Or manually install Node v26.12.1
+nvm install 26.12.1
+nvm use 26.12.1
 ```
 
 ### Install dependencies
