@@ -2478,7 +2478,7 @@ bip32@^5.0.1:
     valibot "^1.2.0"
     wif "^5.0.0"
 
-bip39@^3.1.0:
+bip39@^3.1.2:
   version "3.1.2"
   resolved "https://registry.yarnpkg.com/bip39/-/bip39-3.1.2.tgz#17e31b77e80ded2e7388cb88a327cd640917baf7"
   integrity sha512-inxKLEH+Weos8f5rBYNKuOrpOIcNWtKnrLur9x72s4Cb8w4Mm0jJktUPkev7+1pQuivxFqkiut9+AcrwunLHxA==
@@ -2495,7 +2495,7 @@ bitcoin-proof@^2.0.0:
   resolved "https://registry.yarnpkg.com/bitcoin-proof/-/bitcoin-proof-2.0.0.tgz#fc11b3ce104d49e5217c5f8166caaabb6dedcdb3"
   integrity sha512-50CcD89a/7sM+uOPMjxuW5Q+YGavbXAL8Vr87bj2DATSMhmmwhPUpfXGMtRbT7nZsoC5XMF2J+dXG/xPbyRArQ==
 
-bitcoinjs-lib@^7.0.1:
+bitcoinjs-lib@^7.0.1, bitcoinjs-lib@^7.0.5:
   version "7.0.5"
   resolved "https://registry.yarnpkg.com/bitcoinjs-lib/-/bitcoinjs-lib-7.0.5.tgz#ef7175e79e50faae69c9ca61c273efd966a60c33"
   integrity sha512-xH24P1ile3QtyChzX1ITitcgpfZgDzG986gy1glbGXFsvcSnRX0P6p4m3nuTQfJ+j97va8py0leEK7xG8oxMqQ==
@@ -7511,17 +7511,17 @@ swarm-js@^0.1.40:
     tar "^4.0.2"
     xhr-request "^1.0.1"
 
-syscoinjs-lib@^1.0.274:
-  version "1.0.274"
-  resolved "https://registry.npmjs.org/syscoinjs-lib/-/syscoinjs-lib-1.0.274.tgz#0d27e75d9508181de79541e8cefe661b650f3448"
-  integrity sha512-6Tfx7XjVd4PaG13sCXWqvzDm4KvSF+x4X/xGaMhqx7ifurSXqjvebcDoSlQN3TuWnMtQ9SwhpDpQ4OBlFDnqXw==
+syscoinjs-lib@^1.0.275:
+  version "1.0.275"
+  resolved "https://registry.yarnpkg.com/syscoinjs-lib/-/syscoinjs-lib-1.0.275.tgz#e70379458953b55e82b4656bdfad4bef7ff6976a"
+  integrity sha512-el+6wWDxVObR/f7+Q1aZTgg7goUEEQTfNYoF+CSMvv/VZKd8I2qqImb4LV1opkIPXTwydRBhaFpM7wE+93J8XA==
   dependencies:
     "@bitcoinerlab/secp256k1" "^1.2.0"
     axios "^1.18.1"
     bip32 "^5.0.1"
-    bip39 "^3.1.0"
+    bip39 "^3.1.2"
     bitcoin-ops "^1.4.1"
-    bitcoinjs-lib "^7.0.1"
+    bitcoinjs-lib "^7.0.5"
     bn.js "^5.2.4"
     bs58 "^6.0.0"
     ecpair "^3.0.1"
