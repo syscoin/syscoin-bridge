@@ -139,7 +139,7 @@ const mixedConversionTransaction = (options: {
     }] },
     new Map([[SYSX_ASSET_GUID, {
       changeAddress: address, outputs: [{ address, value: new BN(amount) }],
-    }]]), address, new BN(10)
+    }]]), address, new BN(10), syscoinUtils.syscoinNetworks.mainnet
   );
   expect(result.success).toBe(true);
   const raw = new bitcoin.Transaction();
