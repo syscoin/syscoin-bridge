@@ -128,6 +128,30 @@ describe("client transfer validation", () => {
     payload: { message: "Burn SYS", data: { tx: "a".repeat(64) } },
   };
 
+  it.each([
+    { ...validLog, "payload.toString.call": 1 },
+    { ...validLog, extra: true },
+    { ...validLog, payload: { ...validLog.payload, "data.toString.call": 1 } },
+    { ...validLog, payload: { ...validLog.payload, extra: true } },
+    ...["toString.call", "valueOf.call", "__proto__", "constructor", "prototype", "$__schema"].map(
+      (key) => ({ ...validLog, payload: { ...validLog.payload,
+        data: { error: [JSON.parse(`{"${key}":1}`)] } } })
+    ),
+  ])("rejects unsafe log keys %#", (log) => {
+    expect(() => assertValidTransferPayload({ ...transfer, logs: [log] }))
+      .toThrow(TransferValidationError);
+  });
+
+  it("preserves stored log IDs and nested receipt/error data", () => {
+    expect(() => assertValidTransferPayload({ ...transfer, logs: [{
+      ...validLog, _id: "1234567890abcdef12345678",
+      payload: { ...validLog.payload, data: {
+        receipt: { logs: [{ topics: ["topic"], data: "0x", removed: false }], to: null },
+        error: { message: "Retry", code: -1, data: { reason: "pending" } },
+      } },
+    }] } as ITransfer)).not.toThrow();
+  });
+
   it("rejects fabricated completed records and logs on creation", () => {
     expect(() =>
       assertNewTransfer({ ...transfer, status: COMMON_STATUS.COMPLETED })
