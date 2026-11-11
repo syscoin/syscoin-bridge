@@ -6070,16 +6070,16 @@ mongodb@5.9.2:
   optionalDependencies:
     "@mongodb-js/saslprep" "^1.1.0"
 
-mongoose@^7.5.0:
-  version "7.8.8"
-  resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-7.8.8.tgz#918562567dcd40d1450d60063a2193adb39f7e27"
-  integrity sha512-0ntQOglVjlx3d+1sLK45oO5f6GuTgV/zbao0zkpE5S5W40qefpyYQ3Mq9e9nRzR58pp57WkVU+PgM64sVVcxNg==
+mongoose@^7.8.13:
+  version "7.8.13"
+  resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-7.8.13.tgz#58cf377e2dc5b902af0141797b76aaf37a56e7b5"
+  integrity sha512-Fd3yPwXQElXRmclX8ypcGcCT/JZtoLcn0GOj6g7FKIw6qngr1vz+QTBCTC4GuwQT9aKxE4SD24nIeujRbWjWNA==
   dependencies:
     bson "^5.5.0"
     kareem "2.5.1"
     mongodb "5.9.2"
     mpath "0.9.0"
-    mquery "5.0.0"
+    mquery "5.0.1"
     ms "2.1.3"
     sift "16.0.1"
 
@@ -6088,10 +6088,10 @@ mpath@0.9.0:
   resolved "https://registry.yarnpkg.com/mpath/-/mpath-0.9.0.tgz#0c122fe107846e31fc58c75b09c35514b3871904"
   integrity sha512-ikJRQTk8hw5DEoFVxHG1Gn9T/xcjtdnOKIU1JTmGjZZlg9LST2mBLmcX3/ICIbgJydT2GOc15RnNy5mHmzfSew==
 
-mquery@5.0.0:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/mquery/-/mquery-5.0.0.tgz#a95be5dfc610b23862df34a47d3e5d60e110695d"
-  integrity sha512-iQMncpmEK8R8ncT8HJGsGc9Dsp8xcgYMVSbs5jgnm1lFHTZqMJTUWTDx1LBO8+mK3tPNZWFLBghQEIOULSTHZg==
+mquery@5.0.1:
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/mquery/-/mquery-5.0.1.tgz#c2e3d15fc09aa8671c2dfe1a2e09706ce6af51f6"
+  integrity sha512-C99lWV0TFI34pS008jBsi3JrE2xZPnTgUw5yApQR71nRP0hxLy8D5m1Lbbk83c8AQWJwdJ0329HzFtZ1MRTUIw==
   dependencies:
     debug "4.x"
 

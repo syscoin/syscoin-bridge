@@ -71,6 +71,18 @@ describe("TransferService write capabilities", () => {
       value.status === COMMON_STATUS.ERROR ? prior?.status : value.status);
   });
 
+  it("rejects a dotted log key before any database access", async () => {
+    const malicious = { ...transfer, logs: [{
+      status: transfer.status, date: 1, payload: { message: "log", data: {} },
+      "payload.toString.call": 1,
+    }] };
+    await expect(new TransferService().upsertTransfer(malicious, "owner-token"))
+      .rejects.toBeInstanceOf(TransferValidationError);
+    expect(TransferModelMock.findOne).not.toHaveBeenCalled();
+    expect(TransferModelMock.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(TransferModelMock.create).not.toHaveBeenCalled();
+  });
+
   it("rejects updates to an existing transfer without its write token", async () => {
     findExisting({ ...transfer, writeTokenHash: "00".repeat(32) });
 
