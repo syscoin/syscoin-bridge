@@ -29,6 +29,30 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   value !== null &&
   Object.getPrototypeOf(value) === Object.prototype;
 
+const hasOnlyKeys = (value: object, allowed: readonly string[]) =>
+  Object.keys(value).every((key) => allowed.includes(key));
+
+const assertSafeLogData = (value: unknown): void => {
+  const pending = [value];
+  const visited = new Set<object>();
+  while (pending.length) {
+    const item = pending.pop();
+    if (item === null || typeof item !== "object") continue;
+    assertValid(!visited.has(item), "Invalid transfer log data");
+    visited.add(item);
+    for (const key of Object.keys(item)) {
+      // Mixed fields must never interpret client keys as paths or inherited state.
+      assertValid(
+        !key.includes(".") && !key.startsWith("$") &&
+          key !== "prototype" &&
+          !Object.prototype.hasOwnProperty.call(Object.prototype, key),
+        "Invalid transfer log data key"
+      );
+      pending.push((item as Record<string, unknown>)[key]);
+    }
+  }
+};
+
 const usesSysx = (transfer: ITransfer) =>
   Boolean(transfer.useSysx || transfer.utxoAssetType === "sysx");
 
@@ -95,16 +119,19 @@ export const assertValidTransferPayload = (transfer: ITransfer): void => {
   for (const log of transfer.logs) {
     assertValid(
       isPlainObject(log) &&
+        hasOnlyKeys(log, ["status", "date", "payload", "_id"]) &&
         statuses.includes(log.status) &&
         Number.isSafeInteger(log.date) &&
         log.date >= 0 &&
         isPlainObject(log.payload) &&
+        hasOnlyKeys(log.payload, ["message", "data", "previousStatus"]) &&
         typeof log.payload.message === "string" &&
         isPlainObject(log.payload.data) &&
         (log.payload.previousStatus === undefined ||
           statuses.includes(log.payload.previousStatus)),
       "Invalid transfer log"
     );
+    assertSafeLogData(log.payload.data);
     for (const field of ["hash", "tx", "txid", "transactionHash"]) {
       const pattern = field === "tx" || field === "txid"
         ? /^[a-f0-9]{64}$/i : /^0x[a-f0-9]{64}$/i;
