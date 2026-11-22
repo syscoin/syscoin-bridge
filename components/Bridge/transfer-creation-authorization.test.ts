@@ -61,6 +61,15 @@ describe("transfer creation with an NEVM wallet", () => {
     ]);
   });
 
+  it("forwards an empty contract-wallet approval", async () => {
+    mockChallenge();
+    const wallet = activeWallet("0x39", [selected], () => "0x");
+
+    await expect(requestTransferCreationAuthorization({
+      transfer, url, writeToken, expectedChainId: "0x39", getWallet: () => wallet,
+    })).resolves.toEqual({ challenge: "challenge", signedMessage: "0x" });
+  });
+
   it.each([
     ["changed account", "0x39", [other], "Select the NEVM account"],
     ["changed network", "0x1", [selected], "Switch the selected wallet"],

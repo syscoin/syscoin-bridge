@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
+import type { ITransfer } from "@contexts/Transfer/types";
+import { getTransferSourceAsset } from "utils/transfer-progress";
 import { getTransferWriteToken } from "utils/transfer-write-token";
 import { DRAFTS_PER_PAGE, readPrivateDrafts } from "./private-drafts";
 
@@ -43,6 +45,15 @@ describe("private transfer drafts", () => {
       credentials: "same-origin",
       redirect: "error",
     }));
+  });
+
+  it.each<[Pick<ITransfer, "type" | "utxoAssetType" | "useSysx">, string]>([
+    [{ type: "sys-to-nevm", utxoAssetType: "sysx" }, "SYSX"],
+    [{ type: "sys-to-nevm", useSysx: true }, "SYSX"],
+    [{ type: "sys-to-nevm", utxoAssetType: "sys" }, "SYS"],
+    [{ type: "nevm-to-sys", utxoAssetType: "sysx" }, "SYS"],
+  ])("displays the source asset for %j", (transfer, expected) => {
+    expect(getTransferSourceAsset(transfer)).toBe(expected);
   });
 
   it("checks only one page and bounds concurrent requests", async () => {

@@ -2,6 +2,7 @@ import { Alert, Box, Button, List, ListItem, Typography } from "@mui/material";
 import NextLink from "next/link";
 import { useEffect, useState } from "react";
 import { useQuery } from "react-query";
+import { getTransferSourceAsset } from "utils/transfer-progress";
 import { listTransferWriteTokenIds } from "utils/transfer-write-token";
 import { DRAFTS_PER_PAGE, readPrivateDrafts } from "./private-drafts";
 
@@ -37,7 +38,7 @@ const PrivateDrafts = () => {
             <ListItem key={draft.id} disableGutters>
               <Button component={NextLink} href={`/bridge/${draft.id}`} sx={{ textTransform: "none", overflowWrap: "anywhere" }}>
                 {draft.type === "sys-to-nevm" ? "UTXO → NEVM" : "NEVM → UTXO"}
-                {` · ${draft.amount} SYS · ${draft.id}`}
+                {` · ${draft.amount} ${getTransferSourceAsset(draft)} · ${draft.id}`}
               </Button>
             </ListItem>
           ))}

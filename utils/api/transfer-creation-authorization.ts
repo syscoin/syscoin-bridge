@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { ITransfer } from "@contexts/Transfer/types";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
+import { getTransferSourceAsset } from "utils/transfer-progress";
 import { getSyscoinChainId, resolveExpectedEvmChainId } from "utils/network-config";
 import { verifySignature } from "./verify-signature";
 import verifyNevmContractSignature from "./verify-nevm-contract-signature";
@@ -33,7 +34,6 @@ const formatIntent = (
   const toNevm = transfer.type === "sys-to-nevm";
   const nevm = transfer.nevmAddress!.toLowerCase();
   const utxo = transfer.utxoAddress!;
-  const asset = toNevm && (transfer.useSysx || transfer.utxoAssetType === "sysx") ? "SYSX" : "SYS";
   return [
     "Syscoin Bridge transfer creation",
     `Origin: ${origin}`,
@@ -42,7 +42,7 @@ const formatIntent = (
     `Direction: ${toNevm ? "UTXO to NEVM" : "NEVM to UTXO"}`,
     `Source: ${toNevm ? utxo : nevm}`,
     `Destination: ${toNevm ? nevm : utxo}`,
-    `Amount: ${transfer.amount} ${asset}`,
+    `Amount: ${transfer.amount} ${getTransferSourceAsset(transfer)}`,
     `Amount in base units: ${toSyscoinBaseUnits(transfer.amount)}`,
     `Initial step: ${transfer.status}`,
     `UTXO asset: ${transfer.utxoAssetType ?? "unspecified"}`,
@@ -88,7 +88,7 @@ export const verifyTransferCreationAuthorization = async (
   const { challenge, signedMessage } = authorization as Record<string, unknown>;
   if (typeof challenge !== "string" || typeof signedMessage !== "string" ||
       signedMessage.length > 2 + MAX_SIGNATURE_BYTES * 2 ||
-      !/^0x(?:[0-9a-f]{2})+$/i.test(signedMessage)) return false;
+      !/^0x(?:[0-9a-f]{2})*$/i.test(signedMessage)) return false;
   const parts = /^([a-f0-9]{64})\.([0-9]{13})\.([a-f0-9]{64})$/.exec(challenge);
   if (!parts) return false;
 
@@ -103,8 +103,9 @@ export const verifyTransferCreationAuthorization = async (
   )) return false;
   // The transfer ID is unique in Mongo. The signed credential commitment
   // prevents using the signed request to create it with another token.
+  // An empty envelope can only be authorized by the wallet contract.
   try {
-    if (verifySignature(message, signedMessage, transfer.nevmAddress!)) return true;
+    if (signedMessage.length > 2 && verifySignature(message, signedMessage, transfer.nevmAddress!)) return true;
   } catch { /* A smart wallet may use a contract signature envelope. */ }
   await chargeContractVerification();
   return verifyNevmContractSignature(transfer.nevmAddress!, message, signedMessage, chainId);
