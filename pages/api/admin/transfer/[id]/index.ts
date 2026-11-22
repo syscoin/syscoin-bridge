@@ -1,16 +1,34 @@
-import { Change } from "api/types/admin";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import adminSessionGuard from "utils/api/admin-session-guard";
-import { verifySignature } from "utils/api/verify-signature";
+import { authorizeAdminTransferAction, isAdminTransferId } from "utils/api/admin-authorization";
 import TransferModel from "models/transfer";
 import dbConnect from "lib/mongodb";
-import { ITransfer } from "@contexts/Transfer/types";
+import {
+  COMMON_STATUS,
+  ETH_TO_SYS_TRANSFER_STATUS,
+  ITransfer,
+  SYS_TO_ETH_TRANSFER_STATUS,
+  TransferStatus,
+} from "@contexts/Transfer/types";
 import mongoose from "mongoose";
 
-interface OverrideTransferRequestBody {
-  changes: Change[];
-  signedMessage: string;
-}
+const statusForDirection = (type: ITransfer["type"], status: string): status is TransferStatus =>
+  [
+    ...Object.values(COMMON_STATUS),
+    ...Object.values(type === "sys-to-nevm" ? SYS_TO_ETH_TRANSFER_STATUS : ETH_TO_SYS_TRANSFER_STATUS),
+    "switch",
+  ].includes(status);
+
+const parseStatusChange = (input: unknown) => {
+  if (!Array.isArray(input) || input.length !== 1) return;
+  const change = input[0];
+  if (
+    change?.property !== "status" ||
+    typeof change.from !== "string" || change.from.length > 64 ||
+    typeof change.to !== "string" || change.to.length > 64
+  ) return;
+  return { property: "status", from: change.from, to: change.to } as const;
+};
 
 const fetchTransfer = async (id: string, res: NextApiResponse) => {
   await dbConnect();
@@ -26,34 +44,23 @@ const fetchTransfer = async (id: string, res: NextApiResponse) => {
 
 const AdminTransfer: NextApiHandler = adminSessionGuard(
   async (req: NextApiRequest, res: NextApiResponse) => {
+    const { id } = req.query;
+    if (!isAdminTransferId(id)) {
+      return res.status(400).json({ message: "Invalid transfer ID" });
+    }
     if (req.method === "GET") {
-      return fetchTransfer(req.query.id as string, res);
+      return fetchTransfer(id, res);
     }
     if (req.method !== "POST") {
       return res.status(405).json({ message: "Method not allowed" });
     }
 
-    const { user } = req.session;
-    if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
+    const change = parseStatusChange(req.body?.changes);
+    if (!change) {
+      return res.status(400).json({ message: "Invalid transfer changes" });
     }
-
-    const { id } = req.query;
-
-    const { changes, signedMessage } = req.body as OverrideTransferRequestBody;
-
-    if (changes.length === 0) {
-      return res.status(400).json({ message: "No changes provided" });
-    }
-
-    const isVerified = verifySignature(
-      JSON.stringify(changes),
-      signedMessage,
-      user.address
-    );
-
-    if (!isVerified) {
-      return res.status(401).json({ success: false });
+    if (!(await authorizeAdminTransferAction(req, res, "override", id, { changes: [change] }))) {
+      return;
     }
 
     await dbConnect();
@@ -64,21 +71,17 @@ const AdminTransfer: NextApiHandler = adminSessionGuard(
       return res.status(404).json({ message: "Transfer not found" });
     }
 
-    changes.forEach((change) => {
-      const { property, from, to } = change;
-      const isSameType =
-        typeof transfer[property] !== "object" &&
-        typeof transfer[property] === typeof from &&
-        typeof transfer[property] === typeof to;
-      if (isSameType && transfer[property] === from) {
-        transfer[property] = to as never;
-        if (property === "status") {
-          // A signed administrator override explicitly resets public progress.
-          // Existing chain logs still prevent accidental repeat submissions.
-          transfer.set("progressStatus", undefined);
-        }
-      }
-    });
+    if (!statusForDirection(transfer.type, change.to)) {
+      return res.status(400).json({ message: "Invalid status for this transfer direction" });
+    }
+    if (transfer.status !== change.from) {
+      return res.status(409).json({ message: "Transfer status changed; refresh before retrying" });
+    }
+
+    transfer.status = change.to;
+    // A signed administrator override explicitly resets public progress.
+    // Existing chain logs still prevent accidental repeat submissions.
+    transfer.set("progressStatus", undefined);
 
     // Scalar-only saves do not increment __v by default. Invalidate any public
     // PATCH snapshot taken before this signed administrator override.

@@ -63,33 +63,12 @@ const MintSysx: React.FC<Props> = ({ successStatus }) => {
     });
   };
 
-  const onSignatureError = (error: unknown) => {
-    const updatedLogs: ITransferLog[] = [
-      ...transfer.logs,
-      {
-        date: Date.now(),
-        payload: {
-          data: {
-            error,
-          },
-          message: "Mint SYSX",
-        },
-        status: ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
-      },
-    ];
-    saveTransfer({
-      ...transfer,
-      logs: updatedLogs,
-    });
-  };
-
   const sign = () => {
     if (!transactionReceipt) {
       return;
     }
     mintSysx(transactionReceipt.transactionHash, {
       onSuccess: onSignatureSuccess,
-      onError: onSignatureError,
     });
   };
 

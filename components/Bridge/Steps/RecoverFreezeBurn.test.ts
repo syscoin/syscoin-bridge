@@ -75,6 +75,12 @@ describe("freeze controls while recovery is pending", () => {
     count = 1; earlierButton.props.onClick();
     expect(freeze).not.toHaveBeenCalled();
   });
+  it("retries signing without saving wallet errors as transfer progress", () => {
+    signError = true;
+    const element = freezeExports.TestFreeze({ successStatus: "confirm-freeze-burn-sys" });
+    element.props.children[0].props.action.props.onClick();
+    expect(freeze).toHaveBeenCalledWith(undefined, { onSuccess: expect.any(Function) });
+  });
 });
 
 describe("persisted error recovery routing", () => {
@@ -112,7 +118,7 @@ describe("persisted error recovery routing", () => {
       logs: [{ status: "mint-sysx", payload: { data: { tx: "b".repeat(64) } } }] };
     const element = switchExports.default({});
     expect(element.type).not.toBe(recover);
-    expect([...steps.values()]).not.toContain(element.type);
+    expect(Array.from(steps.values())).not.toContain(element.type);
     const html = renderToStaticMarkup(element);
     expect(html).toContain("cannot continue automatically");
     expect(html).not.toContain("<button"); expect(html).not.toContain("<input");

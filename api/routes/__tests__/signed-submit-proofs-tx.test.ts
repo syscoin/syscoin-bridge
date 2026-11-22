@@ -3,7 +3,9 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import {
   PROOF_BLOCK_PENDING_CODE,
   PROOF_BLOCK_RETRY_DELAY_MS,
+  PROOF_SPONSORSHIP_UNAVAILABLE_CODE,
 } from "utils/proof-submission";
+import { syscoinTxIdFromWitnessStrippedHex } from "utils/syscoin-txid";
 
 const mockGetBlock = jest.fn<any>();
 const mockGetBlockNumber = jest.fn<any>();
@@ -12,6 +14,8 @@ const mockRelayTx = jest.fn(() => ({ encodeABI: mockEncodeAbi }));
 const mockSponsorTransaction = jest.fn<any>();
 const mockGetTransfer = jest.fn<any>();
 const mockGetCanonicalProof = jest.fn<any>();
+const mockGetExistingProofSponsorship = jest.fn<any>();
+const mockAssertSponsoredProofBurn = jest.fn<any>();
 
 jest.mock("@constants", () => ({
   RELAY_CONTRACT_ADDRESS: "0x1111111111111111111111111111111111111111",
@@ -36,12 +40,15 @@ jest.mock("api/services/sponsor-wallet", () => {
     __esModule: true,
     default: jest.fn().mockImplementation(() => ({
       sponsorTransaction: mockSponsorTransaction,
+      getExistingProofSponsorship: mockGetExistingProofSponsorship,
     })),
     SponsorshipInProgressError,
     SponsorNonceRecoveryError,
   };
 });
 jest.mock("api/services/sponsor-proof", () => ({
+  ...jest.requireActual<typeof import("api/services/sponsor-proof")>("api/services/sponsor-proof"),
+  assertSponsoredProofBurn: mockAssertSponsoredProofBurn,
   getCanonicalProof: mockGetCanonicalProof,
 }));
 jest.mock("api/services/transfer", () => ({
@@ -73,23 +80,28 @@ const request = {
   method: "GET",
   query: { id: "transfer-1" },
 } as unknown as NextApiRequest;
+const sourceTxHash = syscoinTxIdFromWitnessStrippedHex("00");
 
 describe("signed proof submission", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.FOUNDATION_FUNDED = "true";
+    process.env.MINIMUM_AMOUNT = "100";
+    mockGetExistingProofSponsorship.mockResolvedValue(null);
+    mockAssertSponsoredProofBurn.mockReset();
     mockGetTransfer.mockResolvedValue({
       id: "transfer-1",
       version: "v2",
+      type: "sys-to-nevm",
       logs: [
         {
           status: "generate-proofs",
-          payload: { data: { nevm_blockhash: "proof-block-hash" } },
+          payload: { data: { nevm_blockhash: "proof-block-hash", transaction: "00" } },
         },
       ],
     });
     mockGetCanonicalProof.mockResolvedValue({
-      sourceTxHash: "source-burn-hash",
+      sourceTxHash,
       proof: {
         blockhash: "utxo-block-hash",
         coinbase: "coinbase",
@@ -109,6 +121,7 @@ describe("signed proof submission", () => {
 
   afterEach(() => {
     delete process.env.FOUNDATION_FUNDED;
+    delete process.env.MINIMUM_AMOUNT;
   });
 
   it("waits without reserving sponsorship when the proof block is the tip", async () => {
@@ -143,12 +156,48 @@ describe("signed proof submission", () => {
         value: 0,
       },
       "submit-proofs",
-      "source-burn-hash"
+      sourceTxHash
     );
     expect(response.status).toHaveBeenCalledWith(200);
     expect(response.json).toHaveBeenCalledWith({
       status: "pending",
       transaction: { hash: "0xsponsored", confirmedHash: "" },
     });
+  });
+
+  it("serves an existing sponsorship without loading the proof block or enforcing the new-signature minimum", async () => {
+    delete process.env.MINIMUM_AMOUNT;
+    mockGetExistingProofSponsorship.mockResolvedValue({
+      status: "success",
+      transaction: { hash: "0xexisting", confirmedHash: "0xexisting" },
+    });
+    const response = createResponse();
+
+    await handler(request, response);
+
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith({
+      status: "success",
+      transaction: { hash: "0xexisting", confirmedHash: "0xexisting" },
+    });
+    expect(mockGetCanonicalProof).not.toHaveBeenCalled();
+    expect(mockGetBlock).not.toHaveBeenCalled();
+    expect(mockGetBlockNumber).not.toHaveBeenCalled();
+    expect(mockSponsorTransaction).not.toHaveBeenCalled();
+  });
+
+  it("declines new sponsorship without a configured minimum", async () => {
+    delete process.env.MINIMUM_AMOUNT;
+    const response = createResponse();
+
+    await handler(request, response);
+
+    expect(response.status).toHaveBeenCalledWith(422);
+    expect(response.json).toHaveBeenCalledWith({
+      code: PROOF_SPONSORSHIP_UNAVAILABLE_CODE,
+      message: "Foundation proof sponsorship minimum is not configured",
+    });
+    expect(mockGetCanonicalProof).not.toHaveBeenCalled();
+    expect(mockSponsorTransaction).not.toHaveBeenCalled();
   });
 });

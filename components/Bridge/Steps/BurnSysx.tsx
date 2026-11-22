@@ -14,17 +14,16 @@ const isError = (error: unknown): error is Error => {
 
 type BurnSysProps = {
   successStatus: TransferStatus;
-  toNevm?: boolean;
 };
 
-const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
+const BurnSysx: React.FC<BurnSysProps> = ({ successStatus }) => {
   const { transfer, saveTransfer } = useTransfer();
   const {
     mutate: signBurnSys,
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
-  } = useBurnSysx(transfer, toNevm);
+  } = useBurnSysx(transfer);
 
   const onSignatureSuccess = (tx: string) => {
     const updatedLogs: ITransferLog[] = [
@@ -47,30 +46,9 @@ const BurnSysx: React.FC<BurnSysProps> = ({ successStatus, toNevm }) => {
     });
   };
 
-  const onSignatureError = (error: unknown) => {
-    const updatedLogs: ITransferLog[] = [
-      ...transfer.logs,
-      {
-        date: Date.now(),
-        payload: {
-          data: {
-            error,
-          },
-          message: "Burn SYSX failed",
-        },
-        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
-      },
-    ];
-    saveTransfer({
-      ...transfer,
-      logs: updatedLogs,
-    });
-  };
-
   const sign = () => {
     signBurnSys(undefined, {
       onSuccess: onSignatureSuccess,
-      onError: onSignatureError,
     });
   };
 

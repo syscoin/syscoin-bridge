@@ -74,6 +74,10 @@ const TransferSchema = new mongoose.Schema<Transfer>({
   },
 });
 
+for (const key of ["nevmAddress", "utxoAddress", "utxoXpub"] as const) {
+  TransferSchema.index({ [key]: 1, createdAt: -1, _id: -1 });
+}
+
 const generateModel = () => mongoose.model("Transfer", TransferSchema);
 
 let model: ReturnType<typeof generateModel> = mongoose.models.Transfer;

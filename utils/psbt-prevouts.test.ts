@@ -74,7 +74,7 @@ describe("attachPsbtPrevouts", () => {
     const psbt = createPsbt(previousTransaction);
     const rawTransactionHex = previousTransaction.toHex();
     const originalBuffer = global.Buffer;
-    global.Buffer = BrowserBuffer as typeof Buffer;
+    global.Buffer = BrowserBuffer as unknown as typeof Buffer;
 
     try {
       await expect(

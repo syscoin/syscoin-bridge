@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { COMMON_STATUS, ETH_TO_SYS_TRANSFER_STATUS } from "@contexts/Transfer/types";
 import TransferModel from "models/transfer";
+import TransferCreateQuota from "models/transfer-create-quota";
 import { getRequest, patchRequest } from "pages/api/transfer/[id]";
 
 const response = () => {
@@ -35,6 +36,8 @@ describe("transfer PATCH through the real service and Mongoose model", () => {
     let stored: any = null;
     // Only the MongoDB driver boundary is replaced; routing, validation, capability
     // checks, canonicalization, Mongoose casting and hydration remain real.
+    const charge = jest.spyOn(TransferCreateQuota, "updateOne")
+      .mockResolvedValue({ acknowledged: true, modifiedCount: 1, upsertedCount: 0, matchedCount: 1, upsertedId: null });
     const find = jest.spyOn(TransferModel.collection, "findOne")
       .mockImplementation((async () => stored && copy(stored)) as any);
     const insert = jest.spyOn(TransferModel.collection, "insertOne")
@@ -54,6 +57,7 @@ describe("transfer PATCH through the real service and Mongoose model", () => {
     await patchRequest(request(base), created);
     expect(created.status).toHaveBeenCalledWith(200);
     expect(insert).toHaveBeenCalledTimes(1);
+    expect(charge).toHaveBeenCalledTimes(1);
     const log = { status: COMMON_STATUS.ERROR, date: 2,
       payload: { message: "retry", data: { error: { message: "pending" } } } };
     const variants = [
@@ -77,6 +81,7 @@ describe("transfer PATCH through the real service and Mongoose model", () => {
       await patchRequest(request({ ...base, logs: [log] }), saved);
       expect(saved.status).toHaveBeenCalledWith(200);
       expect(update).toHaveBeenCalledTimes(1);
+      expect(charge).toHaveBeenCalledTimes(1);
       const read = response();
       await getRequest(request(null), read);
       expect(read.status).toHaveBeenCalledWith(200);

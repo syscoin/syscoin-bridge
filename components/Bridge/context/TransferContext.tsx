@@ -61,9 +61,15 @@ export const TransferContextProvider: React.FC<
     {
       queryFn: async (): Promise<ITransfer> => {
         const url = buildTransferPath(initialData.id);
-        const res = await fetch(url);
+        const writeToken = getTransferWriteToken(initialData.id);
+        const res = await fetch(url, {
+          cache: "no-store",
+          credentials: "same-origin",
+          redirect: "error",
+          headers: writeToken ? { Authorization: `Bearer ${writeToken}` } : {},
+        });
         const jsonData = await res.json();
-        if (isTransfer(jsonData)) {
+        if (res.ok && isTransfer(jsonData) && jsonData.id === initialData.id) {
           return jsonData;
         }
         throw new Error("Invalid transfer");
@@ -91,6 +97,8 @@ export const TransferContextProvider: React.FC<
           : undefined);
       const res = await fetch(url, {
         method: "PATCH",
+        credentials: "same-origin",
+        redirect: "error",
         body: JSON.stringify(updatedTransfer),
         headers: {
           "Content-Type": "application/json",
@@ -100,7 +108,7 @@ export const TransferContextProvider: React.FC<
         },
       });
       const jsonData = await res.json();
-      if (isTransfer(jsonData)) {
+      if (res.ok && isTransfer(jsonData) && jsonData.id === initialData.id) {
         return jsonData;
       }
       throw new Error(

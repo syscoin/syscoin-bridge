@@ -69,4 +69,16 @@ describe("mixed-owner sponsored PSBT signing", () => {
       service.signPreparedUtxo(psbt, sponsor.toWIF())
     ).rejects.toThrow("invalid signature");
   });
+
+  it("checks the user's signatures before signing the funding input", () => {
+    const { psbt } = makePartiallySignedPsbt();
+    const sponsorKey = `${"04".repeat(32)}:1`;
+    const service = new SponsorWalletService() as any;
+    expect(() => service.validatePreparedUserSignatures(psbt, sponsorKey)).not.toThrow();
+
+    const witness = Buffer.from(psbt.data.inputs[0].finalScriptWitness!);
+    witness[witness.length - 1] ^= 1;
+    psbt.data.inputs[0].finalScriptWitness = witness;
+    expect(() => service.validatePreparedUserSignatures(psbt, sponsorKey)).toThrow("invalid user signature");
+  });
 });

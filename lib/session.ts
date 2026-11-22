@@ -12,6 +12,11 @@ export interface SessionUser {
   name: string;
 }
 
+export interface AdminSession extends SessionUser {
+  adminId: string;
+  sessionId: string;
+}
+
 const cookieDomain = process.env.ADMIN_COOKIE_DOMAIN?.trim();
 
 export const sessionOptions: IronSessionOptions = {
@@ -42,6 +47,6 @@ export function withSessionSsr<
 // This is where we specify the typings of req.session.*
 declare module "iron-session" {
   interface IronSessionData {
-    user?: SessionUser;
+    user?: AdminSession;
   }
 }

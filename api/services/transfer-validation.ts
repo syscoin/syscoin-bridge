@@ -2,10 +2,12 @@ import {
   COMMON_STATUS,
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
+  ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
+import { isErrorLog } from "utils/transfer-progress";
 import { isValidUtxoAccount } from "utils/utxo-account";
 import { isAddress } from "web3-utils";
 
@@ -177,4 +179,29 @@ export const assertTransferIdentityUnchanged = (
       usesSysx(transfer) === usesSysx(existing),
     "Transfer route, accounts, asset and amount cannot be changed"
   );
+};
+
+/** Keep old histories readable while bounding new diagnostics and chain evidence. */
+export const assertNewTransferLogs = (
+  logs: ITransferLog[],
+  existing: ITransferLog[]
+): void => {
+  const added = logs.slice(existing.length);
+  assertValid(added.length <= 4, "Too many logs added in one update");
+  const chainPhase = (log: ITransferLog) =>
+    log.status + (log.payload.data.txid ? ":confirmed" : "");
+  const recorded = new Set(existing.filter((log) => !isErrorLog(log)).map(chainPhase));
+  let diagnostics = existing.filter(isErrorLog).length;
+  for (const log of added) {
+    assertValid(Buffer.byteLength(log.payload.message) <= 1024, "Transfer log message is too large");
+    if (isErrorLog(log)) {
+      assertValid(++diagnostics <= 16, "Too many transfer diagnostics");
+      assertValid(Buffer.byteLength(JSON.stringify(log.payload.data)) <= 4096,
+        "Transfer diagnostic is too large");
+      continue;
+    }
+    const key = chainPhase(log);
+    assertValid(!recorded.has(key), "Transfer evidence already exists for this step");
+    recorded.add(key);
+  }
 };

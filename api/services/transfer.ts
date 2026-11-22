@@ -2,13 +2,16 @@ import {
   COMMON_STATUS,
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
+  ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import TransferModel from "models/transfer";
+import { isValidUtxoAccount } from "utils/utxo-account";
 import { createHash, timingSafeEqual } from "crypto";
 import { SponsorWalletService } from "./sponsor-wallet";
 import {
   assertNewTransfer,
+  assertNewTransferLogs,
   assertTransferIdentityUnchanged,
   assertValidTransferPayload,
   TransferValidationError,
@@ -16,7 +19,7 @@ import {
 import { assertTransferCompleted } from "./transfer-completion";
 import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
 import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
-import { continueNevmTransferAfterError, knownTransferProgressStatus } from "utils/transfer-progress";
+import { continueNevmTransferAfterError, isErrorLog, knownTransferProgressStatus } from "utils/transfer-progress";
 
 export class TransferWriteUnauthorizedError extends Error {
   constructor() {
@@ -87,7 +90,14 @@ const toTransferUpdate = (transfer: ITransfer) => ({
   updatedAt: Date.now(),
 });
 
-const toPublicTransfer = (transfer: unknown): ITransfer => {
+export const TRANSFER_HISTORY_PAGE_SIZE = 50;
+export const MAX_TRANSFER_HISTORY_PAGE = 100;
+
+const projectTransfer = (transfer: unknown, options: {
+  privateAccount?: boolean;
+  diagnostics?: boolean;
+  summary?: boolean;
+} = {}): ITransfer => {
   const source =
     typeof transfer === "object" &&
     transfer !== null &&
@@ -95,6 +105,8 @@ const toPublicTransfer = (transfer: unknown): ITransfer => {
     typeof transfer.toObject === "function"
       ? transfer.toObject()
       : { ...(transfer as Record<string, unknown>) };
+  const logs: ITransferLog[] = Array.isArray(source.logs) ? source.logs : [];
+  source.logs = logs;
   // Only persisted server data may supply the hidden progress checkpoint.
   const checkpoint = knownTransferProgressStatus(source as ITransfer, source.progressStatus);
   const continuation = continueNevmTransferAfterError(source as ITransfer, checkpoint);
@@ -106,6 +118,24 @@ const toPublicTransfer = (transfer: unknown): ITransfer => {
   delete source.writeTokenHash;
   delete source.progressStatus;
   delete source.__v;
+  if (!options.privateAccount) delete source.utxoXpub;
+  if (options.summary) {
+    source.logs = [];
+  } else if (!options.diagnostics) {
+    source.logs = logs.map((log) => {
+      // Free-form history text can contain provider URLs and wallet metadata.
+      const error = isErrorLog(log);
+      return {
+        status: log.status,
+        date: log.date,
+        payload: {
+          message: error ? "Transfer action failed" : "Transfer progress",
+          data: error ? { error: "Transfer action failed" } : log.payload.data,
+          previousStatus: log.payload.previousStatus,
+        },
+      };
+    });
+  }
   return { ...source, status: continuation.status } as ITransfer;
 };
 
@@ -113,7 +143,7 @@ export class TransferService {
   private sponsorWalletService = new SponsorWalletService();
   constructor() {}
 
-  async getAll(params: Partial<ITransfer>): Promise<ITransfer[]> {
+  async getAll(params: Partial<ITransfer>, page = 1): Promise<ITransfer[]> {
     const filters: (keyof ITransfer)[] = [
       "nevmAddress",
       "utxoAddress",
@@ -125,23 +155,33 @@ export class TransferService {
       }
       return acc;
     }, [] as Record<string, string>[]);
+    if (!queryConstraints.length) return [];
     const transfers = await TransferModel.find({
       $or: queryConstraints,
-    }).select("+progressStatus").sort({ createdAt: -1 });
-    return transfers.map(toPublicTransfer);
+      ...(params.version ? { version: params.version } : {}),
+    }).select("-logs -utxoXpub +progressStatus")
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((page - 1) * TRANSFER_HISTORY_PAGE_SIZE)
+      .limit(TRANSFER_HISTORY_PAGE_SIZE + 1)
+      .maxTimeMS(2500);
+    return transfers.map((transfer) => projectTransfer(transfer, { summary: true }));
   }
 
-  async getTransfer(id: string): Promise<ITransfer> {
+  async getTransfer(id: string, writeTokens?: WriteTokenCandidates): Promise<ITransfer> {
     if (typeof id !== "string" || id.trim().length === 0) {
       throw new TransferValidationError("Invalid transfer ID");
     }
-    const transfer = await TransferModel.findOne({ id: { $eq: id } }).select("+progressStatus");
+    const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
+      writeTokens?.length ? "+progressStatus +writeTokenHash" : "+progressStatus"
+    );
 
     if (!transfer) {
       throw new TransferNotFoundError();
     }
 
-    return toPublicTransfer(transfer);
+    const diagnostics = Boolean(writeTokens?.length && transfer.writeTokenHash &&
+      findMatchingWriteToken(writeTokens, transfer.writeTokenHash));
+    return projectTransfer(transfer, { diagnostics });
   }
 
   async getAuthorizedTransfer(
@@ -160,7 +200,7 @@ export class TransferService {
       throw new TransferWriteUnauthorizedError();
     }
 
-    const authorized = toPublicTransfer(transfer);
+    const authorized = projectTransfer(transfer, { privateAccount: true, diagnostics: true });
     // Older stored rows predate payload validation. Do not forward malformed
     // accounts or transaction references to sponsored transaction builders.
     assertValidTransferPayload(authorized);
@@ -196,7 +236,7 @@ export class TransferService {
     const recoverable = new Set<string>([ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
       ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, COMMON_STATUS.ERROR]);
     if (sourceLogs.length && receiptLogs.length && !recoverable.has(existing.status)) {
-      return existing;
+      return projectTransfer(existing, { diagnostics: true });
     }
     if (!recoverable.has(existing.status)) {
       throw new TransferWriteConflictError();
@@ -218,37 +258,30 @@ export class TransferService {
     return result.transfer;
   }
 
-  private async updateSponsorStatuses(transfer: ITransfer): Promise<void> {
-    const submitProofsTxLog = transfer.logs.find(
-      (log) => log.status === "submit-proofs"
-    );
-    if (submitProofsTxLog) {
-      const { hash } = submitProofsTxLog.payload.data;
-      if (hash) {
-        await this.sponsorWalletService.updateSponsorWalletTransactionStatus(
-          hash
-        );
+  private async updateSponsorStatuses(logs: ITransferLog[]): Promise<void> {
+    const nevmHashes = new Set<string>();
+    const utxoHashes = new Set<string>();
+    for (const { status, payload: { data } } of logs) {
+      if (status === SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS && data.hash) {
+        nevmHashes.add(data.hash.toLowerCase());
+      }
+      if ((status === ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX ||
+        status === SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX) && data.tx) {
+        utxoHashes.add(data.tx.toLowerCase());
       }
     }
-    const sponsoredUtxoLogs = transfer.logs.filter(
-      (log) =>
-        log.status === ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX ||
-        log.status === ETH_TO_SYS_TRANSFER_STATUS.BURN_SYSX ||
-        log.status === SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX
-    );
-    for (const log of sponsoredUtxoLogs) {
-      const { tx } = log.payload.data;
-      if (tx) {
-        await this.sponsorWalletService.updateUtxoSponsorWalletTransactionStatus(
-          tx
-        );
-      }
+    for (const hash of Array.from(nevmHashes)) {
+      await this.sponsorWalletService.updateSponsorWalletTransactionStatus(hash);
+    }
+    for (const hash of Array.from(utxoHashes)) {
+      await this.sponsorWalletService.updateUtxoSponsorWalletTransactionStatus(hash);
     }
   }
 
   async upsertTransfer(
     transfer: ITransfer,
-    writeTokens?: WriteTokenCandidates
+    writeTokens?: WriteTokenCandidates,
+    chargeCreation?: () => Promise<void>
   ): Promise<TransferWriteResult> {
     assertValidTransferPayload(transfer);
     const existing = await TransferModel.findOne({ id: transfer.id }).select(
@@ -261,6 +294,7 @@ export class TransferService {
         throw new TransferWriteUnauthorizedError();
       }
       assertNewTransfer(transfer);
+      await chargeCreation?.();
       const created = await TransferModel.create({
         ...toTransferUpdate(transfer),
         id: transfer.id,
@@ -270,7 +304,7 @@ export class TransferService {
         progressStatus: transfer.status,
       });
 
-      return { transfer: toPublicTransfer(created), writeToken };
+      return { transfer: projectTransfer(created, { diagnostics: true }), writeToken };
     }
 
     const writeToken = existing.writeTokenHash
@@ -287,15 +321,25 @@ export class TransferService {
       throw new TransferWriteConflictError();
     }
 
+    // Public responses never include the account xpub. Restore the stored
+    // account after authenticating the writer, and validate supplied values.
+    if (transfer.utxoXpub === undefined && existing.utxoXpub !== undefined) {
+      if (existing.utxoXpub && !isValidUtxoAccount(existing.utxoXpub)) {
+        throw new TransferValidationError("Invalid stored UTXO account");
+      }
+      transfer = { ...transfer, utxoXpub: existing.utxoXpub };
+    }
     assertTransferIdentityUnchanged(transfer, existing as unknown as ITransfer);
     const priorProgress = {
-      ...toPublicTransfer(existing), status: existing.progressStatus ?? existing.status,
+      ...projectTransfer(existing, { privateAccount: true, diagnostics: true }),
+      status: existing.progressStatus ?? existing.status,
     } as ITransfer;
+    assertNewTransferLogs(transfer.logs, priorProgress.logs);
     transfer = await canonicalizeTransferProgress(transfer, priorProgress);
     if (transfer.status === COMMON_STATUS.COMPLETED) {
       await assertTransferCompleted(transfer);
     }
-    await this.updateSponsorStatuses(transfer);
+    await this.updateSponsorStatuses(transfer.logs);
     const updatedTransfer = await TransferModel.findOneAndUpdate(
       {
         id: transfer.id,
@@ -310,6 +354,6 @@ export class TransferService {
       throw new TransferWriteConflictError();
     }
 
-    return { transfer: toPublicTransfer(updatedTransfer), writeToken };
+    return { transfer: projectTransfer(updatedTransfer, { diagnostics: true }), writeToken };
   }
 }

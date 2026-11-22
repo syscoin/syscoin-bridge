@@ -1,47 +1,63 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { Alert, Typography } from "@mui/material";
+import { Alert, Box, Button, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import axios from "axios";
 import NextLink from "next/link";
+import { useState } from "react";
 import { useQuery } from "react-query";
 import { TRANSFER_COLUMNS } from "./columns";
-import { buildApiUrl } from "utils/api-base-url";
 
 type TransferDataGridProps = {
-  xpub?: string;
-  account?: string;
+  nevm?: string;
+  utxoAddress?: string;
+  utxoXpub?: string;
   isFullyConnected: boolean;
   items: ITransfer[];
   version?: string;
-  bridgeVersion?: string;
 };
+
+const TRANSFERS_PER_PAGE = 50;
+const MAX_HISTORY_PAGE = 100;
+
 const TransferDataGrid: React.FC<TransferDataGridProps> = ({
-  account,
-  xpub,
+  nevm,
+  utxoAddress,
+  utxoXpub,
   isFullyConnected,
   items,
   version,
-  bridgeVersion,
 }) => {
-  const { data, isFetched, isLoading, error } = useQuery(
-    "transfers",
-    () => {
-      const searchParams = new URLSearchParams();
-      if (xpub) {
-        searchParams.set("utxo", xpub);
+  const [page, setPage] = useState(1);
+  const canLoadHistory =
+    isFullyConnected && Boolean(nevm || utxoAddress || utxoXpub);
+  const { data, isFetching, error } = useQuery(
+    ["transfer-history", nevm, utxoAddress, Boolean(utxoXpub), version, page],
+    async ({ signal }) => {
+      const response = await fetch("/api/transfer", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nevm, utxoAddress, utxoXpub, version, page }),
+        signal,
+      });
+      if (!response.ok) {
+        throw new Error("Unable to load transfer history");
       }
-      if (account) {
-        searchParams.set("nevm", account);
+
+      const transfers: ITransfer[] = await response.json();
+      if (!Array.isArray(transfers)) {
+        throw new Error("Invalid transfer history");
       }
-      if (version) {
-        searchParams.set("version", version);
-      }
-      return axios(
-        buildApiUrl(`/api/transfer?${searchParams.toString()}`)
-      );
+      return {
+        transfers,
+        hasMore: response.headers.get("X-Bridge-Has-More") === "1",
+      };
     },
-    { enabled: isFullyConnected }
+    { enabled: canLoadHistory, keepPreviousData: true }
   );
+  const remoteHistory = canLoadHistory && !error ? data : undefined;
+
   return (
     <>
       {error && (
@@ -51,7 +67,7 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
         </Alert>
       )}
       <DataGrid
-        loading={isLoading}
+        loading={isFetching}
         columns={[
           {
             field: "id",
@@ -71,11 +87,30 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
           },
           ...TRANSFER_COLUMNS,
         ]}
-        rows={isFetched ? data?.data ?? items : []}
+        rows={remoteHistory?.transfers ?? items}
+        pageSize={TRANSFERS_PER_PAGE}
+        rowsPerPageOptions={[TRANSFERS_PER_PAGE]}
+        hideFooter={Boolean(remoteHistory)}
         sx={{ background: "white", mb: 2 }}
         autoHeight
         error={undefined}
       />
+      {canLoadHistory && (page > 1 || remoteHistory?.hasMore) && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+          <Button disabled={page === 1} onClick={() => setPage(page - 1)}>
+            Previous
+          </Button>
+          <Typography variant="body2">Page {page}</Typography>
+          <Button
+            disabled={
+              isFetching || page >= MAX_HISTORY_PAGE || !remoteHistory?.hasMore
+            }
+            onClick={() => setPage(page + 1)}
+          >
+            Next
+          </Button>
+        </Box>
+      )}
     </>
   );
 };

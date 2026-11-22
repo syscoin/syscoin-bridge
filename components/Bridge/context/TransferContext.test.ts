@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { readFileSync } from "fs";
 import { join } from "path";
 import React from "react";
@@ -8,12 +8,14 @@ import ts from "typescript";
 const mockSave = jest.fn<(transfer: { logs: unknown[] }, options: { onSettled: () => void }) => void>();
 const mockSetRetrying = jest.fn<any>();
 const mockRefetch = jest.fn<any>();
+const mockGetWriteToken = jest.fn<(id: string) => string | undefined>();
 const mockSetQueryData = jest.fn<any>((_key: unknown, transfer: unknown) => {
   cachedTransfer = transfer;
 });
 let retrying = false;
 let mutation: Record<string, unknown>;
 let mutationOptions: any;
+let loadTransfer: () => Promise<unknown>;
 let cachedTransfer: unknown;
 const persisted = { id: "transfer-1", status: "finalizing", logs: [] };
 const pending = { ...persisted, status: "completed", logs: [{ transactionHash: "confirmed" }] };
@@ -39,7 +41,10 @@ const componentExports: Record<string, any> = {};
 const testRequire = (name: string): unknown => {
   if (name === "react") return { ...React, useState: () => [retrying, mockSetRetrying] };
   if (name === "react-query") return {
-    useQuery: () => ({ data: cachedTransfer, refetch: mockRefetch }),
+    useQuery: (_key: unknown, options: { queryFn: typeof loadTransfer }) => {
+      loadTransfer = options.queryFn;
+      return { data: cachedTransfer, refetch: mockRefetch };
+    },
     useQueryClient: () => ({ setQueryData: mockSetQueryData }),
     useMutation: (_key: unknown, _mutationFn: unknown, options: unknown) => {
       mutationOptions = options;
@@ -49,6 +54,9 @@ const testRequire = (name: string): unknown => {
   if (name === "@mui/material") return {
     Alert: ({ children, action }: any) => React.createElement("section", { role: "alert" }, children, action),
     Button: ({ children, disabled }: any) => React.createElement("button", { disabled }, children),
+  };
+  if (name === "utils/transfer-write-token") return {
+    getTransferWriteToken: mockGetWriteToken,
   };
   return require(name);
 };
@@ -66,6 +74,29 @@ describe("transfer save recovery", () => {
     cachedTransfer = persisted;
     mockRefetch.mockResolvedValue({ data: persisted, isError: false });
     mutation = { isLoading: false, isError: false, variables: undefined };
+  });
+  afterEach(() => { jest.restoreAllMocks(); });
+
+  it("resumes from a private capability without requiring an xpub in the detail response", async () => {
+    mockGetWriteToken.mockReturnValue("original-capability");
+    const savedTransfer = {
+      ...persisted,
+      utxoAddress: "syscoin-address",
+      nevmAddress: "nevm-address",
+      amount: "0.5",
+    };
+    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(savedTransfer))
+    );
+    renderProvider();
+
+    await expect(loadTransfer()).resolves.toEqual(savedTransfer);
+    expect(fetchMock).toHaveBeenCalledWith(`/api/transfer/${persisted.id}`, {
+      cache: "no-store",
+      credentials: "same-origin",
+      redirect: "error",
+      headers: { Authorization: "Bearer original-capability" },
+    });
   });
 
   it("renders the existing persisted step normally", () => {

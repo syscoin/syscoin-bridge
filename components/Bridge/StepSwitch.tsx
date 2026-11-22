@@ -79,7 +79,6 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
       return (
         <BridgeStepBurnSysx
           successStatus={ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_BURN_SYSX}
-          toNevm={false}
         />
       );
     } else if (
@@ -126,7 +125,6 @@ const BridgeStepSwitch: React.FC<BridgeStepSwitchProps> = ({
     return (
       <BridgeStepBurnSysx
         successStatus={SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYSX}
-        toNevm={true}
       />
     );
   } else if (transfer.status === SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYSX) {

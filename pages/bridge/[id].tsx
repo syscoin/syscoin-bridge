@@ -1,7 +1,9 @@
 import ConnectedWalletProvider from "@contexts/ConnectedWallet/Provider";
 import {
   COMMON_STATUS,
+  ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
+  SYS_TO_ETH_TRANSFER_STATUS,
   TransferType,
 } from "@contexts/Transfer/types";
 import {
@@ -58,6 +60,34 @@ const NewTransferButton = () => {
   }
 
   return <BridgeNewTransferButton />;
+};
+
+const signingStatuses = new Set<ITransfer["status"]>([
+  SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+  SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
+  SYS_TO_ETH_TRANSFER_STATUS.SUBMIT_PROOFS,
+  ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
+  ETH_TO_SYS_TRANSFER_STATUS.MINT_SYSX,
+]);
+
+const TransferDestination = () => {
+  const { transfer } = useTransfer();
+  if (!signingStatuses.has(transfer.status)) return null;
+
+  const toNevm = transfer.type === "sys-to-nevm";
+  const destination = toNevm ? transfer.nevmAddress : transfer.utxoAddress;
+  if (!destination) return null;
+
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography variant="caption">
+        {toNevm ? "Syscoin NEVM destination" : "Syscoin UTXO destination"}
+      </Typography>
+      <Typography variant="body2" sx={{ overflowWrap: "anywhere" }}>
+        {destination}
+      </Typography>
+    </Box>
+  );
 };
 
 const createTransfer = (
@@ -180,11 +210,14 @@ const BridgePage: NextPage = () => {
                   {isLoadingDraft ? (
                     <BridgeLoading />
                   ) : (
-                    <BridgeStepSwitch
-                      onConnectValidateDraftChange={
-                        handleConnectValidateDraftChange
-                      }
-                    />
+                    <>
+                      <TransferDestination />
+                      <BridgeStepSwitch
+                        onConnectValidateDraftChange={
+                          handleConnectValidateDraftChange
+                        }
+                      />
+                    </>
                   )}
                   <BridgeSavingIndicator />
                 </CardContent>

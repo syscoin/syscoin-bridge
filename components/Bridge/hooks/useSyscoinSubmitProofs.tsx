@@ -4,9 +4,15 @@ import { buildApiUrl } from "utils/api-base-url";
 import {
   ProofBlockPendingError,
   PROOF_BLOCK_PENDING_CODE,
+  ProofSponsorshipUnavailableError,
+  PROOF_SPONSORSHIP_UNAVAILABLE_CODE,
   isProofBlockPendingError,
   retryPendingProof,
 } from "utils/proof-submission";
+import {
+  TransferSigningIntentError,
+  verifyTransferSigningIntent,
+} from "../transfer-signing-intent";
 
 const useSyscoinSubmitProofs = (
   transfer: ITransfer,
@@ -17,22 +23,25 @@ const useSyscoinSubmitProofs = (
     async () => {
       const sponsorWalletTransaction: {
         transaction: { hash: string };
-      } = await retryPendingProof(() =>
-        fetch(
+      } = await retryPendingProof(async () => {
+        await verifyTransferSigningIntent(transfer);
+        const res = await fetch(
           buildApiUrl(
             `/api/transfer/${encodeURIComponent(transfer.id)}/signed-submit-proofs-tx`
           )
-        ).then(async (res) => {
-          if (res.ok) {
-            return res.json();
-          }
-          const error = await res.json();
-          if (error.code === PROOF_BLOCK_PENDING_CODE) {
-            throw new ProofBlockPendingError(error.message, error.retryAfterMs);
-          }
-          throw new Error(error.message ?? "Proof submission failed");
-        })
-      );
+        );
+        if (res.ok) {
+          return res.json();
+        }
+        const error = await res.json();
+        if (error.code === PROOF_BLOCK_PENDING_CODE) {
+          throw new ProofBlockPendingError(error.message, error.retryAfterMs);
+        }
+        if (error.code === PROOF_SPONSORSHIP_UNAVAILABLE_CODE) {
+          throw new ProofSponsorshipUnavailableError(error.message);
+        }
+        throw new Error(error.message ?? "Proof submission failed");
+      });
 
       // The backend durably stores and broadcasts the signed transaction before
       // returning. The browser only observes the accepted transaction hash.
@@ -41,7 +50,10 @@ const useSyscoinSubmitProofs = (
     {
       onSuccess,
       retry: (failureCount, error) =>
-        !isProofBlockPendingError(error) && failureCount < 3,
+        !(error instanceof TransferSigningIntentError) &&
+        !(error instanceof ProofSponsorshipUnavailableError) &&
+        !isProofBlockPendingError(error) &&
+        failureCount < 3,
     }
   );
 };

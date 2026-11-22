@@ -7,6 +7,7 @@ import { useConstants } from "@contexts/useConstants";
 import { useFeatureFlags } from "./useFeatureFlags";
 import { requestSponsoredUtxo } from "./sponsored-utxo";
 import { exportPsbtWithPrevouts } from "utils/psbt-prevouts";
+import { verifyTransferSigningIntent } from "../transfer-signing-intent";
 
 export const useMintSysx = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
@@ -16,6 +17,7 @@ export const useMintSysx = (transfer: ITransfer) => {
   return useMutation(
     ["mintSysx", transfer.id],
     async (transactionHash: string) => {
+      const intent = await verifyTransferSigningIntent(transfer);
       if (isEnabled("foundationFundingAvailable")) {
         const sponsored = await requestSponsoredUtxo(transfer.id, "mint");
         if (sponsored.sponsored) {
@@ -26,6 +28,9 @@ export const useMintSysx = (transfer: ITransfer) => {
         }
       }
 
+      if (!intent.utxoXpub) {
+        throw new Error("UTXO account information is missing");
+      }
       const feeRate = new utils.BN(10);
       const txOpts = { rbf: true };
       const assetOpts = {
@@ -38,9 +43,9 @@ export const useMintSysx = (transfer: ITransfer) => {
         assetOpts,
         txOpts,
         assetMap,
-        transfer.utxoAddress,
+        intent.utxoAddress,
         feeRate,
-        transfer.utxoXpub
+        intent.utxoXpub
       );
 
       if (!res) {
@@ -48,6 +53,7 @@ export const useMintSysx = (transfer: ITransfer) => {
       }
 
       const psbt = await exportPsbtWithPrevouts(res.psbt, res.assets);
+      await verifyTransferSigningIntent(intent);
       const { tx, error } = await sendTransaction(psbt);
 
       if (error) {

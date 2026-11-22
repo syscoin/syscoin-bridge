@@ -20,6 +20,14 @@ const TransfersPage: NextPage = () => {
   const isFullyConnected = onlyV2
     ? isPaliV2Connected
     : Boolean(utxo.account && nevm.account);
+  const historyVersion = onlyV2 ? version : undefined;
+  const historyKey = JSON.stringify([
+    nevm.account,
+    utxo.account,
+    Boolean(utxo.xpub),
+    historyVersion,
+    isFullyConnected,
+  ]);
 
   useEffect(() => {
     if (!localStorage) {
@@ -35,12 +43,13 @@ const TransfersPage: NextPage = () => {
         <BridgeNewTransferButton sx={{ ml: "auto" }} />
       </Box>
       <TransferDataGrid
-        account={nevm.account}
+        key={historyKey}
+        nevm={nevm.account}
         isFullyConnected={isFullyConnected}
         items={items}
-        xpub={utxo.xpub}
-        version={onlyV2 ? version : undefined}
-        bridgeVersion="v3"
+        utxoAddress={utxo.account}
+        utxoXpub={utxo.xpub}
+        version={historyVersion}
       />
       {!isFullyConnected && (
         <Alert severity="info" sx={{ mb: 2 }}>

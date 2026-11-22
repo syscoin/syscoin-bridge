@@ -1,3 +1,4 @@
+import { describe, expect, it, jest } from "@jest/globals";
 import { createQueuedAccountChangeHandler } from "./account-change-queue";
 
 describe("createQueuedAccountChangeHandler", () => {
@@ -7,7 +8,7 @@ describe("createQueuedAccountChangeHandler", () => {
       releaseFirstRefresh = resolve;
     });
     const refresh = jest
-      .fn<Promise<void>, []>()
+      .fn<() => Promise<void>>()
       .mockImplementationOnce(() => firstRefresh)
       .mockResolvedValueOnce(undefined);
     const handleAccountChange = createQueuedAccountChangeHandler(refresh);
@@ -25,7 +26,7 @@ describe("createQueuedAccountChangeHandler", () => {
   });
 
   it("runs a later non-overlapping notification normally", async () => {
-    const refresh = jest.fn<Promise<void>, []>().mockResolvedValue(undefined);
+    const refresh = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
     const handleAccountChange = createQueuedAccountChangeHandler(refresh);
 
     await handleAccountChange();

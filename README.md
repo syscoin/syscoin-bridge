@@ -201,7 +201,9 @@ so Compose never offers to recreate an existing Mongo data volume.
 | `MONGO_CONFIG_VOLUME`           | Existing external Mongo `/data/configdb` volume name |         |
 | `MONGO_BACKUP_VOLUME`           | Existing environment-specific external Docker volume for Mongo backups |         |
 | `CONFIRM_TRANSACTION_TIMEOUTS`  | Transaction confirmation timeout               |         |
-| `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer              | 100     |
+| `MINIMUM_AMOUNT`                | Minimum SYSX burned for foundation-sponsored proof submission | 100 |
+| `TRANSFER_CREATE_LIMIT`        | New transfers allowed per client in 10 minutes, or per wallet pair behind a private proxy without a trusted client address | 120 |
+| `TRANSFER_TRUST_CLOUDFLARE`    | Use the Cloudflare client address for creation quotas only behind trusted, header-sanitizing ingress | false |
 | `ADMIN_API_KEY`                 | Admin API Key                                  |         |
 | `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password                         |         |
 | `ADMIN_COOKIE_DOMAIN`           | Optional domain for admin session cookie       |         |

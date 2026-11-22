@@ -149,7 +149,7 @@ describe("client transfer validation", () => {
         receipt: { logs: [{ topics: ["topic"], data: "0x", removed: false }], to: null },
         error: { message: "Retry", code: -1, data: { reason: "pending" } },
       } },
-    }] } as ITransfer)).not.toThrow();
+    }] } as unknown as ITransfer)).not.toThrow();
   });
 
   it("rejects fabricated completed records and logs on creation", () => {

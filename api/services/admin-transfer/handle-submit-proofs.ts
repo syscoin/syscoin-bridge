@@ -1,7 +1,6 @@
 import { AddSubmitProofsLogRequestPayload } from "api/types/admin/transfer/add-log";
 import dbConnect from "lib/mongodb";
-import { NextApiRequest, NextApiResponse } from "next";
-import { verifySignature } from "utils/api/verify-signature";
+import { NextApiResponse } from "next";
 import TransferModel from "models/transfer";
 import Web3 from "web3";
 import { RELAY_CONTRACT_ADDRESS } from "@constants";
@@ -15,30 +14,18 @@ import { validateTransactionReceipt } from "./validate-relay-contract-receipt";
 export const handleSubmitProofs = async (
   transferId: string,
   payload: AddSubmitProofsLogRequestPayload,
-  req: NextApiRequest,
   res: NextApiResponse
 ) => {
   await dbConnect();
   const web3 = new Web3(process.env.NEVM_RPC_URL!);
 
-  const { address } = req.session.user!;
 
   const transfer = await TransferModel.findOne({ id: transferId });
   if (!transfer) {
     return res.status(404).json({ message: "Transfer not found" });
   }
 
-  const { clearAll, signedMessage, txHash, operation } = payload;
-
-  const data = {
-    operation,
-    txHash,
-    clearAll,
-  };
-  const message = JSON.stringify(data);
-  if (!verifySignature(message, signedMessage, address)) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
+  const { txHash, clearAll } = payload;
 
   try {
     const receipt = await validateTransactionReceipt(

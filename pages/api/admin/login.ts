@@ -1,14 +1,19 @@
-import { ADMIN_LOGIN_MESSAGE } from "@constants";
 import { withSessionRoute } from "lib/session";
 import { NextApiHandler } from "next";
 import dbConnect from "lib/mongodb";
-import AdminModel from "models/admin";
-import { verifySignature } from "utils/api/verify-signature";
 import { applyApiCors } from "utils/api/cors";
-import { normalizeAdminAddress } from "api/services/admin";
+import { AdminService, normalizeAdminAddress } from "api/services/admin";
+import {
+  consumeAdminAuthorization,
+  getAdminOrigin,
+  issueAdminAuthorization,
+} from "utils/api/admin-authorization";
+
+const admins = new AdminService();
 
 export const adminLoginRequest: NextApiHandler = async (req, res) => {
-  if (applyApiCors(req, res, { allowCredentials: true })) {
+  res.setHeader("Cache-Control", "private, no-store");
+  if (applyApiCors(req, res, { allowCredentials: true, allowMethods: ["POST"] })) {
     return;
   }
 
@@ -16,35 +21,20 @@ export const adminLoginRequest: NextApiHandler = async (req, res) => {
     return res.status(405).json({ message: "Method not allowed" });
   }
 
-  const { address, signedMessage } = req.body ?? {};
-  if (typeof address !== "string" || typeof signedMessage !== "string") {
+  const origin = getAdminOrigin(req);
+  if (!origin) return res.status(403).json({ message: "Origin required" });
+
+  const { address, challenge, signedMessage } = req.body ?? {};
+  if (typeof address !== "string" || !/^0x[\da-f]{40}$/i.test(address.trim())) {
     return res.status(400).json({
       success: false,
-      message: "Wallet address and signature are required",
+      message: "A valid wallet address is required",
     });
   }
 
   const normalizedAddress = normalizeAdminAddress(address);
-  let isVerified = false;
-  try {
-    isVerified = verifySignature(
-      ADMIN_LOGIN_MESSAGE,
-      signedMessage,
-      normalizedAddress
-    );
-  } catch {
-    isVerified = false;
-  }
-
-  if (!isVerified) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Wallet signature is invalid" });
-  }
-
   await dbConnect();
-
-  const adminUser = await AdminModel.findOne({ address: normalizedAddress });
+  const adminUser = await admins.getAdmin(normalizedAddress);
 
   if (!adminUser) {
     return res.status(403).json({
@@ -53,9 +43,30 @@ export const adminLoginRequest: NextApiHandler = async (req, res) => {
     });
   }
 
+  const scope = {
+    origin,
+    address: normalizedAddress,
+    operation: "login" as const,
+    // Limit a prepared challenge to this exact allowlist enrollment.
+    sessionId: String(adminUser._id),
+  };
+  if (challenge === undefined && signedMessage === undefined) {
+    return res.status(200).json(issueAdminAuthorization(scope));
+  }
+
+  const sessionId = await consumeAdminAuthorization(scope, challenge, signedMessage);
+  if (!sessionId) {
+    return res.status(401).json({
+      success: false,
+      message: "Wallet signature or login challenge is invalid or expired",
+    });
+  }
+
   req.session.user = {
-    address: normalizeAdminAddress(adminUser.address),
+    address: normalizedAddress,
     name: adminUser.name,
+    adminId: String(adminUser._id),
+    sessionId,
   };
 
   await req.session.save();

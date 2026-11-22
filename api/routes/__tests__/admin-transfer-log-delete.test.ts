@@ -21,13 +21,21 @@ describe("administrator log deletion versioning", () => {
   });
 
   it("invalidates stale public snapshots when an administrator removes a log", async () => {
-    const req = { method: "DELETE", query: { id: "transfer-id", date: "123" } } as unknown as NextApiRequest;
+    const req = { method: "DELETE", headers: { origin: "https://bridge.example" }, query: { id: "transfer-id", date: "123" } } as unknown as NextApiRequest;
     const res = response();
     await adminTransferLogHandler(req, res);
     expect(mockUpdateMany).toHaveBeenCalledWith({ id: "transfer-id" }, {
       $inc: { __v: 1 }, $pull: { logs: { date: "123" } },
     });
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("requires an origin before deleting logs", async () => {
+    const res = response();
+    const req = { method: "DELETE", headers: {}, query: { id: "transfer-id", date: "123" } } as unknown as NextApiRequest;
+    await adminTransferLogHandler(req, res);
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it("does not modify records for unsupported methods", async () => {
