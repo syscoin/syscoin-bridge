@@ -26,6 +26,7 @@ const DEFAULT_UTXO_FEE_RATE = 10;
 const SPONSOR_RESERVATION_LEASE_MS = 10 * 60_000;
 const MAX_SPONSORED_BURN_INPUTS = 24;
 const MAX_SPONSOR_UTXO_CANDIDATES = 24;
+const MAX_PROOF_RECOVERY_BATCH = 16;
 const SPONSOR_PROTOCOL_VERSION = 2;
 
 export class SponsorshipInProgressError extends Error {
@@ -1441,25 +1442,47 @@ export class SponsorWalletService {
       );
     }
 
-    // Stored acceptance or a recorded receipt is enough to serve the hash.
-    // The full queue is reconciled before allocating another wallet nonce.
-    if (sponsorTransaction.broadcastAt || sponsorTransaction.status !== "pending") {
+    if (sponsorTransaction.status !== "pending") {
       return;
     }
 
-    const { hash } = sponsorTransaction.transaction;
-    const known = await Promise.resolve()
-      .then(() => web3.eth.getTransaction(hash))
-      .catch(() => undefined);
-    if (known?.hash?.toLowerCase() === hash.toLowerCase()) {
+    const { hash, nonce } = sponsorTransaction.transaction;
+    if (!Number.isSafeInteger(nonce) || nonce < 0) {
+      throw new SponsorNonceRecoveryError("Signed sponsorship is missing its nonce");
+    }
+    const known = await this.getKnownSponsorTransaction(hash);
+    const mined = known?.blockNumber != null;
+    const pendingNonce = mined ? undefined : await web3.eth.getTransactionCount(
+      sponsorTransaction.walletId, "pending"
+    );
+    // A queued transaction can be visible while a lower nonce is missing.
+    // The pending nonce must have advanced past it before it is ready to mine.
+    if (pendingNonce !== undefined && pendingNonce <= nonce) {
+      await this.recoverSponsorNonceQueue(sponsorTransaction.walletId, {
+        pendingNonce, targetNonce: nonce, targetHash: hash,
+      });
+      return;
+    }
+    if (!known) {
+      throw this.sponsorNonceConflict(hash, nonce);
+    }
+    if (!sponsorTransaction.broadcastAt) {
       await SponsorWalletTransactions.updateOne(
         { _id: sponsorTransaction._id, "transaction.hash": hash },
         { $set: { broadcastAt: new Date() } }
       );
-      return;
     }
+  }
 
-    await this.recoverSponsorNonceQueue(sponsorTransaction.walletId);
+  private async getKnownSponsorTransaction(hash: string) {
+    const transaction = await web3.eth.getTransaction(hash);
+    return transaction?.hash?.toLowerCase() === hash.toLowerCase() ? transaction : undefined;
+  }
+
+  private sponsorNonceConflict(hash: string, nonce: number) {
+    return new SponsorNonceRecoveryError(
+      `Sponsor transaction ${hash} was replaced or is unavailable at nonce ${nonce}; manual reconciliation is required`
+    );
   }
 
   private async commitSignedSponsorTransaction(
@@ -1612,25 +1635,34 @@ export class SponsorWalletService {
     ).catch(() => undefined);
   }
 
-  private async recoverSponsorNonceQueue(walletId: string): Promise<number> {
-    let pendingNonce = await web3.eth.getTransactionCount(walletId, "pending");
-    const pendingTransactions = await SponsorWalletTransactions.find({
+  private async recoverSponsorNonceQueue(
+    walletId: string,
+    retry?: { pendingNonce: number; targetNonce: number; targetHash: string }
+  ): Promise<number> {
+    let pendingNonce = retry?.pendingNonce ?? await web3.eth.getTransactionCount(walletId, "pending");
+    const queue = SponsorWalletTransactions.find({
       action: SUBMIT_PROOFS_ACTION,
       walletId,
       sourceTxHash: { $type: "string" },
       "transaction.rawData": { $type: "string" },
-      "transaction.nonce": { $type: "number" },
+      "transaction.nonce": retry
+        ? { $type: "number", $gte: pendingNonce, $lte: retry.targetNonce }
+        : { $type: "number" },
     }).sort({ "transaction.nonce": 1 });
+    const pendingTransactions = await (retry ? queue.limit(MAX_PROOF_RECOVERY_BATCH) : queue);
 
     for (const pendingTransaction of pendingTransactions) {
-      const storedNonce = pendingTransaction.transaction.nonce;
+      const { nonce: storedNonce, hash } = pendingTransaction.transaction;
+      if (retry && storedNonce === retry.targetNonce && hash?.toLowerCase() !== retry.targetHash.toLowerCase()) {
+        throw this.sponsorNonceConflict(retry.targetHash, retry.targetNonce);
+      }
       if (storedNonce < pendingNonce) {
-        const knownTransaction = await web3.eth.getTransaction(
-          pendingTransaction.transaction.hash
-        );
+        const knownTransaction = retry
+          ? await this.getKnownSponsorTransaction(hash)
+          : await web3.eth.getTransaction(hash);
         if (!knownTransaction) {
           throw new SponsorNonceRecoveryError(
-            `Sponsor transaction ${pendingTransaction.transaction.hash} was replaced at nonce ${storedNonce}; manual reconciliation is required`
+            `Sponsor transaction ${hash} was replaced at nonce ${storedNonce}; manual reconciliation is required`
           );
         }
         continue;
@@ -1650,8 +1682,24 @@ export class SponsorWalletService {
         throw new SponsorshipInProgressError();
       }
       pendingNonce = refreshedNonce;
+      if (retry && pendingNonce > retry.targetNonce) {
+        // Filling a gap can also promote the already queued target. Prove
+        // its exact hash is available if we did not broadcast it ourselves.
+        if (storedNonce !== retry.targetNonce && !(await this.getKnownSponsorTransaction(retry.targetHash))) {
+          throw this.sponsorNonceConflict(retry.targetHash, retry.targetNonce);
+        }
+        return pendingNonce;
+      }
     }
 
+    if (retry) {
+      if (pendingTransactions.length === MAX_PROOF_RECOVERY_BATCH) {
+        throw new SponsorshipInProgressError();
+      }
+      throw new SponsorNonceRecoveryError(
+        `Sponsor nonce recovery blocked: missing durable transaction for nonce ${pendingNonce}`
+      );
+    }
     return pendingNonce;
   }
 
@@ -1679,7 +1727,7 @@ export class SponsorWalletService {
       await this.sendRawSponsorTransaction(rawData, hash);
     } catch (error) {
       const [knownTransaction, pendingNonce] = await Promise.all([
-        web3.eth.getTransaction(hash).catch(() => undefined),
+        this.getKnownSponsorTransaction(hash).catch(() => undefined),
         web3.eth
           .getTransactionCount(sponsorTransaction.walletId, "pending")
           .catch(() => undefined),

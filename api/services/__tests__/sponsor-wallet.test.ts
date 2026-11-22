@@ -89,6 +89,7 @@ import SponsorWalletTransactions from "models/sponsor-wallet-transactions";
 import SponsorUtxoReservation from "models/sponsor-utxo-reservation";
 import { syscoin, utils as syscoinUtils } from "syscoinjs-lib";
 import SponsorWalletService, {
+  SponsorNonceRecoveryError,
   SponsorshipInProgressError,
   syscoinTxIdFromWitnessStrippedHex,
 } from "../sponsor-wallet";
@@ -124,6 +125,29 @@ const failedBroadcast = (error: Error) => {
     catch: jest.fn(() => promiEvent),
   };
   return promiEvent;
+};
+
+
+const proofRow = (nonce: number) => ({
+  _id: `proof-${nonce}`,
+  transferId: `transfer-${nonce}`,
+  action: "submit-proofs",
+  sourceTxHash: `source-${nonce}`,
+  walletId: "0xSponsor",
+  status: "pending",
+  broadcastAt: new Date("2026-11-01T00:00:00Z"),
+  transaction: {
+    hash: `0xproof-${nonce}`,
+    rawData: `0xproof-raw-${nonce}`,
+    nonce,
+  },
+});
+
+const mockBoundedRecoveryRows = (rows: unknown[]) => {
+  const limit = jest.fn(async (count: number) => rows.slice(0, count));
+  const sort = jest.fn(() => ({ limit }));
+  SponsorWalletTransactionsMock.find.mockReturnValue({ sort });
+  return { sort, limit };
 };
 
 const transfer: ITransfer = {
@@ -605,9 +629,7 @@ describe("SponsorWalletService", () => {
       SponsorWalletTransactionsMock.findOne.mockResolvedValue(
         existingTransaction
       );
-      SponsorWalletTransactionsMock.find.mockReturnValue({
-        sort: () => Promise.resolve([lowerTransaction, existingTransaction]),
-      });
+      mockBoundedRecoveryRows([lowerTransaction, existingTransaction]);
       mockWeb3.eth.getTransactionCount
         .mockResolvedValueOnce(1)
         .mockResolvedValueOnce(2)
@@ -695,37 +717,131 @@ describe("SponsorWalletService", () => {
       );
     });
 
-    it("serves a previously accepted pending proof without scanning the nonce queue", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
-        transferId: "transfer-1",
-        sourceTxHash: "source",
-        walletId: "0xSponsor",
-        status: "pending",
-        broadcastAt: new Date(),
-        transaction: { hash: "0xaccepted" },
-      });
-      await expect(new SponsorWalletService().getExistingProofSponsorship("transfer-1", "source"))
-        .resolves.toMatchObject({ transaction: { hash: "0xaccepted" } });
-      expect(mockWeb3.eth.getTransactionCount).not.toHaveBeenCalled();
-      expect(mockWeb3.eth.getTransaction).not.toHaveBeenCalled();
+    it("serves a visible accepted pending proof without scanning the nonce queue", async () => {
+      const accepted = proofRow(1);
+      const { transferId, sourceTxHash, walletId, transaction } = accepted;
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(accepted);
+      mockWeb3.eth.getTransaction.mockResolvedValue({ ...transaction, blockNumber: null });
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(2);
+
+      await expect(new SponsorWalletService().getExistingProofSponsorship(transferId, sourceTxHash))
+        .resolves.toMatchObject({ transaction: { hash: transaction.hash } });
+
+      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledWith(transaction.hash);
+      expect(mockWeb3.eth.getTransactionCount).toHaveBeenCalledWith(walletId, "pending");
       expect(SponsorWalletTransactionsMock.find).not.toHaveBeenCalled();
+      expect(SponsorWalletTransactionsMock.updateOne).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.sendSignedTransaction).not.toHaveBeenCalled();
     });
 
-    it("records chain acceptance for a pending proof that predates the accepted timestamp", async () => {
-      SponsorWalletTransactionsMock.findOne.mockResolvedValue({
-        _id: "proof-id",
-        sourceTxHash: "source",
-        walletId: "0xSponsor",
-        status: "pending",
-        transaction: { hash: "0xaccepted" },
+    it("rebroadcasts the exact durable bytes of an accepted pending proof that disappears", async () => {
+      const accepted = proofRow(1);
+      const { transferId, sourceTxHash, walletId, transaction } = accepted;
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(accepted);
+      mockWeb3.eth.getTransaction.mockResolvedValue(null);
+      mockWeb3.eth.getTransactionCount.mockResolvedValueOnce(1).mockResolvedValueOnce(2);
+      const recovery = mockBoundedRecoveryRows([accepted]);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation(() => successfulBroadcast(transaction.hash));
+
+      await expect(new SponsorWalletService().getExistingProofSponsorship(transferId, sourceTxHash))
+        .resolves.toMatchObject({ transaction: { hash: transaction.hash } });
+
+      expect(SponsorWalletTransactionsMock.find).toHaveBeenCalledWith(expect.objectContaining({
+        action: "submit-proofs",
+        walletId,
+        "transaction.nonce": { $type: "number", $gte: 1, $lte: 1 },
+      }));
+      expect(recovery.sort).toHaveBeenCalledWith({ "transaction.nonce": 1 });
+      expect(recovery.limit).toHaveBeenCalledWith(16);
+      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledWith(transaction.hash);
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith(transaction.rawData);
+      expect(mockWeb3.eth.accounts.privateKeyToAccount).not.toHaveBeenCalled();
+      expect(SponsorWalletTransactionsMock.updateOne).toHaveBeenLastCalledWith(
+        { _id: accepted._id, "transaction.hash": transaction.hash },
+        { $set: { broadcastAt: expect.any(Date) } }
+      );
+    });
+
+    it("recovers a dropped predecessor even when the accepted target remains visible", async () => {
+      const predecessor = proofRow(4);
+      const target = proofRow(5);
+      const { transferId, sourceTxHash, walletId, transaction } = target;
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(target);
+      mockWeb3.eth.getTransaction.mockResolvedValue({ ...transaction, blockNumber: null });
+      mockWeb3.eth.getTransactionCount.mockResolvedValueOnce(4).mockResolvedValueOnce(6);
+      mockBoundedRecoveryRows([predecessor, target]);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation(() => successfulBroadcast(predecessor.transaction.hash));
+
+      await expect(new SponsorWalletService().getExistingProofSponsorship(transferId, sourceTxHash))
+        .resolves.toMatchObject({ transaction: { hash: transaction.hash } });
+
+      expect(SponsorWalletTransactionsMock.find).toHaveBeenCalledWith(expect.objectContaining({
+        walletId,
+        "transaction.nonce": { $type: "number", $gte: 4, $lte: 5 },
+      }));
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledTimes(1);
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledWith(predecessor.transaction.rawData);
+      expect(mockWeb3.eth.getTransaction).toHaveBeenNthCalledWith(1, transaction.hash);
+      expect(mockWeb3.eth.getTransaction).toHaveBeenNthCalledWith(2, transaction.hash);
+    });
+
+    it("reports a missing target behind the pending nonce instead of returning its stale hash", async () => {
+      const target = proofRow(5);
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(target);
+      mockWeb3.eth.getTransaction.mockResolvedValue(null);
+      mockWeb3.eth.getTransactionCount.mockResolvedValue(6);
+
+      await expect(new SponsorWalletService().getExistingProofSponsorship(target.transferId, target.sourceTxHash))
+        .rejects.toBeInstanceOf(SponsorNonceRecoveryError);
+
+      expect(SponsorWalletTransactionsMock.find).not.toHaveBeenCalled();
+      expect(mockWeb3.eth.sendSignedTransaction).not.toHaveBeenCalled();
+    });
+
+    it("stops after a bounded prefix and allows the next request to resume it", async () => {
+      const rows = Array.from({ length: 17 }, (_, i) => proofRow(i));
+      const target = rows[16];
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(target);
+      mockWeb3.eth.getTransaction.mockResolvedValue(null);
+      let next = 0;
+      mockWeb3.eth.getTransactionCount.mockImplementation(async () => next);
+      mockWeb3.eth.sendSignedTransaction.mockImplementation((raw: string) => {
+        const current = rows[next];
+        expect(raw).toBe(current.transaction.rawData);
+        next += 1;
+        return successfulBroadcast(current.transaction.hash);
       });
-      mockWeb3.eth.getTransaction.mockResolvedValue({ hash: "0xaccepted" });
-      await expect(new SponsorWalletService().getExistingProofSponsorship("transfer-1", "source"))
-        .resolves.toMatchObject({ transaction: { hash: "0xaccepted" } });
-      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledWith("0xaccepted");
+      const recovery = mockBoundedRecoveryRows(rows);
+      const service = new SponsorWalletService();
+      const request = () => service.getExistingProofSponsorship(target.transferId, target.sourceTxHash);
+
+      await expect(request()).rejects.toBeInstanceOf(SponsorshipInProgressError);
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledTimes(16);
+      expect(recovery.limit).toHaveBeenCalledWith(16);
+      expect(next).toBe(16);
+
+      mockBoundedRecoveryRows([target]);
+      await expect(request()).resolves.toMatchObject({ transaction: { hash: target.transaction.hash } });
+      expect(mockWeb3.eth.sendSignedTransaction).toHaveBeenCalledTimes(17);
+      expect(next).toBe(17);
+    });
+
+    it("records mined acceptance for a proof that predates the accepted timestamp", async () => {
+      const accepted = { ...proofRow(1), broadcastAt: undefined };
+      const { transferId, sourceTxHash, transaction } = accepted;
+      SponsorWalletTransactionsMock.findOne.mockResolvedValue(accepted);
+      mockWeb3.eth.getTransaction.mockResolvedValue({ ...transaction, blockNumber: 100 });
+
+      await expect(new SponsorWalletService().getExistingProofSponsorship(transferId, sourceTxHash))
+        .resolves.toMatchObject({ transaction: { hash: transaction.hash } });
+
+      expect(mockWeb3.eth.getTransaction).toHaveBeenCalledWith(transaction.hash);
       expect(mockWeb3.eth.getTransactionCount).not.toHaveBeenCalled();
+      expect(SponsorWalletTransactionsMock.find).not.toHaveBeenCalled();
       expect(SponsorWalletTransactionsMock.updateOne).toHaveBeenCalledWith(
-        { _id: "proof-id", "transaction.hash": "0xaccepted" },
+        { _id: accepted._id, "transaction.hash": transaction.hash },
         { $set: { broadcastAt: expect.any(Date) } }
       );
     });
@@ -804,9 +920,7 @@ describe("SponsorWalletService", () => {
         Object.assign(this, data);
         this.save = jest.fn<any>().mockRejectedValue({ code: 11000 });
       });
-      SponsorWalletTransactionsMock.find.mockReturnValue({
-        sort: () => Promise.resolve([committedDuplicate]),
-      });
+      mockBoundedRecoveryRows([committedDuplicate]);
       mockWeb3.eth.getTransactionCount
         .mockResolvedValueOnce(3)
         .mockResolvedValueOnce(4);
