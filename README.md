@@ -33,10 +33,18 @@ The bridge UI is a ReactJS application that allows users to interact with the br
 
 Each step taken on the Bridge is stored in MongoDB. This allows the user to resume the process at any time.
 
-Public transfer writes validate network addresses, amounts and log structure.
-New records must start at the first transaction step, and their route, accounts,
-asset and amount cannot subsequently change. A write capability authorizes edits
-to that record; it is not wallet authentication. Progress and transaction references
+Transfer history and redacted transfer details are public. To start a transfer,
+the selected NEVM wallet signs a five-minute challenge covering both addresses,
+the route, asset, amount, deployment and transfer credential. The signature is
+free and creates a record before any funds are moved. On UTXO to NEVM, the signer
+controls the NEVM destination. The UTXO transaction later proves spending authority.
+Deployed NEVM contract wallets can authenticate with ERC-1271.
+
+New records must start at the first transaction step. Their route, accounts,
+asset and amount cannot subsequently change. The original transfer credential
+authorizes updates and requests for sponsorship, including proof submission via
+POST. Existing transfers can still resume using their original credential.
+Progress and transaction references
 are verified against the configured chains before saving, and receipt/proof payloads
 are replaced with canonical backend evidence. Pending submissions and the existing
 zero-confirmation SYSX steps remain supported. Before accepting `completed`, the
@@ -205,7 +213,7 @@ so Compose never offers to recreate an existing Mongo data volume.
 | `TRANSFER_CREATE_LIMIT`        | New transfers allowed per client in 10 minutes, or per wallet pair behind a private proxy without a trusted client address | 120 |
 | `TRANSFER_TRUST_CLOUDFLARE`    | Use the Cloudflare client address for creation quotas only behind trusted, header-sanitizing ingress | false |
 | `ADMIN_API_KEY`                 | Admin API Key                                  |         |
-| `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password                         |         |
+| `SECRET_COOKIE_PASSWORD`        | At least 32 characters; required for transfer challenges and admin sessions |         |
 | `ADMIN_COOKIE_DOMAIN`           | Optional domain for admin session cookie       |         |
 | `NEVM_RPC_URL`                  | NEVM RPC URL                                   |         |
 | `NEVM_EXPLORER`                 | NEVM Explorer URL                              |         |

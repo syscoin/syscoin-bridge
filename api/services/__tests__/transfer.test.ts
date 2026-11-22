@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const TransferModelMock = {
   create: jest.fn<any>(),
@@ -29,6 +29,7 @@ jest.mock("../sponsor-wallet", () => ({
 }));
 
 import { createHash } from "crypto";
+import { ecsign, hashPersonalMessage, privateToAddress, toRpcSig } from "ethereumjs-util";
 import {
   COMMON_STATUS,
   ETH_TO_SYS_TRANSFER_STATUS,
@@ -41,6 +42,12 @@ import {
   TransferWriteConflictError,
 } from "../transfer";
 import { TransferValidationError } from "../transfer-validation";
+import { issueTransferCreationAuthorization } from "utils/api/transfer-creation-authorization";
+
+const originalSecret = process.env.SECRET_COOKIE_PASSWORD;
+const origin = "https://bridge.example";
+const testKey = Buffer.alloc(32, 1);
+const creationToken = "a4ccd5a8-2651-482e-8556-f44ca37e2bc1";
 
 const transfer: ITransfer = {
   id: "e8d6267c-f818-41b3-9ee0-09b71179c438",
@@ -69,6 +76,11 @@ describe("TransferService write capabilities", () => {
     mockCanonicalizeTransferProgress.mockImplementation(async (value: ITransfer) => value);
     mockVerifiedTransferProgressStatus.mockImplementation((value: ITransfer, prior?: ITransfer) =>
       value.status === COMMON_STATUS.ERROR ? prior?.status : value.status);
+  });
+
+  afterEach(() => {
+    if (originalSecret === undefined) delete process.env.SECRET_COOKIE_PASSWORD;
+    else process.env.SECRET_COOKIE_PASSWORD = originalSecret;
   });
 
   it("rejects a dotted log key before any database access", async () => {
@@ -185,18 +197,28 @@ describe("TransferService write capabilities", () => {
       .rejects.toBeInstanceOf(TransferValidationError);
   });
 
-  it("binds a new record to the supplied capability and forces V2", async () => {
+  it("binds an authorized new record to the signed capability and forces V2", async () => {
     findExisting(null);
     TransferModelMock.create.mockImplementation(async (value: any) => value);
-
-    const result = await new TransferService().upsertTransfer({
+    process.env.SECRET_COOKIE_PASSWORD = "transfer-creation-test-secret-at-least-32-characters";
+    const candidate: ITransfer = {
       ...transfer,
+      nevmAddress: `0x${privateToAddress(testKey).toString("hex")}`,
       version: "v1",
-    }, "new-transfer-capability");
+    };
+    const { challenge, message } = issueTransferCreationAuthorization(candidate, origin, creationToken);
+    const { v, r, s } = ecsign(hashPersonalMessage(Buffer.from(message)), testKey);
+    const charge = jest.fn(async () => undefined);
+    const result = await new TransferService().upsertTransfer(candidate, creationToken, {
+      origin,
+      authorization: { challenge, signedMessage: toRpcSig(v, r, s) },
+      charge,
+    });
 
     expect(result.transfer.version).toBe("v2");
-    expect(result.writeToken).toBe("new-transfer-capability");
+    expect(result.writeToken).toBe(creationToken);
     expect(result.transfer).not.toHaveProperty("writeTokenHash");
+    expect(charge).toHaveBeenCalledTimes(1);
     expect(TransferModelMock.create).toHaveBeenCalledWith(
       expect.objectContaining({
         id: transfer.id,
@@ -204,6 +226,16 @@ describe("TransferService write capabilities", () => {
         writeTokenHash: expect.any(String),
       })
     );
+  });
+
+  it("rejects new records with a token but no wallet authorization", async () => {
+    findExisting(null);
+    const charge = jest.fn(async () => undefined);
+    await expect(new TransferService().upsertTransfer(transfer, creationToken, {
+      origin, authorization: undefined, charge,
+    })).rejects.toBeInstanceOf(TransferWriteUnauthorizedError);
+    expect(charge).not.toHaveBeenCalled();
+    expect(TransferModelMock.create).not.toHaveBeenCalled();
   });
 
   it("does not create a transfer without a capability", async () => {

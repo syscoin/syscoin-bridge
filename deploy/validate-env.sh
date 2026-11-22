@@ -43,18 +43,16 @@ for key in \
   MONGO_CONFIG_VOLUME \
   MONGO_BACKUP_VOLUME \
   BRIDGE_HOST_PORT \
-  CORS_ALLOWED_ORIGIN
+  CORS_ALLOWED_ORIGIN \
+  SECRET_COOKIE_PASSWORD
 do
   require_env "$key"
 done
 
-if [ -n "$(env_value ADMIN_API_KEY)" ]; then
-  require_env SECRET_COOKIE_PASSWORD
-  cookie_password=$(env_value SECRET_COOKIE_PASSWORD)
-  if [ "${#cookie_password}" -lt 32 ]; then
-    echo "SECRET_COOKIE_PASSWORD must contain at least 32 characters" >&2
-    exit 1
-  fi
+cookie_password=$(env_value SECRET_COOKIE_PASSWORD)
+if [ "${#cookie_password}" -lt 32 ]; then
+  echo "SECRET_COOKIE_PASSWORD must contain at least 32 characters" >&2
+  exit 1
 fi
 
 if [ "$(env_value FOUNDATION_FUNDED)" = "true" ]; then

@@ -1,6 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
 import { useMutation } from "react-query";
-import { buildApiUrl } from "utils/api-base-url";
 import {
   ProofBlockPendingError,
   PROOF_BLOCK_PENDING_CODE,
@@ -9,6 +8,7 @@ import {
   isProofBlockPendingError,
   retryPendingProof,
 } from "utils/proof-submission";
+import { getTransferWriteToken } from "utils/transfer-write-token";
 import {
   TransferSigningIntentError,
   verifyTransferSigningIntent,
@@ -25,15 +25,24 @@ const useSyscoinSubmitProofs = (
         transaction: { hash: string };
       } = await retryPendingProof(async () => {
         await verifyTransferSigningIntent(transfer);
+        const writeToken = getTransferWriteToken(transfer.id);
         const res = await fetch(
-          buildApiUrl(
-            `/api/transfer/${encodeURIComponent(transfer.id)}/signed-submit-proofs-tx`
-          )
+          `/api/transfer/${encodeURIComponent(transfer.id)}/signed-submit-proofs-tx`,
+          {
+            method: "POST",
+            cache: "no-store",
+            credentials: "same-origin",
+            redirect: "error",
+            headers: writeToken ? { Authorization: `Bearer ${writeToken}` } : {},
+          }
         );
         if (res.ok) {
           return res.json();
         }
         const error = await res.json();
+        if (res.status === 401) {
+          throw new TransferSigningIntentError(error.message ?? "Transfer write is not authorized");
+        }
         if (error.code === PROOF_BLOCK_PENDING_CODE) {
           throw new ProofBlockPendingError(error.message, error.retryAfterMs);
         }

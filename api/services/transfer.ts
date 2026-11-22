@@ -6,6 +6,7 @@ import {
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import TransferModel from "models/transfer";
+import { verifyTransferCreationAuthorization } from "utils/api/transfer-creation-authorization";
 import { isValidUtxoAccount } from "utils/utxo-account";
 import { createHash, timingSafeEqual } from "crypto";
 import { SponsorWalletService } from "./sponsor-wallet";
@@ -22,8 +23,8 @@ import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
 import { continueNevmTransferAfterError, isErrorLog, knownTransferProgressStatus } from "utils/transfer-progress";
 
 export class TransferWriteUnauthorizedError extends Error {
-  constructor() {
-    super("Transfer write is not authorized");
+  constructor(message = "Transfer write is not authorized") {
+    super(message);
     this.name = "TransferWriteUnauthorizedError";
     Object.setPrototypeOf(this, TransferWriteUnauthorizedError.prototype);
   }
@@ -51,6 +52,13 @@ type TransferWriteResult = {
 };
 
 type WriteTokenCandidates = string | readonly string[] | undefined;
+
+type TransferCreationOptions = {
+  origin: string | null;
+  authorization: unknown;
+  charge: () => Promise<void>;
+  chargeContractVerification?: () => Promise<void>;
+};
 
 const hashWriteToken = (writeToken: string) =>
   createHash("sha256").update(writeToken, "utf8").digest("hex");
@@ -281,7 +289,7 @@ export class TransferService {
   async upsertTransfer(
     transfer: ITransfer,
     writeTokens?: WriteTokenCandidates,
-    chargeCreation?: () => Promise<void>
+    creation?: TransferCreationOptions
   ): Promise<TransferWriteResult> {
     assertValidTransferPayload(transfer);
     const existing = await TransferModel.findOne({ id: transfer.id }).select(
@@ -294,7 +302,16 @@ export class TransferService {
         throw new TransferWriteUnauthorizedError();
       }
       assertNewTransfer(transfer);
-      await chargeCreation?.();
+      if (!creation) throw new TransferWriteUnauthorizedError();
+      if (!(await verifyTransferCreationAuthorization(
+        transfer, creation.origin, writeToken, creation.authorization,
+        creation.chargeContractVerification ?? creation.charge
+      ))) {
+        throw new TransferWriteUnauthorizedError(
+          "Transfer authorization is invalid or expired. Sign with the selected NEVM wallet. Smart wallets must be deployed."
+        );
+      }
+      await creation.charge();
       const created = await TransferModel.create({
         ...toTransferUpdate(transfer),
         id: transfer.id,

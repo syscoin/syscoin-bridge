@@ -75,11 +75,12 @@ describe("transfer PATCH binding", () => {
   it("offers both bearer and backup-cookie capabilities and refreshes the accepted cookie", async () => {
     const request = {
       query: { id: "transfer-id" },
-      body: { id: "transfer-id" },
+      body: { id: "transfer-id", creationAuthorization: { challenge: "challenge", signedMessage: "signed" } },
       headers: {
         authorization: "Bearer replacement-token",
         cookie: "transfer-write-token=original-token",
         "x-forwarded-proto": "https",
+        origin: "https://bridge.example",
       },
       socket: {},
     } as unknown as NextApiRequest;
@@ -90,7 +91,12 @@ describe("transfer PATCH binding", () => {
     expect(mockUpsertTransfer).toHaveBeenCalledWith(request.body, [
       "replacement-token",
       "original-token",
-    ], expect.any(Function));
+    ], {
+      origin: "https://bridge.example",
+      authorization: request.body.creationAuthorization,
+      charge: expect.any(Function),
+      chargeContractVerification: expect.any(Function),
+    });
     expect(response.setHeader).toHaveBeenCalledWith(
       "Set-Cookie",
       expect.stringContaining("transfer-write-token=accepted-token")

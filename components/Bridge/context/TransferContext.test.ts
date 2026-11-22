@@ -9,6 +9,8 @@ const mockSave = jest.fn<(transfer: { logs: unknown[] }, options: { onSettled: (
 const mockSetRetrying = jest.fn<any>();
 const mockRefetch = jest.fn<any>();
 const mockGetWriteToken = jest.fn<(id: string) => string | undefined>();
+const mockCreateWriteToken = jest.fn<(id: string) => string>();
+const mockAuthorizeCreation = jest.fn<(options: unknown) => Promise<{ challenge: string; signedMessage: string }>>();
 const mockSetQueryData = jest.fn<any>((_key: unknown, transfer: unknown) => {
   cachedTransfer = transfer;
 });
@@ -16,9 +18,20 @@ let retrying = false;
 let mutation: Record<string, unknown>;
 let mutationOptions: any;
 let loadTransfer: () => Promise<unknown>;
+let saveTransfer: (transfer: unknown) => Promise<unknown>;
 let cachedTransfer: unknown;
+const creationCache = { current: undefined as unknown };
 const persisted = { id: "transfer-1", status: "finalizing", logs: [] };
 const pending = { ...persisted, status: "completed", logs: [{ transactionHash: "confirmed" }] };
+const newTransfer = { ...persisted, status: "initialize" };
+const createdTransfer = {
+  ...persisted,
+  status: "burn-sys",
+  utxoAddress: "syscoin-address",
+  nevmAddress: "nevm-address",
+  amount: "0.5",
+};
+const creationAuthorization = { challenge: "challenge", signedMessage: "signature" };
 const intermediateStatuses = [
   "confirm-burn-sys",
   "burn-sysx",
@@ -39,14 +52,24 @@ const compiled = ts.transpileModule(source, {
 }).outputText;
 const componentExports: Record<string, any> = {};
 const testRequire = (name: string): unknown => {
-  if (name === "react") return { ...React, useState: () => [retrying, mockSetRetrying] };
+  if (name === "react") return { ...React, useState: () => [retrying, mockSetRetrying], useRef: () => creationCache };
+  if (name === "@contexts/ConnectedWallet/NEVMProvider") return {
+    useNEVM: () => ({ expectedChainId: "0x39" }),
+  };
+  if (name === "@contexts/PaliWallet/usePaliWallet") return {
+    usePaliWalletV2: () => ({ version: "v1" }),
+  };
+  if (name === "../transfer-creation-authorization") return {
+    requestTransferCreationAuthorization: mockAuthorizeCreation,
+  };
   if (name === "react-query") return {
     useQuery: (_key: unknown, options: { queryFn: typeof loadTransfer }) => {
       loadTransfer = options.queryFn;
       return { data: cachedTransfer, refetch: mockRefetch };
     },
     useQueryClient: () => ({ setQueryData: mockSetQueryData }),
-    useMutation: (_key: unknown, _mutationFn: unknown, options: unknown) => {
+    useMutation: (_key: unknown, mutationFn: typeof saveTransfer, options: unknown) => {
+      saveTransfer = mutationFn;
       mutationOptions = options;
       return { mutate: mockSave, ...mutation };
     },
@@ -57,6 +80,7 @@ const testRequire = (name: string): unknown => {
   };
   if (name === "utils/transfer-write-token") return {
     getTransferWriteToken: mockGetWriteToken,
+    getOrCreateTransferWriteToken: mockCreateWriteToken,
   };
   return require(name);
 };
@@ -71,7 +95,11 @@ describe("transfer save recovery", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     retrying = false;
+    creationCache.current = undefined;
     cachedTransfer = persisted;
+    mockGetWriteToken.mockReset();
+    mockCreateWriteToken.mockReturnValue("new-capability");
+    mockAuthorizeCreation.mockResolvedValue(creationAuthorization);
     mockRefetch.mockResolvedValue({ data: persisted, isError: false });
     mutation = { isLoading: false, isError: false, variables: undefined };
   });
@@ -97,6 +125,71 @@ describe("transfer save recovery", () => {
       redirect: "error",
       headers: { Authorization: "Bearer original-capability" },
     });
+  });
+
+  it("submits new creation with the same capability that obtained the wallet challenge", async () => {
+    cachedTransfer = newTransfer;
+    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(createdTransfer))
+    );
+    renderProvider(newTransfer);
+
+    await expect(saveTransfer(createdTransfer)).resolves.toEqual(createdTransfer);
+    expect(mockCreateWriteToken).toHaveBeenCalledWith(createdTransfer.id);
+    expect(mockAuthorizeCreation).toHaveBeenCalledWith(expect.objectContaining({
+      transfer: createdTransfer,
+      writeToken: "new-capability",
+      url: `/api/transfer/${createdTransfer.id}`,
+    }));
+    expect(fetchMock).toHaveBeenCalledWith(`/api/transfer/${createdTransfer.id}`, expect.objectContaining({
+      method: "PATCH",
+      headers: { Authorization: "Bearer new-capability", "Content-Type": "application/json" },
+      body: JSON.stringify({ ...createdTransfer, creationAuthorization }),
+    }));
+  });
+
+  it("reuses the same wallet authorization after a transport failure", async () => {
+    cachedTransfer = newTransfer;
+    const fetchMock = jest.spyOn(global, "fetch")
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValueOnce(new Response(JSON.stringify(createdTransfer)));
+    renderProvider(newTransfer);
+
+    await expect(saveTransfer(createdTransfer)).rejects.toThrow("response lost");
+    await expect(saveTransfer(createdTransfer)).resolves.toEqual(createdTransfer);
+    expect(mockAuthorizeCreation).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]).toEqual(fetchMock.mock.calls[1]);
+  });
+
+  it("shares one wallet request across simultaneous submits for the same intent", async () => {
+    cachedTransfer = newTransfer;
+    jest.spyOn(global, "fetch").mockImplementation(async () =>
+      new Response(JSON.stringify(createdTransfer))
+    );
+    renderProvider(newTransfer);
+
+    await expect(Promise.all([
+      saveTransfer(createdTransfer), saveTransfer(createdTransfer),
+    ])).resolves.toEqual([createdTransfer, createdTransfer]);
+    expect(mockAuthorizeCreation).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses only the saved capability for progress updates", async () => {
+    mockGetWriteToken.mockReturnValue("original-capability");
+    const saved = { ...createdTransfer, status: "confirm-burn-sys" };
+    const fetchMock = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(saved))
+    );
+    renderProvider();
+
+    await expect(saveTransfer(saved)).resolves.toEqual(saved);
+    expect(mockAuthorizeCreation).not.toHaveBeenCalled();
+    expect(mockCreateWriteToken).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledWith(`/api/transfer/${saved.id}`, expect.objectContaining({
+      method: "PATCH",
+      body: JSON.stringify(saved),
+      headers: { Authorization: "Bearer original-capability", "Content-Type": "application/json" },
+    }));
   });
 
   it("renders the existing persisted step normally", () => {
@@ -153,6 +246,7 @@ describe("transfer save recovery", () => {
     mutation = { isError: true, error: new Error("Save failed"), variables: { ...pending, status: "burn-sys" } };
     const html = renderToStaticMarkup(renderProvider({ ...persisted, status: "initialize" }));
     expect(html).toContain("Transaction step");
+    expect(html).toContain("Save failed");
     expect(html).not.toContain("Retry");
     expect(mockSave).not.toHaveBeenCalled();
   });

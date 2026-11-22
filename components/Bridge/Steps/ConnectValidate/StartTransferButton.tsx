@@ -16,6 +16,7 @@ import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { isPaliV2UtxoMode } from "@contexts/PaliWallet/network-query-policy";
 import {
   getSyscoinChainId,
   resolveSyscoinIsTestnet,
@@ -39,7 +40,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
 }> = ({ isSaving, transfer }) => {
   const { constants } = useConstants();
   const { isExpectedChain } = useNEVM();
-  const { supportsPartialUtxoSigning } = usePaliWalletV2();
+  const { supportsPartialUtxoSigning, version, isEVMInjected, isBitcoinBased } = usePaliWalletV2();
   const {
     watch,
     formState: { errors, isValid },
@@ -104,7 +105,8 @@ export const ConnectValidateStartTransferButton: React.FC<{
     (BigInt(sysxBalance.data) < minimumAmountBaseUnits ||
       (amountBaseUnits !== undefined &&
         BigInt(sysxBalance.data) < amountBaseUnits));
-  const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain;
+  const canSwitchToNevm = isPaliV2UtxoMode(version, isEVMInjected, isBitcoinBased);
+  const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain && !canSwitchToNevm;
 
   const isUtxoValid =
     isValidSYSAddress(
@@ -129,7 +131,7 @@ export const ConnectValidateStartTransferButton: React.FC<{
       {isReady && (
         <Box sx={{ display: "flex", mb: 2 }}>
           <Typography variant="body1">
-            Ready to start this transfer.
+            Approve the transfer details in your NEVM wallet to get started.
           </Typography>
           <CheckCircleOutline color="success" />
         </Box>

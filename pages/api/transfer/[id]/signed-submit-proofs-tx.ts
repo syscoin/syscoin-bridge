@@ -9,13 +9,19 @@ import {
   getCanonicalProof,
   getSponsoredProofMinimum,
 } from "api/services/sponsor-proof";
-import { TransferService } from "api/services/transfer";
+import {
+  TransferNotFoundError,
+  TransferService,
+  TransferWriteUnauthorizedError,
+} from "api/services/transfer";
+import { TransferValidationError } from "api/services/transfer-validation";
 import { getProof } from "bitcoin-proof";
 import dbConnect from "lib/mongodb";
 import { NextApiHandler, NextApiRequest, NextApiResponse } from "next";
 import { SPVProof } from "syscoinjs-lib";
 import Web3 from "web3";
 import { applyApiCors } from "utils/api/cors";
+import { getTransferWriteTokens } from "utils/api/transfer-write-capability";
 import { syscoinTxIdFromWitnessStrippedHex } from "utils/syscoin-txid";
 import {
   assertProofBlockIsHistorical,
@@ -34,22 +40,31 @@ const handler: NextApiHandler = async (
   req: NextApiRequest,
   res: NextApiResponse
 ) => {
-  if (applyApiCors(req, res)) {
+  res.setHeader("Cache-Control", "private, no-store");
+  if (applyApiCors(req, res, { allowMethods: ["POST", "OPTIONS"] })) {
     return;
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
     return res.status(405).json({ message: "Method not allowed" });
   }
 
   const { id } = req.query;
+  if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
+    return res.status(400).json({ message: "Invalid transfer ID" });
+  }
+  const writeTokens = getTransferWriteTokens(req);
+  if (writeTokens.length === 0) {
+    return res.status(401).json({ message: "Transfer write is not authorized" });
+  }
 
   try {
     if (process.env.FOUNDATION_FUNDED !== "true") {
       throw new ProofSponsorshipUnavailableError("Foundation funding is not available");
     }
     await dbConnect();
-    const transfer = await transferService.getTransfer(id as string);
+    const transfer = await transferService.getAuthorizedTransfer(id, writeTokens);
     if (transfer.version !== "v2" || transfer.type !== "sys-to-nevm") {
       throw new Error("Foundation proof sponsorship is only available for V2 SYS to NEVM transfers");
     }
@@ -135,6 +150,15 @@ const handler: NextApiHandler = async (
       },
     });
   } catch (e) {
+    if (e instanceof TransferWriteUnauthorizedError) {
+      return res.status(401).json({ message: e.message });
+    }
+    if (e instanceof TransferNotFoundError) {
+      return res.status(404).json({ message: e.message });
+    }
+    if (e instanceof TransferValidationError) {
+      return res.status(400).json({ message: e.message });
+    }
     if (e instanceof ProofSponsorshipUnavailableError) {
       return res.status(422).json({ code: e.code, message: e.message });
     }

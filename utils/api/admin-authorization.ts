@@ -2,6 +2,9 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import AdminAuthorizationUse from "models/admin-authorization-use";
 import { verifySignature } from "./verify-signature";
+import { getRequestOrigin as getAdminOrigin } from "./request-origin";
+
+export { getAdminOrigin };
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 const REPLAY_RECORD_RETENTION_MS = 24 * 60 * 60 * 1000;
@@ -13,21 +16,6 @@ type AuthorizationScope = {
   sessionId?: string;
   transferId?: string;
   payload?: unknown;
-};
-
-export const getAdminOrigin = ({ headers }: NextApiRequest): string | null => {
-  // The caller first applies the credentialed CORS policy. Require the actual
-  // browser Origin on mutations rather than inferring it from proxy headers.
-  if (typeof headers.origin !== "string") return null;
-  try {
-    const url = new URL(headers.origin);
-    return (url.protocol === "https:" || url.protocol === "http:") &&
-      url.origin === headers.origin
-      ? url.origin
-      : null;
-  } catch {
-    return null;
-  }
 };
 
 const formatAuthorization = (

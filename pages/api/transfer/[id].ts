@@ -13,6 +13,7 @@ import {
 import dbConnect from "lib/mongodb";
 import { TransferValidationError } from "api/services/transfer-validation";
 import { applyApiCors } from "utils/api/cors";
+import { getRequestOrigin } from "utils/api/request-origin";
 import {
   getTransferWriteTokens,
   setTransferWriteTokenCookie,
@@ -64,7 +65,16 @@ export const patchRequest = async (
     const updated = await transferService.upsertTransfer(
       req.body,
       getTransferWriteTokens(req),
-      () => chargeTransferCreation(transferQuotaClient(req, req.body))
+      {
+        origin: getRequestOrigin(req),
+        authorization: req.body.creationAuthorization,
+        charge: () => chargeTransferCreation(transferQuotaClient(req, req.body)),
+        // Failed contract signature checks must not consume a wallet's
+        // successful creation quota when the API sits behind a proxy.
+        chargeContractVerification: () => chargeTransferCreation(
+          `contract-auth:${transferQuotaClient(req, req.body)}`
+        ),
+      }
     );
     setTransferWriteTokenCookie(req, res, id, updated.writeToken);
     res.status(200).json(updated.transfer);
