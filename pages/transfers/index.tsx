@@ -1,6 +1,7 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Alert, Box, Container, Typography } from "@mui/material";
 import TransferDataGrid from "components/Transfer/DataGrid";
+import PrivateDrafts from "components/Transfer/PrivateDrafts";
 import WalletList from "components/WalletList";
 import { useConnectedWallet } from "contexts/ConnectedWallet/useConnectedWallet";
 import { ITransfer } from "contexts/Transfer/types";
@@ -42,6 +43,7 @@ const TransfersPage: NextPage = () => {
         <Typography variant="h5">Transfers</Typography>
         <BridgeNewTransferButton sx={{ ml: "auto" }} />
       </Box>
+      <PrivateDrafts />
       <TransferDataGrid
         key={historyKey}
         nevm={nevm.account}

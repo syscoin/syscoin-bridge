@@ -11,6 +11,7 @@ import {
   CONFIRM_UTXO_TRANSACTION,
   verifyTxTokenTransfer,
 } from "./constants";
+import { saveTransferSourceLogs } from "./history-evidence";
 
 export const handleBurnSysx = async (
   transferId: string,
@@ -18,7 +19,7 @@ export const handleBurnSysx = async (
   res: NextApiResponse
 ) => {
   await dbConnect();
-  const transfer = await TransferModel.findOne({ id: transferId });
+  const transfer = await TransferModel.findOne({ id: transferId }).select("+historyEvidence");
   if (!transfer) {
     return res.status(404).json({ message: "Transfer not found" });
   }
@@ -65,7 +66,5 @@ export const handleBurnSysx = async (
 
   transfer.logs.push(confirmLog);
 
-  await transfer.save();
-
-  res.status(200).json({ success: true });
+  return saveTransferSourceLogs(transfer, res);
 };

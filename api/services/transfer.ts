@@ -18,7 +18,11 @@ import {
   TransferValidationError,
 } from "./transfer-validation";
 import { assertTransferCompleted } from "./transfer-completion";
-import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "./transfer-progress";
+import {
+  canonicalizeTransferProgress,
+  verifiedTransferProgressStatus,
+  type TransferHistoryEvidence,
+} from "./transfer-progress";
 import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
 import { continueNevmTransferAfterError, isErrorLog, knownTransferProgressStatus } from "utils/transfer-progress";
 
@@ -125,6 +129,13 @@ const projectTransfer = (transfer: unknown, options: {
   }
   delete source.writeTokenHash;
   delete source.progressStatus;
+  const historyEvidence: TransferHistoryEvidence | undefined = source.historyEvidence;
+  source.historyPublic = Boolean(historyEvidence?.sourceTransactionHash);
+  if (historyEvidence && !options.privateAccount && !options.diagnostics &&
+      !historyEvidence.utxoAddresses.includes(source.utxoAddress)) {
+    source.utxoAddress = historyEvidence.utxoAddresses[0];
+  }
+  delete source.historyEvidence;
   delete source.__v;
   if (!options.privateAccount) delete source.utxoXpub;
   if (options.summary) {
@@ -152,22 +163,22 @@ export class TransferService {
   constructor() {}
 
   async getAll(params: Partial<ITransfer>, page = 1): Promise<ITransfer[]> {
-    const filters: (keyof ITransfer)[] = [
-      "nevmAddress",
-      "utxoAddress",
-      "utxoXpub",
-    ];
-    const queryConstraints = filters.reduce((acc, key) => {
-      if (key in params && typeof params[key] === "string") {
-        acc.push({ [key]: params[key] as string });
-      }
-      return acc;
-    }, [] as Record<string, string>[]);
+    const queryConstraints: Record<string, string>[] = [];
+    if (typeof params.nevmAddress === "string") {
+      queryConstraints.push({ "historyEvidence.nevmAddress": params.nevmAddress.toLowerCase() });
+    }
+    if (typeof params.utxoAddress === "string") {
+      queryConstraints.push({ "historyEvidence.utxoAddresses": params.utxoAddress });
+    }
+    if (typeof params.utxoXpub === "string") {
+      const accountHash = createHash("sha256").update(params.utxoXpub).digest("hex");
+      queryConstraints.push({ "historyEvidence.utxoAccountHash": accountHash });
+    }
     if (!queryConstraints.length) return [];
     const transfers = await TransferModel.find({
       $or: queryConstraints,
       ...(params.version ? { version: params.version } : {}),
-    }).select("-logs -utxoXpub +progressStatus")
+    }).select("-logs -utxoXpub +progressStatus +historyEvidence")
       .sort({ createdAt: -1, _id: -1 })
       .skip((page - 1) * TRANSFER_HISTORY_PAGE_SIZE)
       .limit(TRANSFER_HISTORY_PAGE_SIZE + 1)
@@ -180,7 +191,9 @@ export class TransferService {
       throw new TransferValidationError("Invalid transfer ID");
     }
     const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
-      writeTokens?.length ? "+progressStatus +writeTokenHash" : "+progressStatus"
+      writeTokens?.length
+        ? "+progressStatus +historyEvidence +writeTokenHash"
+        : "+progressStatus +historyEvidence"
     );
 
     if (!transfer) {
@@ -189,6 +202,9 @@ export class TransferService {
 
     const diagnostics = Boolean(writeTokens?.length && transfer.writeTokenHash &&
       findMatchingWriteToken(writeTokens, transfer.writeTokenHash));
+    if (!diagnostics && !transfer.historyEvidence?.sourceTransactionHash) {
+      throw new TransferNotFoundError();
+    }
     return projectTransfer(transfer, { diagnostics });
   }
 
@@ -197,7 +213,7 @@ export class TransferService {
     writeTokens?: WriteTokenCandidates
   ): Promise<ITransfer> {
     const transfer = await TransferModel.findOne({ id: { $eq: id } }).select(
-      "+writeTokenHash +progressStatus"
+      "+writeTokenHash +progressStatus +historyEvidence"
     );
 
     if (!transfer) throw new TransferNotFoundError();
@@ -244,7 +260,10 @@ export class TransferService {
     const recoverable = new Set<string>([ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
       ETH_TO_SYS_TRANSFER_STATUS.CONFIRM_FREEZE_BURN_SYS, COMMON_STATUS.ERROR]);
     if (sourceLogs.length && receiptLogs.length && !recoverable.has(existing.status)) {
-      return projectTransfer(existing, { diagnostics: true });
+      return {
+        ...projectTransfer(existing, { diagnostics: true }),
+        historyPublic: existing.historyPublic,
+      };
     }
     if (!recoverable.has(existing.status)) {
       throw new TransferWriteConflictError();
@@ -293,7 +312,7 @@ export class TransferService {
   ): Promise<TransferWriteResult> {
     assertValidTransferPayload(transfer);
     const existing = await TransferModel.findOne({ id: transfer.id }).select(
-      "+writeTokenHash +progressStatus"
+      "+writeTokenHash +progressStatus +historyEvidence"
     );
 
     if (!existing) {
@@ -352,7 +371,18 @@ export class TransferService {
       status: existing.progressStatus ?? existing.status,
     } as ITransfer;
     assertNewTransferLogs(transfer.logs, priorProgress.logs);
-    transfer = await canonicalizeTransferProgress(transfer, priorProgress);
+    let historyEvidence: TransferHistoryEvidence | undefined;
+    transfer = await canonicalizeTransferProgress(transfer, priorProgress, (evidence) => {
+      const previous = existing.historyEvidence;
+      historyEvidence = previous?.sourceTransactionHash === evidence.sourceTransactionHash &&
+        previous.utxoAccountHash && !evidence.utxoAccountHash
+        ? {
+            ...evidence,
+            utxoAccountHash: previous.utxoAccountHash,
+            utxoAddresses: Array.from(new Set([...evidence.utxoAddresses, ...previous.utxoAddresses])),
+          }
+        : evidence;
+    });
     if (transfer.status === COMMON_STATUS.COMPLETED) {
       await assertTransferCompleted(transfer);
     }
@@ -363,14 +393,27 @@ export class TransferService {
         writeTokenHash: existing.writeTokenHash,
         __v: existing.__v === undefined ? { $exists: false } : existing.__v,
       },
-      { $set: { ...toTransferUpdate(transfer),
-        progressStatus: verifiedTransferProgressStatus(transfer, priorProgress) }, $inc: { __v: 1 } },
+      {
+        $set: {
+          ...toTransferUpdate(transfer),
+          progressStatus: verifiedTransferProgressStatus(transfer, priorProgress),
+          ...(historyEvidence ? { historyEvidence } : {}),
+        },
+        ...(!historyEvidence && existing.historyEvidence ? { $unset: { historyEvidence: 1 } } : {}),
+        $inc: { __v: 1 },
+      },
       { new: true }
     );
     if (!updatedTransfer) {
       throw new TransferWriteConflictError();
     }
 
-    return { transfer: projectTransfer(updatedTransfer, { diagnostics: true }), writeToken };
+    return {
+      transfer: {
+        ...projectTransfer(updatedTransfer, { diagnostics: true }),
+        historyPublic: Boolean(historyEvidence),
+      },
+      writeToken,
+    };
   }
 }

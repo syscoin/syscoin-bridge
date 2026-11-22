@@ -3,6 +3,7 @@ import { NextApiHandler } from "next";
 import adminSessionGuard from "utils/api/admin-session-guard";
 import TransferModel from "models/transfer";
 import { getAdminOrigin, isAdminTransferId } from "utils/api/admin-authorization";
+import { historyEvidenceMatchesLogs } from "api/services/admin-transfer/history-evidence";
 
 const AdminTransferLog: NextApiHandler = adminSessionGuard(async (req, res) => {
   if (req.method === "DELETE") {
@@ -15,18 +16,29 @@ const AdminTransferLog: NextApiHandler = adminSessionGuard(async (req, res) => {
     }
 
     await dbConnect();
-    const deleteResults = await TransferModel.updateMany(
-      { id },
+    const transfer = await TransferModel.findOne({ id }).select("type logs __v +historyEvidence");
+    if (!transfer) {
+      return res.status(200).json({
+        acknowledged: true, matchedCount: 0, modifiedCount: 0, upsertedCount: 0, upsertedId: null,
+      });
+    }
+    const logDate = Number(date);
+    const sourceHash = transfer.historyEvidence?.sourceTransactionHash;
+    const removeEvidence = sourceHash && !historyEvidenceMatchesLogs(
+      transfer.type, transfer.logs.filter((log) => log.date !== logDate), sourceHash
+    );
+    const deleteResults = await TransferModel.updateOne(
+      { _id: transfer._id, __v: transfer.__v === undefined ? { $exists: false } : transfer.__v },
       {
-        // Invalidate public PATCH snapshots that still contain this log.
+        // Keep log removal and public evidence invalidation in the same write.
         $inc: { __v: 1 },
-        $pull: {
-          logs: {
-            date: date,
-          },
-        },
+        $pull: { logs: { date: logDate } },
+        ...(removeEvidence ? { $unset: { historyEvidence: 1 } } : {}),
       }
     );
+    if (!deleteResults.matchedCount) {
+      return res.status(409).json({ message: "Transfer changed while saving; refresh before retrying" });
+    }
     return res.status(200).json(deleteResults);
   }
 

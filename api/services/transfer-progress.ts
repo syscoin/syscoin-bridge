@@ -3,21 +3,31 @@ import managerAbi from "@contexts/Transfer/abi/SyscoinERC20Manager";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import relayAbi from "@contexts/Transfer/relay-abi";
 import { COMMON_STATUS, ITransfer, ITransferLog } from "@contexts/Transfer/types";
+import { createHash } from "crypto";
 import { isDeepStrictEqual } from "util";
 import { SPVProof, utils as syscoinUtils } from "syscoinjs-lib";
 import web3 from "utils/get-web3";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
 import { syscoinTxIdFromWitnessStrippedHex } from "utils/syscoin-txid";
+import { isValidUtxoAccount } from "utils/utxo-account";
 import { AbiItem, toWei } from "web3-utils";
 import {
   assertAccountInputs, assertAccountSysxInputs, blockbookUrl,
-  encodedTransactionIndex, requireEvidence, UtxoTransaction,
+  encodedTransactionIndex, getDerivedUtxoAddresses, getHistoryUtxoAddresses,
+  requireEvidence, sysxInputs, UtxoTransaction,
 } from "./transfer-completion";
 import { getCanonicalProof } from "./sponsor-proof";
-import { assertFreezeBurnMatchesTransfer } from "./sponsor-utxo-eligibility";
+import { getVerifiedFreezeBurnReceipt } from "./sponsor-utxo-eligibility";
 import { TransferValidationError } from "./transfer-validation";
 import { isErrorLog, routeSteps, stepForStatus, logProgressFloor } from "utils/transfer-progress";
 export { verifiedTransferProgressStatus } from "utils/transfer-progress";
+
+export interface TransferHistoryEvidence {
+  sourceTransactionHash: string;
+  nevmAddress: string;
+  utxoAddresses: string[];
+  utxoAccountHash?: string;
+}
 
 type Allocation = { assetGuid: string; values: { n: number; value: { toString(): string } }[] };
 const { getAllocationsFromTx, bufferUtils } = require("syscointx-js") as {
@@ -36,6 +46,7 @@ const sameAddress = (left?: string | null, right?: string | null) =>
   Boolean(left && right && left.toLowerCase() === right.toLowerCase());
 const isHash = (hash: unknown, nevm = false): hash is string =>
   typeof hash === "string" && (nevm ? /^0x[a-f0-9]{64}$/i : /^[a-f0-9]{64}$/i).test(hash);
+const hashUtxoAccount = (xpub: string) => createHash("sha256").update(xpub).digest("hex");
 const legacyFreezeAbi: AbiItem = {
   type: "function", name: "freezeBurnERC20", inputs: [
     { name: "value", type: "uint256" },
@@ -75,7 +86,7 @@ const assertHistory = (transfer: ITransfer, existing?: ITransfer) => {
 
 /** Authorize progress from actual chain evidence, not client status/receipt claims. */
 export const canonicalizeTransferProgress = async (
-  transfer: ITransfer, existing?: ITransfer
+  transfer: ITransfer, existing?: ITransfer, onHistoryEvidence?: (evidence: TransferHistoryEvidence) => void
 ): Promise<ITransfer> => {
   try {
     assertHistory(transfer, existing);
@@ -122,6 +133,20 @@ export const canonicalizeTransferProgress = async (
       return hash!;
     };
     const amount = toSyscoinBaseUnits(transfer.amount);
+    let accountAddresses: ReturnType<typeof getDerivedUtxoAddresses> | undefined;
+    const lookupAccount = (xpub: string) => accountAddresses ??= getDerivedUtxoAddresses(xpub);
+    const historyAccountAddresses = async () => {
+      const xpub = transfer.utxoXpub;
+      if (!xpub) return new Set<string>();
+      try {
+        return await (accountAddresses ?? getHistoryUtxoAddresses(
+          xpub, transfer.type === "nevm-to-sys" ? "derived" : "used"
+        ));
+      } catch {
+        // Address-based history remains available during an account lookup failure.
+        return new Set<string>();
+      }
+    };
     const rawTransactions = new Map<string, Promise<UtxoTransaction>>();
     const validatedTransactions = new Map<string, Promise<UtxoTransaction>>();
     const nevmTransactions = new Map<string, ReturnType<typeof web3.eth.getTransaction>>();
@@ -134,15 +159,13 @@ export const canonicalizeTransferProgress = async (
       if (!nevmReceipts.has(hash)) nevmReceipts.set(hash, web3.eth.getTransactionReceipt(hash));
       return nevmReceipts.get(hash)!;
     };
-    let confirmedFreeze: Promise<any> | undefined;
+    const hasFreezeConfirmation = transfer.logs.some((log) =>
+      log.status === "confirm-freeze-burn-sys" && !isErrorLog(log));
+    let confirmedFreeze: ReturnType<typeof getVerifiedFreezeBurnReceipt> | undefined;
     const freezeReceipt = () => confirmedFreeze ??= (async () => {
       const hash = reference("freeze-burn-sys");
-      requireEvidence(transfer.logs.some((log) => log.status === "confirm-freeze-burn-sys" && !isErrorLog(log)),
-        "Freeze and burn must be confirmed before minting SYSX");
-      await assertFreezeBurnMatchesTransfer(transfer);
-      const receipt = await getReceipt(hash);
-      requireEvidence(receipt && sameAddress(receipt.transactionHash, hash), "Freeze receipt does not match this transaction");
-      return receipt;
+      requireEvidence(hasFreezeConfirmation, "Freeze and burn must be confirmed before minting SYSX");
+      return getVerifiedFreezeBurnReceipt(transfer, hash);
     })();
 
     const utxoTransaction = async (stage: string, confirmations = 0): Promise<UtxoTransaction> => {
@@ -174,7 +197,7 @@ export const canonicalizeTransferProgress = async (
               Buffer.from(raw.outs[value.n].script).equals(Uint8Array.from(destination)))) &&
             raw.outs[opReturnIndex].value.toString() === amount,
           "SYS conversion does not match this transfer's recipient and amount");
-          await assertAccountInputs(transfer, tx.vin);
+          await assertAccountInputs(transfer, tx.vin, undefined, lookupAccount);
         } else if (stage === "mint-sysx") {
           requireEvidence(transfer.type === "nevm-to-sys" && raw.version === 140 && tx.tokenType === "SPTAssetAllocationMint", "Not a SYSX mint");
           const receipt = await freezeReceipt();
@@ -205,7 +228,7 @@ export const canonicalizeTransferProgress = async (
               payout.value.toString() === amount && Buffer.from(payout.script).equals(Uint8Array.from(destination)),
             "SYSX conversion recipient does not match this transfer");
           }
-          await assertAccountSysxInputs(transfer, tx);
+          await assertAccountSysxInputs(transfer, tx, lookupAccount);
         }
         return tx;
       })());
@@ -216,6 +239,10 @@ export const canonicalizeTransferProgress = async (
 
     const freezeSubmission = async () => {
       const hash = reference("freeze-burn-sys");
+      if (hasFreezeConfirmation) {
+        await freezeReceipt();
+        return { hash };
+      }
       const tx = await getNevmTransaction(hash);
       requireEvidence(tx && sameAddress(tx.hash, hash) && sameAddress(tx.to, ERC20_MANAGER_CONTRACT_ADDRESS) &&
         sameAddress(tx.from, transfer.nevmAddress) && tx.value === toWei(transfer.amount, "ether"),
@@ -313,9 +340,60 @@ export const canonicalizeTransferProgress = async (
       if (reached("mint-sysx")) await utxoTransaction("mint-sysx");
       if (reached("burn-sysx")) await utxoTransaction("burn-sysx");
     }
+
+    if (onHistoryEvidence && transfer.type === "sys-to-nevm") {
+      const burn = await validatedTransactions.get("burn-sysx");
+      if (burn && burn.confirmations >= 1) {
+        const derived = await historyAccountAddresses();
+        // A script that reports multiple addresses does not uniquely attribute the spend.
+        const sourceAddresses = sysxInputs(burn).map((input) =>
+          input.addresses?.length === 1 ? input.addresses[0] : undefined);
+        const utxoAddresses = new Set(sourceAddresses.filter((address): address is string => Boolean(address)));
+        const xpub = transfer.utxoXpub;
+        const verifiedAccount = xpub && sourceAddresses.length > 0 &&
+          sourceAddresses.every((address) => address && derived.has(address));
+        if (verifiedAccount && transfer.utxoAddress && derived.has(transfer.utxoAddress)) {
+          utxoAddresses.add(transfer.utxoAddress);
+        }
+        onHistoryEvidence({
+          sourceTransactionHash: burn.txid.toLowerCase(),
+          nevmAddress: transfer.nevmAddress!.toLowerCase(),
+          utxoAddresses: Array.from(utxoAddresses),
+          ...(verifiedAccount ? { utxoAccountHash: hashUtxoAccount(xpub) } : {}),
+        });
+      }
+    } else if (onHistoryEvidence && confirmedFreeze) {
+      const receipt = await confirmedFreeze;
+      const destination = transfer.utxoAddress!;
+      const derived = await historyAccountAddresses();
+      const xpub = transfer.utxoXpub;
+      onHistoryEvidence({
+        sourceTransactionHash: receipt.transactionHash.toLowerCase(),
+        nevmAddress: transfer.nevmAddress!.toLowerCase(),
+        utxoAddresses: [destination],
+        ...(xpub && derived.has(destination) ? { utxoAccountHash: hashUtxoAccount(xpub) } : {}),
+      });
+    }
     return result;
   } catch (error) {
     if (error instanceof TransferValidationError) throw error;
     throw new TransferValidationError("Unable to verify transfer progress; retry saving once its transactions are available");
   }
+};
+
+/** Reverify historical records from their source logs without processing settlement. */
+export const verifyTransferHistoryEvidence = async (transfer: ITransfer): Promise<TransferHistoryEvidence | undefined> => {
+  const sourceStages = transfer.type === "sys-to-nevm"
+    ? ["burn-sysx"] : ["freeze-burn-sys", "confirm-freeze-burn-sys"];
+  const logs = transfer.logs
+    .filter((log) => sourceStages.includes(log.status) && log.payload?.data && !isErrorLog(log))
+    .map((log) => log.status === "freeze-burn-sys" && typeof log.payload.data === "string"
+      ? { ...log, payload: { ...log.payload, data: { hash: log.payload.data } } }
+      : log);
+  const utxoXpub = isValidUtxoAccount(transfer.utxoXpub) ? transfer.utxoXpub : undefined;
+  let historyEvidence: TransferHistoryEvidence | undefined;
+  await canonicalizeTransferProgress({ ...transfer, utxoXpub, status: COMMON_STATUS.ERROR, logs }, undefined, (evidence) => {
+    historyEvidence = evidence;
+  });
+  return historyEvidence;
 };

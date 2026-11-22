@@ -7,6 +7,11 @@ import { Alert, Button } from "@mui/material";
 import { UseMutateFunction, useMutation, useQuery, useQueryClient } from "react-query";
 import isTransfer from "utils/isTransfer";
 import {
+  buildTransferPath,
+  readTransferDetail,
+  TransferReadError,
+} from "utils/transfer-detail";
+import {
   getOrCreateTransferWriteToken,
   getTransferWriteToken,
 } from "utils/transfer-write-token";
@@ -38,32 +43,6 @@ type PendingCreation = {
   request: Promise<TransferCreationAuthorization>;
 };
 
-const isSafeTransferId = (id: string) => {
-  if (!id) {
-    return false;
-  }
-
-  for (const char of id) {
-    const code = char.charCodeAt(0);
-    const isDigit = code >= 48 && code <= 57;
-    const isUppercase = code >= 65 && code <= 90;
-    const isLowercase = code >= 97 && code <= 122;
-    if (!isDigit && !isUppercase && !isLowercase && char !== "-" && char !== "_") {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-const buildTransferPath = (id: string) => {
-  if (!isSafeTransferId(id)) {
-    throw new Error("Invalid transfer ID");
-  }
-
-  return `/api/transfer/${encodeURIComponent(id)}`;
-};
-
 export const TransferContextProvider: React.FC<
   TransferContextProviderProps
 > = ({ children, transfer: initialData }) => {
@@ -72,27 +51,21 @@ export const TransferContextProvider: React.FC<
   const { expectedChainId } = useNEVM();
   const { version, isEVMInjected, isBitcoinBased, switchTo } = usePaliWalletV2();
   const queryClient = useQueryClient();
-  const { data: transfer, refetch: refetchTransfer } = useQuery(
+  const {
+    data: transfer,
+    error: transferError,
+    refetch: refetchTransfer,
+  } = useQuery(
     ["transfer", initialData.id],
     {
-      queryFn: async (): Promise<ITransfer> => {
-        const url = buildTransferPath(initialData.id);
-        const writeToken = getTransferWriteToken(initialData.id);
-        const res = await fetch(url, {
-          cache: "no-store",
-          credentials: "same-origin",
-          redirect: "error",
-          headers: writeToken ? { Authorization: `Bearer ${writeToken}` } : {},
-        });
-        const jsonData = await res.json();
-        if (res.ok && isTransfer(jsonData) && jsonData.id === initialData.id) {
-          return jsonData;
-        }
-        throw new Error("Invalid transfer");
-      },
+      queryFn: () =>
+        readTransferDetail(initialData.id, getTransferWriteToken(initialData.id)),
       initialData,
       enabled:
         initialData.status !== "initialize" && initialData.id !== undefined,
+      retry: (failureCount, error) =>
+        !(error instanceof TransferReadError && error.status === 404) &&
+        failureCount < 3,
     }
   );
 
@@ -181,6 +154,19 @@ export const TransferContextProvider: React.FC<
       },
     }
   );
+
+  if (
+    !transfer?.status &&
+    transferError instanceof TransferReadError &&
+    transferError.status === 404
+  ) {
+    return (
+      <Alert severity="info" sx={{ mt: 10, mx: 3 }}>
+        This transfer is unavailable. If you started it, open it in the browser
+        profile you used to create it.
+      </Alert>
+    );
+  }
 
   return (
     <TransferContext.Provider

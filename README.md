@@ -53,6 +53,31 @@ cannot be removed or rewritten, and concurrent updates use an optimistic version
 check. Error diagnostics and messages remain client-reported, not proof of payment.
 These checks do not deduplicate records that reference the same real transactions.
 
+Public history and transfer detail require a verified source transaction.
+Outgoing UTXO history uses the confirmed SYSX bridge spend and matches only
+proven source addresses or accounts. Pending drafts are visible in the
+creator's browser under **Your drafts** and require the original transfer token.
+
+### Recover verified history for older transfers
+
+After all instances are on the current bridge version, operators can backfill
+public history for older records from their verified source transactions. Run
+from a checkout with dependencies installed and with the deployment's contract
+and network settings in the environment. Set `NEVM_RPC_URL` and
+`UTXO_RPC_URL` (or `UTXO_EXPLORER`) to the deployment's chain providers and
+use a Mongo URI that reaches its database from the operator host.
+
+```bash
+npm exec --yes --package=tsx@4.20.6 -- tsx deploy/backfill-transfer-history.ts --limit 25
+npm exec --yes --package=tsx@4.20.6 -- tsx deploy/backfill-transfer-history.ts --limit 25 --apply
+```
+
+The first command is a dry run. With `--apply`, pass the reported `nextAfter`
+value as `--after` on the next batch and continue until it is `null`. Rows
+without verified evidence stay private. If a batch reports `retry`, run that
+batch again with its original cursor after checking the configured chain
+providers. Successfully updated rows are excluded from subsequent runs.
+
 ### Admin access
 
 Each deployment has a separate admin allowlist in its MongoDB database. Open

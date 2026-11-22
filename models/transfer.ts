@@ -1,10 +1,12 @@
 import { ITransfer, ITransferLog } from "@contexts/Transfer/types";
 import mongoose from "mongoose";
+import type { TransferHistoryEvidence } from "api/services/transfer-progress";
 
 export type Transfer = mongoose.Document &
   ITransfer & {
     writeTokenHash?: string;
     progressStatus?: ITransfer["status"];
+    historyEvidence?: TransferHistoryEvidence;
   };
 
 const TransferLogSchema = new mongoose.Schema<ITransferLog>({
@@ -18,6 +20,13 @@ const TransferLogSchema = new mongoose.Schema<ITransferLog>({
     type: Object,
   },
 });
+
+const TransferHistoryEvidenceSchema = new mongoose.Schema<TransferHistoryEvidence>({
+  sourceTransactionHash: { type: String, required: true },
+  nevmAddress: { type: String, required: true },
+  utxoAddresses: { type: [String], required: true },
+  utxoAccountHash: String,
+}, { _id: false });
 
 const TransferSchema = new mongoose.Schema<Transfer>({
   id: {
@@ -72,10 +81,17 @@ const TransferSchema = new mongoose.Schema<Transfer>({
     type: String,
     select: false,
   },
+  historyEvidence: {
+    type: TransferHistoryEvidenceSchema,
+    select: false,
+  },
 });
 
-for (const key of ["nevmAddress", "utxoAddress", "utxoXpub"] as const) {
-  TransferSchema.index({ [key]: 1, createdAt: -1, _id: -1 });
+for (const key of ["nevmAddress", "utxoAddresses", "utxoAccountHash"] as const) {
+  const path = `historyEvidence.${key}`;
+  TransferSchema.index({ [path]: 1, createdAt: -1, _id: -1 }, {
+    partialFilterExpression: { [path]: { $exists: true } },
+  });
 }
 
 const generateModel = () => mongoose.model("Transfer", TransferSchema);

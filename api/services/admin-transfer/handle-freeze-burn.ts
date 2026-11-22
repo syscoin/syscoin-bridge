@@ -10,6 +10,7 @@ import {
 } from "@contexts/Transfer/types";
 import { validateTransactionReceipt } from "./validate-relay-contract-receipt";
 import { ERC20_MANAGER_CONTRACT_ADDRESS } from "@constants";
+import { saveTransferSourceLogs } from "./history-evidence";
 
 export const handleFreezeBurn = async (
   transferId: string,
@@ -20,7 +21,7 @@ export const handleFreezeBurn = async (
   const web3 = new Web3(process.env.NEVM_RPC_URL!);
 
 
-  const transfer = await TransferModel.findOne({ id: transferId });
+  const transfer = await TransferModel.findOne({ id: transferId }).select("+historyEvidence");
   if (!transfer) {
     return res.status(404).json({ message: "Transfer not found" });
   }
@@ -70,9 +71,7 @@ export const handleFreezeBurn = async (
 
     transfer.logs.push(confirmLog);
 
-    await transfer.save();
-
-    res.status(200).json({ success: true });
+    return await saveTransferSourceLogs(transfer, res);
   } catch (e) {
     if (e instanceof Error) {
       return res.status(400).json({ message: e.message });

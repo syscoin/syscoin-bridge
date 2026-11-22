@@ -106,7 +106,7 @@ describe("capability-authorized existing freeze recovery", () => {
   });
   it("recovers an early persisted error at the freeze checkpoint", async () => {
     stored.status = "error";
-    expect((await new TransferService().getTransfer(transfer.id)).freezeRecoveryAllowed).toBe(true);
+    expect((await new TransferService().getTransfer(transfer.id, token)).freezeRecoveryAllowed).toBe(true);
     const result = await new TransferService().recoverFreezeBurn(transfer.id, hash, token);
     expect(result.status).toBe("mint-sysx");
     expect(result.logs).toHaveLength(2);
@@ -127,9 +127,11 @@ describe("capability-authorized existing freeze recovery", () => {
     }
   );
   it("returns the later error checkpoint on a public read without leaking hidden state", async () => {
+    const service = new TransferService();
+    await service.recoverFreezeBurn(transfer.id, hash, token);
     stored.status = "error"; stored.progressStatus = "burn-sysx";
-    mockModel.findOne.mockReturnValue({ select: async () => clone(stored) });
-    const value = await new TransferService().getTransfer(transfer.id);
+    const value = await service.getTransfer(transfer.id);
+    expect(value.historyPublic).toBe(true);
     expect(value.status).toBe("burn-sysx");
     expect(value).not.toHaveProperty("progressStatus");
     expect(value).not.toHaveProperty("writeTokenHash");

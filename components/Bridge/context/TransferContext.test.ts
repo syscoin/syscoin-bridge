@@ -18,6 +18,7 @@ let retrying = false;
 let mutation: Record<string, unknown>;
 let mutationOptions: any;
 let loadTransfer: () => Promise<unknown>;
+let transferReadError: unknown;
 let saveTransfer: (transfer: unknown) => Promise<unknown>;
 let cachedTransfer: unknown;
 const creationCache = { current: undefined as unknown };
@@ -65,7 +66,7 @@ const testRequire = (name: string): unknown => {
   if (name === "react-query") return {
     useQuery: (_key: unknown, options: { queryFn: typeof loadTransfer }) => {
       loadTransfer = options.queryFn;
-      return { data: cachedTransfer, refetch: mockRefetch };
+      return { data: cachedTransfer, error: transferReadError, refetch: mockRefetch };
     },
     useQueryClient: () => ({ setQueryData: mockSetQueryData }),
     useMutation: (_key: unknown, mutationFn: typeof saveTransfer, options: unknown) => {
@@ -95,6 +96,7 @@ describe("transfer save recovery", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     retrying = false;
+    transferReadError = undefined;
     creationCache.current = undefined;
     cachedTransfer = persisted;
     mockGetWriteToken.mockReset();
@@ -125,6 +127,18 @@ describe("transfer save recovery", () => {
       redirect: "error",
       headers: { Authorization: "Bearer original-capability" },
     });
+  });
+
+  it("explains unavailable direct links without showing the transfer step", async () => {
+    const stub = { id: persisted.id } as typeof persisted;
+    cachedTransfer = stub;
+    jest.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 404 }));
+    renderProvider(stub);
+
+    await loadTransfer().catch((error) => { transferReadError = error; });
+    const html = renderToStaticMarkup(renderProvider(stub));
+    expect(html).toContain("This transfer is unavailable");
+    expect(html).not.toContain("Transaction step");
   });
 
   it("submits new creation with the same capability that obtained the wallet challenge", async () => {

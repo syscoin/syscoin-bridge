@@ -86,14 +86,16 @@ describe("wallet transfer history", () => {
 
   it("retains local history when a remote page fails", () => {
     queryResult = { error: new Error("Unavailable") };
-    const [, grid] = renderGrid().props.children;
+    const [, localLabel, grid] = renderGrid().props.children;
+    expect(localLabel.props.children).toBe("Transfers stored in this browser");
     expect(grid.props.rows).toBe(localItems);
   });
 
   it("lets the user page through the selected wallet's results", () => {
     page = 2;
     queryResult = { data: { transfers: [{ id: "remote-transfer" }], hasMore: true } };
-    const [, grid, controls] = renderGrid().props.children;
+    const [, localLabel, grid, controls] = renderGrid().props.children;
+    expect(localLabel).toBe(false);
     const [previous, , next] = controls.props.children;
     expect(grid.props.rows).toEqual(queryResult.data?.transfers);
     expect(previous.props.disabled).toBe(false);

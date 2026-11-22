@@ -62,9 +62,13 @@ const TransferDataGrid: React.FC<TransferDataGridProps> = ({
     <>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          Transfer history is temporarily unavailable. Local transfers are
-          shown when available.
+          Transfer history is temporarily unavailable.
         </Alert>
+      )}
+      {!remoteHistory && items.length > 0 && (
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          Transfers stored in this browser
+        </Typography>
       )}
       <DataGrid
         loading={isFetching}

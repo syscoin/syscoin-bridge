@@ -103,13 +103,17 @@ describe("transfer PATCH through the real service and Mongoose model", () => {
     expect(insert).not.toHaveBeenCalled();
 
     const created = response();
-    await patchRequest(request({ ...candidate, creationAuthorization: {
+    await patchRequest(request({ ...candidate, historyPublic: true,
+      historyEvidence: { sourceTransactionHash: "unverified", utxoAddresses: [candidate.utxoAddress] },
+      creationAuthorization: {
       challenge, signedMessage: signature(message),
     } }), created);
     expect(created.status).toHaveBeenCalledWith(200);
     expect(insert).toHaveBeenCalledTimes(1);
     expect(charge).toHaveBeenCalledTimes(1);
     expect(stored).not.toHaveProperty("creationAuthorization");
+    expect(stored).not.toHaveProperty("historyEvidence");
+    expect(stored).not.toHaveProperty("historyPublic");
     expect(created.json).toHaveBeenCalledWith(expect.not.objectContaining({ creationAuthorization: expect.anything() }));
     const log = { status: COMMON_STATUS.ERROR, date: 2,
       payload: { message: "retry", data: { error: { message: "pending" } } } };
@@ -139,13 +143,17 @@ describe("transfer PATCH through the real service and Mongoose model", () => {
       await getRequest(request(null), read);
       expect(read.status).toHaveBeenCalledWith(200);
       expect(read.json).toHaveBeenCalledWith(expect.objectContaining({
-        id: candidate.id, logs: [expect.objectContaining(log)],
+        id: candidate.id, logs: [expect.objectContaining(log)], historyPublic: false,
       }));
     }
     const publicRead = response();
     await getRequest(request(null, { token: null, origin: null, method: "GET" }), publicRead);
-    expect(publicRead.status).toHaveBeenCalledWith(200);
-    expect(publicRead.json).toHaveBeenCalledWith(expect.not.objectContaining({ utxoXpub: expect.anything() }));
+    expect(publicRead.status).toHaveBeenCalledWith(404);
+    expect(publicRead.json).toHaveBeenCalledWith({ message: "Transfer not found" });
+    const wrongTokenRead = response();
+    await getRequest(request(null, { token: otherToken, method: "GET" }), wrongTokenRead);
+    expect(wrongTokenRead.status).toHaveBeenCalledWith(404);
+    expect(wrongTokenRead.json).toHaveBeenCalledWith({ message: "Transfer not found" });
   });
 
   it.each([
