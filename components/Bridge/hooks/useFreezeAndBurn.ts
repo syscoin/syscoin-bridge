@@ -6,6 +6,7 @@ import { toWei } from "web3-utils";
 import { useErc20ManagerContract } from "./useErc20ManagerContract";
 import { DEFAULT_GAS_LIMIT } from "@constants";
 import { useFeatureFlags } from "./useFeatureFlags";
+import { verifyTransferSigningIntent } from "../transfer-signing-intent";
 
 export const useFreezeAndBurn = (transfer: ITransfer) => {
   const erc20ManagerContract = useErc20ManagerContract();
@@ -13,19 +14,20 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
   const flags = useFeatureFlags();
   return useMutation(["freezeAndBurn", transfer.id], {
     mutationFn: async () => {
-      const amount = toWei(transfer.amount.toString(), "ether");
+      const intent = await verifyTransferSigningIntent(transfer);
+      const amount = toWei(intent.amount.trim(), "ether");
 
-      let method = flags.isEnabled("isSys5Enabled")
+      const method = flags.isEnabled("isSys5Enabled")
         ? erc20ManagerContract.methods.freezeBurn(
             amount,
             "0x0000000000000000000000000000000000000000",
             0,
-            transfer.utxoAddress
+            intent.utxoAddress
           )
         : erc20ManagerContract.methods.freezeBurnERC20(
             amount,
             SYSX_ASSET_GUID,
-            transfer.utxoAddress
+            intent.utxoAddress
           );
 
       const gasPrice = await web3.eth.getGasPrice();
@@ -39,10 +41,11 @@ export const useFreezeAndBurn = (transfer: ITransfer) => {
           return DEFAULT_GAS_LIMIT;
         });
 
+      await verifyTransferSigningIntent(intent);
       return new Promise<string>((resolve, reject) => {
         method
           .send({
-            from: transfer.nevmAddress,
+            from: intent.nevmAddress,
             gas,
             value: amount,
             gasPrice,

@@ -1,6 +1,7 @@
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
 import { Alert, Box, Container, Typography } from "@mui/material";
 import TransferDataGrid from "components/Transfer/DataGrid";
+import PrivateDrafts from "components/Transfer/PrivateDrafts";
 import WalletList from "components/WalletList";
 import { useConnectedWallet } from "contexts/ConnectedWallet/useConnectedWallet";
 import { ITransfer } from "contexts/Transfer/types";
@@ -20,6 +21,14 @@ const TransfersPage: NextPage = () => {
   const isFullyConnected = onlyV2
     ? isPaliV2Connected
     : Boolean(utxo.account && nevm.account);
+  const historyVersion = onlyV2 ? version : undefined;
+  const historyKey = JSON.stringify([
+    nevm.account,
+    utxo.account,
+    Boolean(utxo.xpub),
+    historyVersion,
+    isFullyConnected,
+  ]);
 
   useEffect(() => {
     if (!localStorage) {
@@ -34,13 +43,15 @@ const TransfersPage: NextPage = () => {
         <Typography variant="h5">Transfers</Typography>
         <BridgeNewTransferButton sx={{ ml: "auto" }} />
       </Box>
+      <PrivateDrafts />
       <TransferDataGrid
-        account={nevm.account}
+        key={historyKey}
+        nevm={nevm.account}
         isFullyConnected={isFullyConnected}
         items={items}
-        xpub={utxo.xpub}
-        version={onlyV2 ? version : undefined}
-        bridgeVersion="v3"
+        utxoAddress={utxo.account}
+        utxoXpub={utxo.xpub}
+        version={historyVersion}
       />
       {!isFullyConnected && (
         <Alert severity="info" sx={{ mb: 2 }}>

@@ -33,10 +33,18 @@ The bridge UI is a ReactJS application that allows users to interact with the br
 
 Each step taken on the Bridge is stored in MongoDB. This allows the user to resume the process at any time.
 
-Public transfer writes validate network addresses, amounts and log structure.
-New records must start at the first transaction step, and their route, accounts,
-asset and amount cannot subsequently change. A write capability authorizes edits
-to that record; it is not wallet authentication. Progress and transaction references
+Transfer history and redacted transfer details are public. To start a transfer,
+the selected NEVM wallet signs a five-minute challenge covering both addresses,
+the route, asset, amount, deployment and transfer credential. The signature is
+free and creates a record before any funds are moved. On UTXO to NEVM, the signer
+controls the NEVM destination. The UTXO transaction later proves spending authority.
+Deployed NEVM contract wallets can authenticate with ERC-1271.
+
+New records must start at the first transaction step. Their route, accounts,
+asset and amount cannot subsequently change. The original transfer credential
+authorizes updates and requests for sponsorship, including proof submission via
+POST. Existing transfers can still resume using their original credential.
+Progress and transaction references
 are verified against the configured chains before saving, and receipt/proof payloads
 are replaced with canonical backend evidence. Pending submissions and the existing
 zero-confirmation SYSX steps remain supported. Before accepting `completed`, the
@@ -44,6 +52,31 @@ backend additionally requires matching confirmed settlement evidence. Saved hist
 cannot be removed or rewritten, and concurrent updates use an optimistic version
 check. Error diagnostics and messages remain client-reported, not proof of payment.
 These checks do not deduplicate records that reference the same real transactions.
+
+Public history and transfer detail require a verified source transaction.
+Outgoing UTXO history uses the confirmed SYSX bridge spend and matches only
+proven source addresses or accounts. Pending drafts are visible in the
+creator's browser under **Your drafts** and require the original transfer token.
+
+### Recover verified history for older transfers
+
+After all instances are on the current bridge version, operators can backfill
+public history for older records from their verified source transactions. Run
+from a checkout with dependencies installed and with the deployment's contract
+and network settings in the environment. Set `NEVM_RPC_URL` and
+`UTXO_RPC_URL` (or `UTXO_EXPLORER`) to the deployment's chain providers and
+use a Mongo URI that reaches its database from the operator host.
+
+```bash
+npm exec --yes --package=tsx@4.20.6 -- tsx deploy/backfill-transfer-history.ts --limit 25
+npm exec --yes --package=tsx@4.20.6 -- tsx deploy/backfill-transfer-history.ts --limit 25 --apply
+```
+
+The first command is a dry run. With `--apply`, pass the reported `nextAfter`
+value as `--after` on the next batch and continue until it is `null`. Rows
+without verified evidence stay private. If a batch reports `retry`, run that
+batch again with its original cursor after checking the configured chain
+providers. Successfully updated rows are excluded from subsequent runs.
 
 ### Admin access
 
@@ -201,9 +234,11 @@ so Compose never offers to recreate an existing Mongo data volume.
 | `MONGO_CONFIG_VOLUME`           | Existing external Mongo `/data/configdb` volume name |         |
 | `MONGO_BACKUP_VOLUME`           | Existing environment-specific external Docker volume for Mongo backups |         |
 | `CONFIRM_TRANSACTION_TIMEOUTS`  | Transaction confirmation timeout               |         |
-| `MINIMUM_AMOUNT`                | Minimum amount of SYS to transfer              | 100     |
+| `MINIMUM_AMOUNT`                | Minimum SYSX burned for foundation-sponsored proof submission | 100 |
+| `TRANSFER_CREATE_LIMIT`        | New transfers allowed per client in 10 minutes, or per wallet pair behind a private proxy without a trusted client address | 120 |
+| `TRANSFER_TRUST_CLOUDFLARE`    | Use the Cloudflare client address for creation quotas only behind trusted, header-sanitizing ingress | false |
 | `ADMIN_API_KEY`                 | Admin API Key                                  |         |
-| `SECRET_COOKIE_PASSWORD`        | Secret Cookie Password                         |         |
+| `SECRET_COOKIE_PASSWORD`        | At least 32 characters; required for transfer challenges and admin sessions |         |
 | `ADMIN_COOKIE_DOMAIN`           | Optional domain for admin session cookie       |         |
 | `NEVM_RPC_URL`                  | NEVM RPC URL                                   |         |
 | `NEVM_EXPLORER`                 | NEVM Explorer URL                              |         |

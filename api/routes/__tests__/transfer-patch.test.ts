@@ -36,6 +36,7 @@ jest.mock("utils/api/cors", () => ({
 import { NextApiRequest, NextApiResponse } from "next";
 import { TransferNotFoundError, TransferWriteConflictError } from "api/services/transfer";
 import { TransferValidationError } from "api/services/transfer-validation";
+import { TransferCreateLimitError } from "api/services/transfer-create-quota";
 import { getRequest, patchRequest } from "pages/api/transfer/[id]";
 
 const createResponse = () => {
@@ -74,11 +75,12 @@ describe("transfer PATCH binding", () => {
   it("offers both bearer and backup-cookie capabilities and refreshes the accepted cookie", async () => {
     const request = {
       query: { id: "transfer-id" },
-      body: { id: "transfer-id" },
+      body: { id: "transfer-id", creationAuthorization: { challenge: "challenge", signedMessage: "signed" } },
       headers: {
         authorization: "Bearer replacement-token",
         cookie: "transfer-write-token=original-token",
         "x-forwarded-proto": "https",
+        origin: "https://bridge.example",
       },
       socket: {},
     } as unknown as NextApiRequest;
@@ -89,7 +91,12 @@ describe("transfer PATCH binding", () => {
     expect(mockUpsertTransfer).toHaveBeenCalledWith(request.body, [
       "replacement-token",
       "original-token",
-    ]);
+    ], {
+      origin: "https://bridge.example",
+      authorization: request.body.creationAuthorization,
+      charge: expect.any(Function),
+      chargeContractVerification: expect.any(Function),
+    });
     expect(response.setHeader).toHaveBeenCalledWith(
       "Set-Cookie",
       expect.stringContaining("transfer-write-token=accepted-token")
@@ -111,6 +118,20 @@ describe("transfer PATCH binding", () => {
     expect(response.status).toHaveBeenCalledWith(400);
     expect(response.json).toHaveBeenCalledWith({ message: "Invalid transfer addresses" });
     expect(response.setHeader).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 and Retry-After when a new transfer is over quota", async () => {
+    mockUpsertTransfer.mockRejectedValueOnce(new TransferCreateLimitError(30));
+    const request = {
+      query: { id: "transfer-id" }, body: { id: "transfer-id" }, headers: {},
+    } as unknown as NextApiRequest;
+    const response = createResponse();
+
+    await patchRequest(request, response);
+
+    expect(response.status).toHaveBeenCalledWith(429);
+    expect(response.setHeader).toHaveBeenCalledWith("Retry-After", "30");
+    expect(response.setHeader).not.toHaveBeenCalledWith("Set-Cookie", expect.anything());
   });
 
   it("returns 409 for a stale write without setting a capability cookie", async () => {

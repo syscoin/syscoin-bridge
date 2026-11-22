@@ -13,5 +13,3 @@ export const ERC20_MANAGER_CONTRACT_ADDRESS =
   isSys5Enabled
     ? process.env.ERC20_MANAGER_CONTRACT_ADDRESS
     : "0x7904299b3D3dC1b03d1DdEb45E9fDF3576aCBd5f";
-
-export const ADMIN_LOGIN_MESSAGE = "Login to Syscoin Bridge Admin";

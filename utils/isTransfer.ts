@@ -4,7 +4,7 @@ export const isTransfer = (obj: any): obj is ITransfer => {
   return (
     obj &&
     typeof obj.id === "string" &&
-    typeof obj.utxoXpub === "string" &&
+    (obj.utxoXpub === undefined || typeof obj.utxoXpub === "string") &&
     typeof obj.utxoAddress === "string" &&
     typeof obj.nevmAddress === "string" &&
     typeof obj.status === "string" &&

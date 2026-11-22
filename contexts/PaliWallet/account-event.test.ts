@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@jest/globals";
 import { getNevmAccountUpdateFromEvent } from "./account-event";
 
 const EVM_ACCOUNT = "0x942db9399f51805f9a84664587210b7ce67e052e";

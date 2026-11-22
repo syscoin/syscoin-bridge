@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 
 const mockFindOne = jest.fn<any>();
-const mockVerifySignature = jest.fn<any>();
+const mockAuthorize = jest.fn<any>();
 jest.mock("models/transfer", () => ({ __esModule: true, default: { findOne: mockFindOne } }));
 jest.mock("lib/mongodb", () => jest.fn());
 jest.mock("utils/api/admin-session-guard", () => ({ __esModule: true, default: (handler: unknown) => handler }));
-jest.mock("utils/api/verify-signature", () => ({ verifySignature: mockVerifySignature }));
+jest.mock("utils/api/admin-authorization", () => ({ authorizeAdminTransferAction: mockAuthorize, isAdminTransferId: (id: unknown) => typeof id === "string" }));
 
 import { NextApiRequest, NextApiResponse } from "next";
 import adminTransferHandler from "pages/api/admin/transfer/[id]";
@@ -22,14 +22,14 @@ const response = () => {
   return res as unknown as NextApiResponse & typeof res;
 };
 const document = () => ({
-  status: "error", amount: "1", set: jest.fn(), increment: jest.fn(),
+  type: "sys-to-nevm", status: "error", amount: "1", set: jest.fn(), increment: jest.fn(),
   save: jest.fn<any>().mockResolvedValue({ id: "transfer-id" }),
 });
 
 describe("signed administrator transfer overrides", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockVerifySignature.mockReturnValue(true);
+    mockAuthorize.mockResolvedValue(true);
   });
 
   it("resets the private progress checkpoint only after a signed status override", async () => {
@@ -37,6 +37,10 @@ describe("signed administrator transfer overrides", () => {
     mockFindOne.mockResolvedValue(transfer);
     const res = response();
     await adminTransferHandler(request(), res);
+    expect(mockAuthorize).toHaveBeenCalledWith(
+      expect.anything(), res, "override", "transfer-id",
+      { changes: [{ property: "status", from: "error", to: "burn-sysx" }] }
+    );
     expect(transfer.status).toBe("burn-sysx");
     expect(transfer.set).toHaveBeenCalledWith("progressStatus", undefined);
     expect(transfer.increment).toHaveBeenCalledTimes(1);
@@ -47,7 +51,10 @@ describe("signed administrator transfer overrides", () => {
   it("does not reset the checkpoint when the signature is invalid", async () => {
     const transfer = document();
     mockFindOne.mockResolvedValue(transfer);
-    mockVerifySignature.mockReturnValue(false);
+    mockAuthorize.mockImplementation(async (_req: NextApiRequest, res: NextApiResponse) => {
+      res.status(401).json({ message: "Invalid authorization" });
+      return false;
+    });
     const res = response();
     await adminTransferHandler(request(), res);
     expect(mockFindOne).not.toHaveBeenCalled();
@@ -57,17 +64,31 @@ describe("signed administrator transfer overrides", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it("does not reset progress for an unrelated edit or a stale status override", async () => {
+  it.each(["amount", "nevmAddress", "utxoAddress", "id", "type", "utxoXpub"])(
+    "keeps transfer intent field %s immutable",
+    async (property) => {
+      const transfer = document();
+      mockFindOne.mockResolvedValue(transfer);
+      const res = response();
+      await adminTransferHandler(request([{ property, from: "1", to: "2" }]), res);
+      expect(mockAuthorize).not.toHaveBeenCalled();
+      expect(transfer.save).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+    }
+  );
+
+  it("returns a conflict without resetting progress for a stale status override", async () => {
     const transfer = document();
     mockFindOne.mockResolvedValue(transfer);
-    await adminTransferHandler(request([
-      { property: "amount", from: "1", to: "2" },
-      { property: "status", from: "completed", to: "burn-sysx" },
-    ]), response());
-    expect(transfer.amount).toBe("2");
+    const res = response();
+    await adminTransferHandler(
+      request([{ property: "status", from: "completed", to: "burn-sysx" }]),
+      res
+    );
     expect(transfer.status).toBe("error");
     expect(transfer.set).not.toHaveBeenCalled();
-    expect(transfer.increment).toHaveBeenCalledTimes(1);
+    expect(transfer.increment).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 
   it("returns a conflict if another writer advances the version first", async () => {

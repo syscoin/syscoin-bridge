@@ -5,6 +5,7 @@ import managerAbi from "@contexts/Transfer/abi/SyscoinERC20Manager";
 import relayAbi from "@contexts/Transfer/relay-abi";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { COMMON_STATUS, ITransfer, ITransferLog, SYS_TO_ETH_TRANSFER_STATUS } from "@contexts/Transfer/types";
+import { createHash } from "crypto";
 
 const mockWeb3 = {
   eth: {
@@ -18,6 +19,7 @@ const mockWeb3 = {
 const mockFetchRawTx = jest.fn<any>();
 const mockFetchAccount = jest.fn<any>();
 const mockFetchProof = jest.fn<any>();
+const mockFetchHistoryAccount = jest.spyOn(globalThis, "fetch");
 
 jest.mock("@constants", () => ({
   ERC20_MANAGER_CONTRACT_ADDRESS: "0x2222222222222222222222222222222222222222",
@@ -35,7 +37,9 @@ jest.mock("syscoinjs-lib", () => {
   } };
 });
 
-import { canonicalizeTransferProgress, verifiedTransferProgressStatus } from "../transfer-progress";
+import {
+  canonicalizeTransferProgress, verifiedTransferProgressStatus, verifyTransferHistoryEvidence,
+} from "../transfer-progress";
 import { encodedTransactionIndex, UtxoTransaction } from "../transfer-completion";
 import { TransferValidationError } from "../transfer-validation";
 import { SPVProof, utils as syscoinUtils } from "syscoinjs-lib";
@@ -236,6 +240,7 @@ describe("canonical transfer progress", () => {
     mockFetchRawTx.mockResolvedValue(undefined);
     mockFetchAccount.mockResolvedValue(undefined);
     mockFetchProof.mockResolvedValue(undefined);
+    mockFetchHistoryAccount.mockResolvedValue(new Response(null, { status: 404 }));
     mockWeb3.eth.getTransaction.mockResolvedValue(null);
     mockWeb3.eth.getTransactionReceipt.mockResolvedValue(null);
     mockWeb3.eth.getChainId.mockResolvedValue(57);
@@ -399,6 +404,161 @@ describe("canonical transfer progress", () => {
     installUtxo(burn);
     const value = transfer({ status: "confirm-burn-sysx", logs: [log("burn-sysx", { tx: burn.txid })] });
     await expect(canonicalizeTransferProgress(value)).resolves.toEqual(value);
+  });
+
+  it("keeps history private after a confirmed SYS conversion and an unconfirmed bridge burn", async () => {
+    const native = wireTransaction("burn-sys", { confirmations: 2 });
+    const burn = wireTransaction("burn-sysx-nevm");
+    installUtxo(native, burn);
+    const publish = jest.fn();
+    await canonicalizeTransferProgress(transfer({
+      useSysx: false, status: "confirm-burn-sysx", logs: [
+        log("burn-sys", { tx: native.txid }),
+        log("burn-sysx", { tx: burn.txid, confirmations: 999 }, 2),
+      ],
+    }), undefined, publish);
+    expect(publish).not.toHaveBeenCalled();
+    expect(mockFetchAccount).not.toHaveBeenCalled();
+  });
+
+  it("indexes the actual confirmed asset source even if the optional xpub lookup fails", async () => {
+    const burn = wireTransaction("burn-sysx-nevm", { confirmations: 1 });
+    installUtxo(burn);
+    mockFetchHistoryAccount.mockRejectedValue(new Error("Account endpoint unavailable"));
+    const publish = jest.fn();
+    await canonicalizeTransferProgress(transfer({
+      status: "error", logs: [log("burn-sysx", { tx: burn.txid })],
+    }), undefined, publish);
+    expect(publish).toHaveBeenCalledWith({
+      sourceTransactionHash: burn.txid, utxoAddresses: [address], nevmAddress: recipient,
+    });
+    expect(mockFetchRawTx).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([false, true])("indexes a declared UTXO address only with independent account attribution (%s)", async (verified) => {
+    const burn = wireTransaction("burn-sysx-nevm", { sourceAddress: olderAddress, confirmations: 1 });
+    installUtxo(burn);
+    mockFetchAccount.mockResolvedValue({
+      tokens: [
+        { type: "XPUBAddress", name: olderAddress },
+        { type: verified ? "XPUBAddress" : "SPTAllocated", name: address },
+      ],
+    });
+    const publish = jest.fn();
+    await canonicalizeTransferProgress(transfer({
+      status: "generate-proofs", logs: [log("burn-sysx", { tx: burn.txid })],
+    }), undefined, publish);
+    expect(publish).toHaveBeenCalledWith({
+      sourceTransactionHash: burn.txid,
+      utxoAddresses: verified ? [olderAddress, address] : [olderAddress],
+      utxoAccountHash: createHash("sha256").update(account).digest("hex"),
+      nevmAddress: recipient,
+    });
+    expect(mockFetchAccount).toHaveBeenCalledTimes(1);
+    expect(mockFetchHistoryAccount).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("checks every SYSX input, excluding native fee inputs (%s)", async (paysWithSysx) => {
+    const initial = wireTransaction("burn-sysx-nevm", { sourceAddress: olderAddress, confirmations: 1 });
+    const raw = bitcoin.Transaction.fromHex(initial.hex);
+    raw.addInput(Buffer.alloc(32, 8), 0);
+    const burn = {
+      ...initial, txid: raw.getId(), hex: raw.toHex(),
+      vin: [...initial.vin, {
+        n: 1, txid: "08".repeat(32), vout: 0, value: "680", addresses: [address],
+        ...(paysWithSysx ? { assetInfo } : {}),
+      }],
+    };
+    installUtxo(burn);
+    mockFetchAccount.mockResolvedValue({ tokens: [{ type: "XPUBAddress", name: olderAddress }] });
+    const publish = jest.fn();
+    await canonicalizeTransferProgress(transfer({
+      status: "generate-proofs", logs: [log("burn-sysx", { tx: burn.txid })],
+    }), undefined, publish);
+    expect(publish).toHaveBeenCalledWith({
+      sourceTransactionHash: burn.txid, nevmAddress: recipient,
+      utxoAddresses: paysWithSysx ? [olderAddress, address] : [olderAddress],
+      ...(!paysWithSysx ? { utxoAccountHash: createHash("sha256").update(account).digest("hex") } : {}),
+    });
+  });
+
+  it("keeps an unconfirmed freeze private and indexes its exact confirmed destination once verified", async () => {
+    mockWeb3.eth.getTransaction.mockResolvedValue(freeze());
+    mockWeb3.eth.getTransactionReceipt.mockResolvedValue(freezeReceipt());
+    mockFetchHistoryAccount.mockResolvedValue(new Response(JSON.stringify({
+      tokens: [{ type: "XPUBAddress", name: olderAddress }],
+    })));
+    const pending = nevmTransfer({
+      status: "confirm-freeze-burn-sys", logs: [log("freeze-burn-sys", { hash: freezeHash })],
+    });
+    const publish = jest.fn();
+    await canonicalizeTransferProgress(pending, undefined, publish);
+    expect(publish).not.toHaveBeenCalled();
+    expect(mockWeb3.eth.getTransactionReceipt).not.toHaveBeenCalled();
+    mockWeb3.eth.getTransaction.mockClear();
+    await canonicalizeTransferProgress(nevmTransfer({
+      status: "mint-sysx", logs: freezeLogs(),
+    }), pending, publish);
+    expect(publish).toHaveBeenCalledWith({
+      sourceTransactionHash: freezeHash, utxoAddresses: [address], nevmAddress: recipient,
+    });
+    expect(mockWeb3.eth.getTransaction).toHaveBeenCalledTimes(1);
+    expect(mockWeb3.eth.getTransactionReceipt).toHaveBeenCalledTimes(1);
+    expect(mockFetchHistoryAccount).toHaveBeenCalledWith(
+      expect.stringContaining(`/api/v2/xpub/${account}?details=tokens&tokens=derived`),
+      { signal: expect.any(AbortSignal) },
+    );
+  });
+
+  it("backfills a historical source without requesting its settlement data", async () => {
+    const burn = wireTransaction("burn-sysx-nevm", { confirmations: 1 });
+    installUtxo(burn);
+    const value = transfer({
+      version: "v1", status: "completed", logs: [
+        log("burn-sysx", { tx: burn.txid }),
+        log("generate-proofs", { transaction: "unknown-format" }, 2),
+      ],
+    });
+    await expect(verifyTransferHistoryEvidence(value)).resolves.toEqual({
+      sourceTransactionHash: burn.txid, utxoAddresses: [address], nevmAddress: recipient,
+    });
+    expect(mockFetchProof).not.toHaveBeenCalled();
+    expect(mockWeb3.eth.getTransaction).not.toHaveBeenCalled();
+  });
+
+  it("backfills a legacy freeze hash and indexes its verified account destination", async () => {
+    mockWeb3.eth.getTransaction.mockResolvedValue(legacyFreeze());
+    mockWeb3.eth.getTransactionReceipt.mockResolvedValue(freezeReceipt());
+    mockFetchHistoryAccount.mockResolvedValue(new Response(JSON.stringify({
+      tokens: [{ type: "XPUBAddress", name: address }],
+    })));
+    const value = nevmTransfer({
+      version: "v1", status: "completed", logs: [
+        log("freeze-burn-sys", freezeHash), freezeLogs()[1],
+      ],
+    });
+    await expect(verifyTransferHistoryEvidence(value)).resolves.toEqual({
+      sourceTransactionHash: freezeHash,
+      utxoAddresses: [address],
+      utxoAccountHash: createHash("sha256").update(account).digest("hex"),
+      nevmAddress: recipient,
+    });
+    expect(value.logs[0].payload.data).toBe(freezeHash);
+    expect(mockFetchRawTx).not.toHaveBeenCalled();
+  });
+
+  it("ignores malformed historical xpubs before attempting an account lookup", async () => {
+    const burn = wireTransaction("burn-sysx-nevm", { confirmations: 1 });
+    installUtxo(burn);
+    const value = transfer({
+      utxoXpub: "invalid-old-account-value",
+      status: "completed", logs: [log("burn-sysx", { tx: burn.txid })],
+    });
+    await expect(verifyTransferHistoryEvidence(value)).resolves.toEqual({
+      sourceTransactionHash: burn.txid, utxoAddresses: [address], nevmAddress: recipient,
+    });
+    expect(mockFetchHistoryAccount).not.toHaveBeenCalled();
+    expect(mockFetchAccount).not.toHaveBeenCalled();
   });
 
   it("does not advance past the burn confirmation without a real confirmation", async () => {

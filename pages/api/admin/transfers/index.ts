@@ -36,7 +36,7 @@ const AdminTransfersHandler: NextApiHandler = adminSessionGuard(
       transfers,
       total,
       pageSize: PAGE_SIZE,
-      user: req.session.user,
+      user: { address: req.session.user!.address, name: req.session.user!.name },
     });
   }
 );

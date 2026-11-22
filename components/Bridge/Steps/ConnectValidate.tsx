@@ -214,7 +214,7 @@ const BridgeConnectValidateStep: React.FC<
         : toSyscoinBaseUnits(MIN_GAS_AMOUNT.toString()),
   });
 
-  const modifiedTransfer = { ...transfer, utxoAddress, utxoXpub, nevmAddress };
+  const modifiedTransfer = { ...transfer, amount, utxoAddress, utxoXpub, nevmAddress };
 
   const onSubmit: SubmitHandler<ConnectValidateFormData> = (data) => {
     const { amount, ...rest } = data;

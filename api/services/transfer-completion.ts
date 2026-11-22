@@ -19,10 +19,11 @@ const { bufferUtils } = require("syscointx-js") as {
 };
 
 // This existing backend utility is omitted from the local syscoinjs-lib typings.
+type UtxoAccount = { tokens?: { type: string; name: string }[] };
 const { fetchBackendAccount } = syscoinUtils as typeof syscoinUtils & {
   fetchBackendAccount: (
     url: string, xpub: string, options: string, isXpub: boolean
-  ) => Promise<{ tokens?: { type: string; name: string }[] } | undefined>;
+  ) => Promise<UtxoAccount | undefined>;
 };
 
 export type UtxoEntry = {
@@ -41,6 +42,8 @@ export type UtxoTransaction = {
   vin: UtxoEntry[];
   vout: UtxoEntry[];
 };
+
+type AccountAddressLookup = (xpub: string) => Promise<ReadonlySet<string>>;
 
 export const requireEvidence = (valid: unknown, message: string): void => {
   if (!valid) {
@@ -68,6 +71,21 @@ const transactionHash = (
 export const blockbookUrl = () => resolveUtxoBlockbookUrl(process.env.UTXO_RPC_URL) ??
     resolveUtxoBlockbookUrl(process.env.UTXO_EXPLORER) ?? MAINNET_BLOCKBOOK_URL;
 
+const derivedAddresses = (account?: UtxoAccount) => new Set(
+  (account?.tokens ?? []).filter((token) => token.type === "XPUBAddress").map((token) => token.name)
+);
+
+export const getDerivedUtxoAddresses = async (xpub: string) =>
+  derivedAddresses(await fetchBackendAccount(blockbookUrl(), xpub, "details=tokens&tokens=used", true));
+
+export const getHistoryUtxoAddresses = async (xpub: string, tokens: "used" | "derived") => {
+  const response = await fetch(
+    `${blockbookUrl()}/api/v2/xpub/${encodeURIComponent(xpub)}?details=tokens&tokens=${tokens}`,
+    { signal: AbortSignal.timeout(2_000) }
+  );
+  return derivedAddresses(response.ok ? await response.json() as UtxoAccount : undefined);
+};
+
 const fetchUtxoTransaction = async (hash: string, tokenType: string) => {
   const tx = await syscoinUtils.fetchBackendRawTx(blockbookUrl(), hash) as unknown as UtxoTransaction;
   requireEvidence(
@@ -84,7 +102,8 @@ const isSysx = (entry: UtxoEntry, amount?: string) =>
 
 export const assertAccountInputs = async (
   transfer: ITransfer, inputs: UtxoEntry[],
-  message = "Source transaction does not match the transfer account"
+  message = "Source transaction does not match the transfer account",
+  lookupAccount: AccountAddressLookup = getDerivedUtxoAddresses
 ) => {
   const addresses = new Set([transfer.utxoAddress]);
   const matches = () => inputs.length > 0 && inputs.every((input) =>
@@ -92,19 +111,17 @@ export const assertAccountInputs = async (
   );
   if (matches()) return;
   if (transfer.utxoXpub) {
-    const account = await fetchBackendAccount(
-      blockbookUrl(), transfer.utxoXpub, "details=tokens&tokens=used", true
-    );
-    for (const token of account?.tokens ?? []) {
-      if (token.type === "XPUBAddress") addresses.add(token.name);
-    }
+    (await lookupAccount(transfer.utxoXpub)).forEach((address) => addresses.add(address));
   }
   requireEvidence(matches(), message);
 };
 
-export const assertAccountSysxInputs = async (transfer: ITransfer, burn: UtxoTransaction) =>
-  assertAccountInputs(transfer, burn.vin.filter((input) => isSysx(input)),
-    "SYSX source burn does not match the transfer account");
+export const sysxInputs = (burn: UtxoTransaction) => burn.vin.filter((input) => isSysx(input));
+
+export const assertAccountSysxInputs = async (
+  transfer: ITransfer, burn: UtxoTransaction, lookupAccount?: AccountAddressLookup
+) =>
+  assertAccountInputs(transfer, sysxInputs(burn), "SYSX source burn does not match the transfer account", lookupAccount);
 
 const assertSysToNevmCompleted = async (transfer: ITransfer, amount: string) => {
   const hash = transactionHash(transfer, "submit-proofs", "hash");

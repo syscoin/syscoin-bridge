@@ -1,4 +1,3 @@
-import { ADMIN_LOGIN_MESSAGE } from "@constants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { useConstants } from "@contexts/useConstants";
 import {
@@ -12,15 +11,12 @@ import {
   Typography,
 } from "@mui/material";
 import ConnectAdmin from "components/Admin/ConnectAdmin";
-import { GetServerSideProps, NextPage } from "next";
+import { requestAdminWalletAuthorization } from "components/Admin/request-wallet-authorization";
+import { NextPage } from "next";
 import { useRouter } from "next/router";
 import { useState } from "react";
 
-type Props = {
-  loginMessage: string;
-};
-
-export const AdminLoginPage: NextPage<Props> = ({ loginMessage }) => {
+export const AdminLoginPage: NextPage = () => {
   const {
     account,
     chainId,
@@ -50,29 +46,7 @@ export const AdminLoginPage: NextPage<Props> = ({ loginMessage }) => {
     setError(undefined);
     setIsLoggingIn(true);
     try {
-      const adminResponse = await fetch(
-        `/api/admin?address=${encodeURIComponent(account)}`
-      );
-      if (adminResponse.status === 404) {
-        throw new Error(
-          `This wallet is not registered for the ${networkName} admin portal.`
-        );
-      }
-      if (!adminResponse.ok) {
-        throw new Error("Unable to verify administrator access.");
-      }
-
-      const signedMessage = await signMessage(loginMessage);
-      const response = await fetch("/api/admin/login", {
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: account, signedMessage }),
-        method: "POST",
-        credentials: "include",
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(body?.message || "Administrator sign-in failed.");
-      }
+      await requestAdminWalletAuthorization("/api/admin/login", { address: account }, signMessage);
       await replace("/admin");
     } catch (loginError) {
       if ((loginError as { code?: number })?.code === 4001) {
@@ -151,16 +125,6 @@ export const AdminLoginPage: NextPage<Props> = ({ loginMessage }) => {
       </Paper>
     </Container>
   );
-};
-
-export const getServerSideProps: GetServerSideProps = async () => {
-  return {
-    props: {
-      loginMessage: `0x${Buffer.from(ADMIN_LOGIN_MESSAGE, "utf8").toString(
-        "hex"
-      )}`,
-    },
-  };
 };
 
 export default AdminLoginPage;

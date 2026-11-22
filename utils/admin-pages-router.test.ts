@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@jest/globals";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -40,6 +41,6 @@ describe("admin Pages Router components", () => {
       "utf8"
     );
 
-    expect(source).toContain("user: req.session.user");
+    expect(source).toContain("user: { address: req.session.user!.address, name: req.session.user!.name }");
   });
 });

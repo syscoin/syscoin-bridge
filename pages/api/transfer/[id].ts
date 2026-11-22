@@ -5,9 +5,15 @@ import {
   TransferWriteUnauthorizedError,
   TransferWriteConflictError,
 } from "api/services/transfer";
+import {
+  chargeTransferCreation,
+  TransferCreateLimitError,
+  transferQuotaClient,
+} from "api/services/transfer-create-quota";
 import dbConnect from "lib/mongodb";
 import { TransferValidationError } from "api/services/transfer-validation";
 import { applyApiCors } from "utils/api/cors";
+import { getRequestOrigin } from "utils/api/request-origin";
 import {
   getTransferWriteTokens,
   setTransferWriteTokenCookie,
@@ -26,7 +32,10 @@ export const getRequest = async (
   }
 
   try {
-    const transfer = await transferService.getTransfer(id as string);
+    const tokens = getTransferWriteTokens(req);
+    const transfer = tokens.length
+      ? await transferService.getTransfer(id as string, tokens)
+      : await transferService.getTransfer(id as string);
     return res.status(200).json(transfer);
   } catch (error) {
     if (error instanceof TransferValidationError) {
@@ -55,11 +64,25 @@ export const patchRequest = async (
   try {
     const updated = await transferService.upsertTransfer(
       req.body,
-      getTransferWriteTokens(req)
+      getTransferWriteTokens(req),
+      {
+        origin: getRequestOrigin(req),
+        authorization: req.body.creationAuthorization,
+        charge: () => chargeTransferCreation(transferQuotaClient(req, req.body)),
+        // Failed contract signature checks must not consume a wallet's
+        // successful creation quota when the API sits behind a proxy.
+        chargeContractVerification: () => chargeTransferCreation(
+          `contract-auth:${transferQuotaClient(req, req.body)}`
+        ),
+      }
     );
     setTransferWriteTokenCookie(req, res, id, updated.writeToken);
     res.status(200).json(updated.transfer);
   } catch (e) {
+    if (e instanceof TransferCreateLimitError) {
+      res.setHeader("Retry-After", String(e.retryAfter));
+      return res.status(429).json({ message: e.message });
+    }
     if (e instanceof TransferWriteConflictError) {
       return res.status(409).json({ message: e.message });
     }
@@ -78,6 +101,7 @@ export const patchRequest = async (
 };
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader("Cache-Control", "private, no-store");
   const preflightMethod = req.headers["access-control-request-method"];
   const requestedMethod = Array.isArray(preflightMethod)
     ? preflightMethod[0]

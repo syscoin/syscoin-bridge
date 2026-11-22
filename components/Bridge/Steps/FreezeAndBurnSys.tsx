@@ -48,31 +48,10 @@ const FreezeAndBurn: React.FC<Props> = ({ successStatus }) => {
     });
   };
 
-  const onSignatureError = (error: unknown) => {
-    const updatedLogs: ITransferLog[] = [
-      ...transfer.logs,
-      {
-        date: Date.now(),
-        payload: {
-          data: {
-            error,
-          },
-          message: "Freeze and burn SYS failed",
-        },
-        status: ETH_TO_SYS_TRANSFER_STATUS.FREEZE_BURN_SYS,
-      },
-    ];
-    saveTransfer({
-      ...transfer,
-      logs: updatedLogs,
-    });
-  };
-
   const sign = () => {
     if (isRecovering || queryClient.isMutating(recoveryFilter) > 0) return;
     freezeAndBurn(undefined, {
       onSuccess: onSignatureSuccess,
-      onError: onSignatureError,
     });
   };
 

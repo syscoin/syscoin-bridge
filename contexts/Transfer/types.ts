@@ -81,4 +81,6 @@ export interface ITransfer {
   utxoAssetType?: "sys" | "sysx";
   /** Computed response-only recovery availability; never accepted as write authority. */
   freezeRecoveryAllowed?: boolean;
+  /** Computed from verified source-chain evidence. */
+  historyPublic?: boolean;
 }

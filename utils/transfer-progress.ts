@@ -2,10 +2,15 @@ import { COMMON_STATUS, ETH_TO_SYS_TRANSFER_STATUS, ITransfer, ITransferLog, Tra
 
 export const isErrorLog = (log: ITransferLog) =>
   Object.keys(log.payload.data).length === 1 && "error" in log.payload.data;
-const usesSysx = (transfer: ITransfer) => Boolean(transfer.useSysx || transfer.utxoAssetType === "sysx");
+export const getTransferSourceAsset = (
+  transfer: Pick<ITransfer, "type" | "useSysx" | "utxoAssetType">
+): "SYS" | "SYSX" =>
+  transfer.type === "sys-to-nevm" && (transfer.useSysx || transfer.utxoAssetType === "sysx")
+    ? "SYSX"
+    : "SYS";
 
 export const routeSteps = (transfer: ITransfer): string[] => transfer.type === "sys-to-nevm"
-  ? [...(usesSysx(transfer) ? [] : ["burn-sys", "confirm-burn-sys"]),
+  ? [...(getTransferSourceAsset(transfer) === "SYSX" ? [] : ["burn-sys", "confirm-burn-sys"]),
     "burn-sysx", "confirm-burn-sysx", "generate-proofs", "submit-proofs", "finalizing", "completed"]
   : ["freeze-burn-sys", "confirm-freeze-burn-sys", "mint-sysx", "confirm-mint-sysx",
     "burn-sysx", "confirm-burn-sysx", "finalizing", "completed"];

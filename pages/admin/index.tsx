@@ -23,6 +23,7 @@ export const AdminPage: NextPage<Props> = ({
 
   const onLogout = async () => {
     const response = await fetch("/api/admin/logout", {
+      method: "POST",
       credentials: "include",
     });
 

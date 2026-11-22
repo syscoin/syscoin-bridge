@@ -3,10 +3,13 @@ import {
   clearActiveTransferWriteTokensForTests,
   getOrCreateTransferWriteToken,
   getTransferWriteToken,
+  listTransferWriteTokenIds,
 } from "./transfer-write-token";
 
 const values = new Map<string, string>();
 const storage = {
+  get length() { return values.size; },
+  key: (index: number) => Array.from(values.keys())[index] ?? null,
   getItem: jest.fn((key: string) => values.get(key) ?? null),
   setItem: jest.fn((key: string, value: string) => values.set(key, value)),
 };
@@ -61,6 +64,17 @@ describe("transfer write token storage", () => {
     expect(getTransferWriteToken("transfer-a")).toBe("token-a");
     expect(getTransferWriteToken("transfer-b")).toBe("token-b");
     expect(getTransferWriteToken("transfer-c")).toBe("token-c");
+  });
+
+  it("enumerates only safe transfer IDs from persistent and active capabilities", () => {
+    values.set("transfer-legacy", "legacy-transfer-data");
+    values.set("transfer-write-token-stored", "stored-token");
+    values.set("transfer-write-token-unsafe/path", "other-token");
+    getTransferWriteToken("stored");
+    storage.setItem.mockImplementationOnce(() => { throw new Error("Storage full"); });
+    getOrCreateTransferWriteToken("active");
+
+    expect(listTransferWriteTokenIds()).toEqual(["active", "stored"]);
   });
 
   it("continues with the active copy when persistent storage rejects writes", () => {

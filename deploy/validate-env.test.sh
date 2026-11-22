@@ -15,6 +15,7 @@ MONGO_CONFIG_VOLUME=bridge-config
 MONGO_BACKUP_VOLUME=bridge-backups
 BRIDGE_HOST_PORT=4000
 CORS_ALLOWED_ORIGIN=https://bridge.tanenbaum.io
+SECRET_COOKIE_PASSWORD=at-least-32-characters-long-secret
 FOUNDATION_FUNDED=false
 EOF
 
@@ -39,27 +40,18 @@ if sh "$validator" "$test_dir/missing-data-volume.env" 2>/dev/null; then
   exit 1
 fi
 
-cat >> "$test_dir/valid.env" <<'EOF'
-ADMIN_API_KEY=admin-key
-EOF
-if sh "$validator" "$test_dir/valid.env" 2>/dev/null; then
-  echo "validator accepted admin auth without a cookie secret" >&2
+sed '/^SECRET_COOKIE_PASSWORD=/d' "$test_dir/valid.env" > "$test_dir/missing-secret.env"
+if sh "$validator" "$test_dir/missing-secret.env" 2>/dev/null; then
+  echo "validator accepted a missing transfer authorization secret" >&2
   exit 1
 fi
 
-cp "$test_dir/valid.env" "$test_dir/short-cookie.env"
-cat >> "$test_dir/short-cookie.env" <<'EOF'
-SECRET_COOKIE_PASSWORD=too-short
-EOF
+sed 's/^SECRET_COOKIE_PASSWORD=.*$/SECRET_COOKIE_PASSWORD=too-short/' \
+  "$test_dir/valid.env" > "$test_dir/short-cookie.env"
 if sh "$validator" "$test_dir/short-cookie.env" 2>/dev/null; then
-  echo "validator accepted an undersized cookie secret" >&2
+  echo "validator accepted an undersized authorization secret" >&2
   exit 1
 fi
-
-cat >> "$test_dir/valid.env" <<'EOF'
-SECRET_COOKIE_PASSWORD=at-least-32-characters-long-secret
-EOF
-sh "$validator" "$test_dir/valid.env"
 
 cat >> "$test_dir/valid.env" <<'EOF'
 NEVM_V2_ACTIVATION_BLOCK=100

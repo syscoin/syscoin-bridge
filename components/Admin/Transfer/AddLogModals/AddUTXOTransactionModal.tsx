@@ -13,6 +13,7 @@ import { useUtxoTransaction } from "components/Bridge/hooks/useUtxoTransaction";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { AddUTXOLogRequestPayload } from "api/types/admin/transfer/add-log";
 import { useState } from "react";
+import { requestAdminWalletAuthorization } from "components/Admin/request-wallet-authorization";
 
 type Props = {
   onClose: (refetch?: boolean) => void;
@@ -32,7 +33,7 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
   tokenType,
   operation,
 }) => {
-  const { handleSubmit, register, watch } = useForm<FormValues>({
+  const { handleSubmit, register, watch, formState: { isSubmitting } } = useForm<FormValues>({
     defaultValues: {
       txId: "",
       clearAll: true,
@@ -57,39 +58,18 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
     helperText = "Error fetching transaction";
   }
 
-  const onSubmit = (values: FormValues) => {
-    const data = {
-      operation,
-      ...values,
-    };
-    const message = `0x${Buffer.from(JSON.stringify(data), "utf8").toString(
-      "hex"
-    )}`;
-    signMessage(message)
-      .then((signedMessage) => {
-        const payload: AddUTXOLogRequestPayload = {
-          operation,
-          clearAll: values.clearAll,
-          txId: values.txId,
-          signedMessage,
-        };
-        setSubmitError(undefined);
-        return fetch(`/api/admin/transfer/${transferId}/add-log`, {
-          body: JSON.stringify(payload),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-          credentials: "include",
-        });
-      })
-      .then((res) => {
-        if (res.ok) {
-          onClose(true);
-          return;
-        }
-        return res.json().then(({ message }) => setSubmitError(message));
-      });
+  const onSubmit = async (values: FormValues) => {
+    setSubmitError(undefined);
+    try {
+      await requestAdminWalletAuthorization(
+        `/api/admin/transfer/${encodeURIComponent(transferId)}/add-log`,
+        { operation, ...values },
+        signMessage
+      );
+      onClose(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Unable to add the log.");
+    }
   };
 
   return (
@@ -120,7 +100,7 @@ const AddUTXOTransactionModal: React.FC<Props> = ({
           variant="contained"
           sx={{ ml: "auto" }}
           type="submit"
-          disabled={!(isSuccess && isValidTx) || isFetching}
+          disabled={!(isSuccess && isValidTx) || isFetching || isSubmitting}
         >
           {isFetching ? "Checking" : "Add"}
         </Button>

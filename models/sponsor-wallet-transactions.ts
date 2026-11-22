@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { UtxoBroadcastConflict } from "api/services/sponsor-utxo-conflict";
 
 export type SponsorWalletTransactionStatus = "pending" | "success" | "failed";
 export type SponsorWalletTransactionAction =
@@ -18,8 +19,9 @@ export interface ISponsorWalletTransaction extends mongoose.Document {
   status: SponsorWalletTransactionStatus;
   reservationOwner?: string;
   reservationExpiresAt?: Date;
-  reservationPhase?: "reserved" | "broadcasting";
+  reservationPhase?: "reserved" | "signing" | "broadcasting" | "conflicted";
   utxoReservationKey?: string;
+  utxoBroadcastConflict?: UtxoBroadcastConflict & { sponsoredTxid: string };
   broadcastAt?: Date;
   broadcastAttempts?: number;
   createdAt: Date;
@@ -69,10 +71,13 @@ const SponsorWalletTransactionSchema =
       },
       reservationPhase: {
         type: String,
-        enum: ["reserved", "broadcasting"],
+        enum: ["reserved", "signing", "broadcasting", "conflicted"],
       },
       utxoReservationKey: {
         type: String,
+      },
+      utxoBroadcastConflict: {
+        type: Object,
       },
       broadcastAt: {
         type: Date,
@@ -89,6 +94,10 @@ SponsorWalletTransactionSchema.index(
   { transferId: 1, action: 1 },
   { unique: true }
 );
+SponsorWalletTransactionSchema.index({ utxoReservationKey: 1, reservationPhase: 1 });
+// Existing sponsorship retries read a bounded nonce range for one wallet.
+// Include older durable rows with a source hash as well as V2 rows.
+SponsorWalletTransactionSchema.index({ walletId: 1, action: 1, "transaction.nonce": 1 });
 // One sponsorship per (action, source chain tx). Required for submit-proofs so
 // the same burn cannot be sponsored under many transferId aliases.
 // Named explicitly; ensureSponsorIndexes drops prior same-key variants.

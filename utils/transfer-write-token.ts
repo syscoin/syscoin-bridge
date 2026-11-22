@@ -1,3 +1,5 @@
+import { isSafeTransferId } from "./transfer-detail";
+
 const TRANSFER_WRITE_TOKEN_PREFIX = "transfer-write-token-";
 
 const activeWriteTokens = new Map<string, string>();
@@ -56,6 +58,28 @@ export const getOrCreateTransferWriteToken = (transferId: string): string => {
   activeWriteTokens.set(transferId, writeToken);
   storeToken(transferId, writeToken);
   return writeToken;
+};
+
+export const listTransferWriteTokenIds = (): string[] => {
+  const ids = new Set<string>();
+  const storage = getStorage();
+  if (storage) {
+    try {
+      for (let index = 0; index < storage.length; index++) {
+        const key = storage.key(index);
+        if (key?.startsWith(TRANSFER_WRITE_TOKEN_PREFIX)) {
+          const id = key.slice(TRANSFER_WRITE_TOKEN_PREFIX.length);
+          if (isSafeTransferId(id)) ids.add(id);
+        }
+      }
+    } catch {
+      // The active-page copy is still available when storage cannot be read.
+    }
+  }
+  activeWriteTokens.forEach((_token, id) => {
+    if (isSafeTransferId(id)) ids.add(id);
+  });
+  return Array.from(ids).reverse();
 };
 
 export const clearActiveTransferWriteTokensForTests = () => {

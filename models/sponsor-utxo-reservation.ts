@@ -12,6 +12,8 @@ export interface ISponsorUtxoReservation extends mongoose.Document {
   txid: string;
   vout: number;
   status: SponsorUtxoReservationStatus;
+  reservationOwner?: string;
+  broadcastHash?: string;
   expiresAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -42,6 +44,8 @@ const SponsorUtxoReservationSchema =
         required: true,
         default: "reserved",
       },
+      reservationOwner: String,
+      broadcastHash: String,
       expiresAt: {
         type: Date,
       },
