@@ -1,5 +1,6 @@
 import { Typography } from "@mui/material";
 import { GridColDef } from "@mui/x-data-grid";
+import { getTransferSourceAsset } from "utils/transfer-progress";
 
 const formatStatus = (value: unknown) =>
   String(value)
@@ -35,7 +36,7 @@ export const TRANSFER_COLUMNS: GridColDef[] = [
   {
     field: "amount",
     headerName: "Amount",
-    renderCell: ({ value }) => `${value} SYS`,
+    renderCell: ({ value, row }) => `${value} ${getTransferSourceAsset(row)}`,
   },
   {
     field: "utxoAddress",

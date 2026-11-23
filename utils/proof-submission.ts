@@ -1,4 +1,5 @@
 export const PROOF_BLOCK_PENDING_CODE = "NEVM_PROOF_BLOCK_PENDING";
+export const PROOF_SPONSORSHIP_UNAVAILABLE_CODE = "PROOF_SPONSORSHIP_UNAVAILABLE";
 export const PROOF_BLOCK_RETRY_DELAY_MS = 10_000;
 export const MAX_PROOF_BLOCK_RETRIES = 90;
 
@@ -14,6 +15,16 @@ export class ProofBlockPendingError extends Error {
     this.name = "ProofBlockPendingError";
     this.retryAfterMs = retryAfterMs;
     Object.setPrototypeOf(this, ProofBlockPendingError.prototype);
+  }
+}
+
+export class ProofSponsorshipUnavailableError extends Error {
+  public readonly code = PROOF_SPONSORSHIP_UNAVAILABLE_CODE;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "ProofSponsorshipUnavailableError";
+    Object.setPrototypeOf(this, ProofSponsorshipUnavailableError.prototype);
   }
 }
 

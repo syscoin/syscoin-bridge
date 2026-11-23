@@ -9,6 +9,7 @@ import { isSpvProof, useSubmitProof } from "../hooks/useSubmitProof";
 import NEVMStepWrapper from "../NEVMStepWrapepr";
 import useSyscoinSubmitProofs from "../hooks/useSyscoinSubmitProofs";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
+import { ProofSponsorshipUnavailableError } from "utils/proof-submission";
 
 type Props = {
   successStatus: TransferStatus;
@@ -49,16 +50,21 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   const foundation = useSyscoinSubmitProofs(transfer, onSuccess);
   const self = useSubmitProof(transfer, spvProof);
 
-  const foundationFundingAvailable = isEnabled("foundationFundingAvailable");
+  const sponsorshipError =
+    foundation.error instanceof ProofSponsorshipUnavailableError
+      ? foundation.error
+      : undefined;
+  const useFoundation =
+    isEnabled("foundationFundingAvailable") && !sponsorshipError;
 
   const {
     isLoading: isSigning,
     isError: isSignError,
     error: signError,
-  } = foundationFundingAvailable ? foundation : self;
+  } = useFoundation ? foundation : self;
 
   const sign = () => {
-    if (foundationFundingAvailable) {
+    if (useFoundation) {
       foundation.mutate();
       return;
     }
@@ -72,7 +78,7 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
   if (isSigning) {
     return (
       <Alert severity="info">
-        {foundationFundingAvailable
+        {useFoundation
           ? "Preparing proof submission..."
           : "Preparing proof submission. Confirm it in your NEVM wallet when prompted."}
       </Alert>
@@ -95,6 +101,12 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
 
   return (
     <Box>
+      {sponsorshipError && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {sponsorshipError.message} Your NEVM wallet needs SYS to pay the
+          transaction fee.
+        </Alert>
+      )}
       <Typography variant="caption" sx={{ mb: 1 }}>
         NEVM Block Hash
       </Typography>
@@ -108,7 +120,7 @@ const SubmitProofs: React.FC<Props> = ({ successStatus }) => {
         {spvProof.blockhash}
       </Typography>
       <Button color="primary" variant="contained" onClick={sign}>
-        Submit Proof
+        {sponsorshipError ? "Submit Proof With Wallet" : "Submit Proof"}
       </Button>
     </Box>
   );

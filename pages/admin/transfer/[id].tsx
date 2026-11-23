@@ -1,5 +1,5 @@
 import { ITransfer } from "@contexts/Transfer/types";
-import { Box, Button, Container, Modal, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Modal, Typography } from "@mui/material";
 import { AdminLayoutContainer } from "components/Admin/LayoutContainer";
 import { GetServerSideProps, NextPage } from "next";
 import { ArrowCircleLeft } from "@mui/icons-material";
@@ -9,7 +9,8 @@ import { FormProvider, useForm } from "react-hook-form";
 import AdminTransferStatusSelect from "components/Admin/Transfer/StatusField";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { formatRelative } from "date-fns";
-import { Change, OverrideTransferRequestBody } from "api/types/admin";
+import { Change } from "api/types/admin";
+import { requestAdminWalletAuthorization } from "components/Admin/request-wallet-authorization";
 import { useState } from "react";
 import AddLogMenu, {
   SupportedOperations,
@@ -35,6 +36,7 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
   const { constants } = useConstants();
   const { signMessage } = useNEVM();
   const [addLogModal, setAddLogModal] = useState<SupportedOperations>();
+  const [updateError, setUpdateError] = useState<string>();
   const transferUrl = `/api/admin/transfers/${initialTransfer.id}`;
   const { data: transfer, refetch } = useQuery<ITransfer>(
     ["transfer", initialTransfer.id],
@@ -63,34 +65,8 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
 
   const {
     handleSubmit,
-    formState: { isDirty, isValid },
+    formState: { isDirty, isValid, isSubmitting },
   } = form;
-
-  const onUpdate = (signedMessage: string, changes: Change[]) => {
-    const body: OverrideTransferRequestBody = {
-      signedMessage,
-      changes,
-    };
-    fetch(`/api/admin/transfer/${transfer.id}`, {
-      method: "POST",
-      body: JSON.stringify(body),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    })
-      .then((res) => {
-        if (res.ok) {
-          return res.json();
-        }
-      })
-      .then((updatedTransfer) => {
-        refetch();
-        form.reset({
-          status: updatedTransfer.status,
-        });
-      });
-  };
 
   const onSubmit = async (data: FormValues) => {
     const changes: Change[] = [];
@@ -104,13 +80,19 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
         });
       }
     });
-    const hexString = `0x${Buffer.from(
-      JSON.stringify(changes),
-      "utf8"
-    ).toString("hex")}`;
-    signMessage(hexString).then((signedMessage) => {
-      return onUpdate(signedMessage, changes);
-    });
+    if (changes.length === 0) return;
+    setUpdateError(undefined);
+    try {
+      const updatedTransfer = await requestAdminWalletAuthorization(
+        `/api/admin/transfer/${encodeURIComponent(transfer.id)}`,
+        { changes },
+        signMessage
+      );
+      await refetch();
+      form.reset({ status: updatedTransfer.status });
+    } catch (error) {
+      setUpdateError(error instanceof Error ? error.message : "Unable to update transfer.");
+    }
   };
 
   const closeAddLogModal = (isSuccess?: boolean) => {
@@ -156,11 +138,12 @@ const TransferDetailsPage: NextPage<Props> = ({ initialTransfer }) => {
             <FormProvider {...form}>
               <AdminTransferStatusSelect transfer={transfer} />
             </FormProvider>
+            {updateError && <Alert severity="error">{updateError}</Alert>}
             <Button
               sx={{ display: "block" }}
               variant="contained"
               type="submit"
-              disabled={!isDirty || !isValid}
+              disabled={!isDirty || !isValid || isSubmitting}
             >
               Update
             </Button>

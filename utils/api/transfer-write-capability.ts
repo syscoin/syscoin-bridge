@@ -8,7 +8,7 @@ const firstHeaderValue = (value?: string | string[]) =>
   Array.isArray(value) ? value[0] : value;
 
 const getBearerToken = (req: NextApiRequest): string | undefined => {
-  const authorization = firstHeaderValue(req.headers.authorization);
+  const authorization = firstHeaderValue(req.headers?.authorization);
   if (!authorization?.startsWith("Bearer ")) {
     return undefined;
   }
@@ -18,7 +18,7 @@ const getBearerToken = (req: NextApiRequest): string | undefined => {
 };
 
 const getCookieTokens = (req: NextApiRequest): string[] => {
-  const cookieHeader = firstHeaderValue(req.headers.cookie);
+  const cookieHeader = firstHeaderValue(req.headers?.cookie);
   if (!cookieHeader) {
     return [];
   }

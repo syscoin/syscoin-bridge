@@ -6,8 +6,9 @@ import burnSysx from "@contexts/Transfer/functions/burnSysx";
 import { SYSX_ASSET_GUID } from "@contexts/Transfer/constants";
 import { useFeatureFlags } from "./useFeatureFlags";
 import { requestSponsoredUtxo } from "./sponsored-utxo";
+import { verifyTransferSigningIntent } from "../transfer-signing-intent";
 
-export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
+export const useBurnSysx = (transfer: ITransfer) => {
   const syscoinInstance = useSyscoin();
   const {
     sendTransaction,
@@ -17,12 +18,9 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
   const { isEnabled } = useFeatureFlags();
   return useMutation(["burnSyx", transfer.id], {
     mutationFn: async () => {
-      if (!transfer.utxoXpub || !transfer.utxoAddress) {
+      const intent = await verifyTransferSigningIntent(transfer);
+      if (!intent.utxoXpub) {
         throw new Error("UTXO account information is missing");
-      }
-
-      if (!transfer.nevmAddress) {
-        throw new Error("NEVM destination address is missing");
       }
 
       if (
@@ -44,6 +42,7 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
             throw new Error("A sponsored SYSX burn is already in progress");
           }
 
+          await verifyTransferSigningIntent(intent);
           const signed = await signTransaction(prepared.psbt);
           const submitted = await requestSponsoredUtxo(
             transfer.id,
@@ -62,13 +61,16 @@ export const useBurnSysx = (transfer: ITransfer, toNevm = true) => {
 
       const psbt = await burnSysx(
         syscoinInstance,
-        transfer.amount,
+        intent.amount,
         SYSX_ASSET_GUID,
-        transfer.utxoAddress,
-        transfer.utxoXpub,
-        toNevm ? transfer.nevmAddress.replace(/^0x/g, "") : ""
+        intent.utxoAddress,
+        intent.utxoXpub,
+        intent.type === "sys-to-nevm"
+          ? intent.nevmAddress.replace(/^0x/i, "")
+          : ""
       );
 
+      await verifyTransferSigningIntent(intent);
       const { tx, error } = await sendTransaction(psbt);
 
       if (error) {

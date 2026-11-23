@@ -28,7 +28,7 @@ jobs:
       - name: Install Yarn
         run: npm install -g yarn@1.22.22
       - name: Install Dependencies
-        run: yarn
+        run: yarn install --frozen-lockfile
       - name: Lint Code
         run: yarn lint
       - name: Run Tests

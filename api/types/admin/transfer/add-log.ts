@@ -1,6 +1,5 @@
 type BaseLog = {
   clearAll: boolean;
-  signedMessage: string;
 };
 
 type BaseUtxoTransaction = {

@@ -6,6 +6,7 @@ import { useWeb3 } from "../context/Web";
 
 import { ITransfer } from "@contexts/Transfer/types";
 import { useRelayContract } from "./useRelayContract";
+import { verifyTransferSigningIntent } from "../transfer-signing-intent";
 import {
   assertProofBlockIsHistorical,
   retryPendingProof,
@@ -19,7 +20,8 @@ export const isSpvProof = (data: unknown): data is SPVProof => {
 export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
   const relayContract = useRelayContract();
   const web3 = useWeb3();
-  return useMutation(["submitProof", proof.transaction], async () => {
+  return useMutation(["submitProof", proof?.transaction], async () => {
+    const intent = await verifyTransferSigningIntent(transfer);
     const nevmBlock = await web3.eth.getBlock(`0x${proof.nevm_blockhash}`);
     if (!nevmBlock) {
       throw new Error("NEVM block not found: " + proof.nevm_blockhash);
@@ -62,7 +64,7 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
 
     let gas: number;
     try {
-      gas = await method.estimateGas({ from: transfer.nevmAddress });
+      gas = await method.estimateGas({ from: intent.nevmAddress });
     } catch (error) {
       console.error("Estimate gas error", error);
       throw error instanceof Error
@@ -70,10 +72,11 @@ export const useSubmitProof = (transfer: ITransfer, proof: SPVProof) => {
         : new Error("Unable to estimate gas for proof submission");
     }
 
+    await verifyTransferSigningIntent(intent);
     return new Promise((resolve, reject) => {
       method
         .send({
-          from: transfer.nevmAddress,
+          from: intent.nevmAddress,
           gas,
           gasPrice,
         })

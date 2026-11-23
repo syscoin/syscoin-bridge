@@ -5,8 +5,3 @@ export type Change = {
   from: any;
   to: any;
 };
-
-export interface OverrideTransferRequestBody {
-  changes: Change[];
-  signedMessage: string;
-}

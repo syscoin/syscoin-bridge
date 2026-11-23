@@ -13,7 +13,10 @@ jest.mock("utils/get-web3", () => ({ __esModule: true, default: mockWeb3 }));
 jest.mock("models/transfer", () => ({ __esModule: true, default: mockModel }));
 jest.mock("lib/mongodb", () => jest.fn());
 jest.mock("utils/api/admin-session-guard", () => ({ __esModule: true, default: (handler: unknown) => handler }));
-jest.mock("utils/api/verify-signature", () => ({ verifySignature: jest.fn(() => true) }));
+jest.mock("utils/api/admin-authorization", () => ({
+  authorizeAdminTransferAction: jest.fn(async () => true),
+  isAdminTransferId: (id: unknown) => typeof id === "string",
+}));
 jest.mock("../sponsor-wallet", () => ({ SponsorWalletService: jest.fn().mockImplementation(() => ({
   updateSponsorWalletTransactionStatus: jest.fn(), updateUtxoSponsorWalletTransactionStatus: jest.fn(),
 })) }));
@@ -59,7 +62,9 @@ beforeEach(() => {
   jest.clearAllMocks(); process.env.IS_TESTNET = "false";
   stored = { ...transfer, logs: [], writeTokenHash: tokenHash, __v: 3, progressStatus: transfer.status };
   mockModel.findOne.mockImplementation(() => ({ select: async () => clone(stored) }));
-  mockModel.find.mockImplementation(() => ({ select: () => ({ sort: async () => [clone(stored)] }) }));
+  mockModel.find.mockImplementation(() => ({ select: () => ({ sort: () => ({
+    skip: () => ({ limit: () => ({ maxTimeMS: async () => [{ ...clone(stored), logs: undefined }] }) }),
+  }) }) }));
   mockModel.findOneAndUpdate.mockImplementation(async (filter: any, update: any) => {
     if (filter.__v !== stored.__v) return null;
     stored = { ...stored, ...update.$set, __v: stored.__v + 1 };
@@ -82,7 +87,7 @@ describe("capability-authorized existing freeze recovery", () => {
     expect(result).not.toHaveProperty("freezeRecoveryAllowed");
     expect(mockModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
     expect(mockModel.findOneAndUpdate.mock.calls[0][0]).toEqual({ id: transfer.id, writeTokenHash: tokenHash, __v: 3 });
-    expect(mockModel.findOneAndUpdate.mock.calls[0][1].$set).not.toHaveProperty("freezeRecoveryAllowed");
+    expect((mockModel.findOneAndUpdate.mock.calls[0][1] as { $set: unknown }).$set).not.toHaveProperty("freezeRecoveryAllowed");
     expect(mockWeb3.eth.getTransaction.mock.calls.every(([value]) => value === hash)).toBe(true);
   });
   it.each([undefined, "wrong-capability"])("refuses unauthorized recovery before chain reads", async (capability) => {
@@ -101,7 +106,7 @@ describe("capability-authorized existing freeze recovery", () => {
   });
   it("recovers an early persisted error at the freeze checkpoint", async () => {
     stored.status = "error";
-    expect((await new TransferService().getTransfer(transfer.id)).freezeRecoveryAllowed).toBe(true);
+    expect((await new TransferService().getTransfer(transfer.id, token)).freezeRecoveryAllowed).toBe(true);
     const result = await new TransferService().recoverFreezeBurn(transfer.id, hash, token);
     expect(result.status).toBe("mint-sysx");
     expect(result.logs).toHaveLength(2);
@@ -122,9 +127,11 @@ describe("capability-authorized existing freeze recovery", () => {
     }
   );
   it("returns the later error checkpoint on a public read without leaking hidden state", async () => {
+    const service = new TransferService();
+    await service.recoverFreezeBurn(transfer.id, hash, token);
     stored.status = "error"; stored.progressStatus = "burn-sysx";
-    mockModel.findOne.mockReturnValue({ select: async () => clone(stored) });
-    const value = await new TransferService().getTransfer(transfer.id);
+    const value = await service.getTransfer(transfer.id);
+    expect(value.historyPublic).toBe(true);
     expect(value.status).toBe("burn-sysx");
     expect(value).not.toHaveProperty("progressStatus");
     expect(value).not.toHaveProperty("writeTokenHash");
@@ -132,10 +139,12 @@ describe("capability-authorized existing freeze recovery", () => {
   it("projects list and authorized reads from hidden progress when logs still reflect only freeze", async () => {
     const service = new TransferService(); await service.recoverFreezeBurn(transfer.id, hash, token);
     stored.status = "error"; stored.progressStatus = "burn-sysx";
-    for (const value of [await service.getAuthorizedTransfer(transfer.id, token),
-      ...(await service.getAll({ nevmAddress: owner }))]) {
+    const authorized = await service.getAuthorizedTransfer(transfer.id, token);
+    const history = await service.getAll({ nevmAddress: owner });
+    expect(authorized.logs.map((log) => log.status)).toEqual(["freeze-burn-sys", "confirm-freeze-burn-sys"]);
+    expect(history[0].logs).toEqual([]);
+    for (const value of [authorized, ...history]) {
       expect(value.status).toBe("burn-sysx");
-      expect(value.logs.map((log) => log.status)).toEqual(["freeze-burn-sys", "confirm-freeze-burn-sys"]);
       expect(value).not.toHaveProperty("progressStatus");
       expect(value).not.toHaveProperty("writeTokenHash");
       expect(value).not.toHaveProperty("__v");

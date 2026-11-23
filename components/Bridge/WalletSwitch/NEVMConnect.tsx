@@ -25,7 +25,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
     isWrongChain,
     switchToMainnet,
   } = useNEVM();
-  const { isEnabled } = useFeatureFlags();
+  const { canSponsorProof } = useFeatureFlags();
   const {
     changeAccount,
     isBitcoinBased,
@@ -72,13 +72,12 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
     if (isNaN(balanceNum)) {
       balanceNum = 0;
     }
-    const foundationFundingAvailable =
-      isEnabled("foundationFundingAvailable") &&
-      transfer.type === "sys-to-nevm";
+    const proofSponsored =
+      transfer.type === "sys-to-nevm" && canSponsorProof(transfer.amount);
     const faucetLink =
       balance.isFetched &&
       balanceNum < minAmount &&
-      !foundationFundingAvailable ? (
+      !proofSponsored ? (
         <Alert severity="warning">
           <Typography variant="body2">
             This account needs SYS for NEVM gas. Get SYS from the&nbsp;

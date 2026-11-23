@@ -46,30 +46,9 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
     });
   };
 
-  const onSignatureError = (error: unknown) => {
-    const updatedLogs: ITransferLog[] = [
-      ...transfer.logs,
-      {
-        date: Date.now(),
-        payload: {
-          data: {
-            error,
-          },
-          message: "Burn SYS to SYSX failed",
-        },
-        status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
-      },
-    ];
-    saveTransfer({
-      ...transfer,
-      logs: updatedLogs,
-    });
-  };
-
   const sign = () => {
     signBurnSys(undefined, {
       onSuccess: onSignatureSuccess,
-      onError: onSignatureError,
     });
   };
 

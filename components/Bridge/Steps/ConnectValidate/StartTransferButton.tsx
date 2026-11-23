@@ -16,6 +16,7 @@ import { useFeatureFlags } from "../../hooks/useFeatureFlags";
 import { useConstants } from "@contexts/useConstants";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
+import { isPaliV2UtxoMode } from "@contexts/PaliWallet/network-query-policy";
 import {
   getSyscoinChainId,
   resolveSyscoinIsTestnet,
@@ -39,12 +40,12 @@ export const ConnectValidateStartTransferButton: React.FC<{
 }> = ({ isSaving, transfer }) => {
   const { constants } = useConstants();
   const { isExpectedChain } = useNEVM();
-  const { supportsPartialUtxoSigning } = usePaliWalletV2();
+  const { supportsPartialUtxoSigning, version, isEVMInjected, isBitcoinBased } = usePaliWalletV2();
   const {
     watch,
     formState: { errors, isValid },
   } = useFormContext();
-  const { isEnabled } = useFeatureFlags();
+  const { isEnabled, canSponsorProof } = useFeatureFlags();
   const utxoAddress = watch("utxoAddress");
   const nevmAddress = watch("nevmAddress");
   const utxoXpub = watch("utxoXpub");
@@ -70,17 +71,17 @@ export const ConnectValidateStartTransferButton: React.FC<{
     amountBaseUnits = undefined;
   }
 
-  const foundationFundingAvailable =
-    isEnabled("foundationFundingAvailable") && transfer.type === "sys-to-nevm";
+  const goesToNevm = transfer.type === "sys-to-nevm";
+  const proofSponsored = goesToNevm && canSponsorProof(amount);
   const utxoSponsorshipAvailable =
     isEnabled("foundationFundingAvailable") &&
     supportsPartialUtxoSigning &&
     (transfer.type === "nevm-to-sys" || useSysx);
 
+  const needsNevmGas = !proofSponsored && Boolean(nevmAddress);
+  const hasNevmBalance = nevmBalance.data !== undefined;
   const isNevmNotEnoughGas =
-    !foundationFundingAvailable &&
-    Boolean(nevmAddress) &&
-    nevmBalance.isFetched &&
+    needsNevmGas &&
     nevmBalance.data !== undefined &&
     BigInt(
       getTransferableSyscoinBaseUnits({
@@ -104,7 +105,8 @@ export const ConnectValidateStartTransferButton: React.FC<{
     (BigInt(sysxBalance.data) < minimumAmountBaseUnits ||
       (amountBaseUnits !== undefined &&
         BigInt(sysxBalance.data) < amountBaseUnits));
-  const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain;
+  const canSwitchToNevm = isPaliV2UtxoMode(version, isEVMInjected, isBitcoinBased);
+  const isNevmWrongNetwork = Boolean(nevmAddress) && !isExpectedChain && !canSwitchToNevm;
 
   const isUtxoValid =
     isValidSYSAddress(
@@ -118,17 +120,18 @@ export const ConnectValidateStartTransferButton: React.FC<{
   const isNevmValid =
     isValidEthereumAddress(nevmAddress) &&
     !isNevmWrongNetwork &&
-    (!isNevmNotEnoughGas || foundationFundingAvailable);
+    !isNevmNotEnoughGas;
   const isAmountValid = errors.amount === undefined;
   const balanceFetched = utxoBalance.isFetched && nevmBalance.isFetched;
   const isReady =
-    isUtxoValid && isNevmValid && isAmountValid && balanceFetched && isValid;
+    isUtxoValid && isNevmValid && isAmountValid && balanceFetched &&
+    (!needsNevmGas || hasNevmBalance) && isValid;
   return (
     <>
       {isReady && (
         <Box sx={{ display: "flex", mb: 2 }}>
           <Typography variant="body1">
-            Ready to start this transfer.
+            Approve the transfer details in your NEVM wallet to get started.
           </Typography>
           <CheckCircleOutline color="success" />
         </Box>
@@ -140,8 +143,21 @@ export const ConnectValidateStartTransferButton: React.FC<{
         <ErrorMessage message="UTXO: Insufficient SYSX" />
       )}
       {isNevmNotEnoughGas && (
-        <ErrorMessage message="NEVM: Insufficient SYS for gas" />
+        <ErrorMessage
+          message={goesToNevm
+            ? "Add SYS to your NEVM wallet to pay for proof submission at this amount."
+            : "NEVM: Insufficient SYS for gas"}
+        />
       )}
+      {needsNevmGas && nevmBalance.isFetched && !hasNevmBalance && (
+        <ErrorMessage message="Unable to check the NEVM gas balance." />
+      )}
+      {goesToNevm && amountBaseUnits !== undefined && !proofSponsored &&
+        hasNevmBalance && !isNevmNotEnoughGas && (
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Your NEVM wallet will pay the proof submission fee.
+          </Typography>
+        )}
       {isNevmWrongNetwork && (
         <ErrorMessage message="NEVM: Switch the wallet to the configured network" />
       )}

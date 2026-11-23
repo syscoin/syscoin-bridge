@@ -2,10 +2,12 @@ import {
   COMMON_STATUS,
   ETH_TO_SYS_TRANSFER_STATUS,
   ITransfer,
+  ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
 } from "@contexts/Transfer/types";
 import { utils as syscoinUtils } from "syscoinjs-lib";
 import { toSyscoinBaseUnits } from "utils/syscoin-amount";
+import { isErrorLog } from "utils/transfer-progress";
 import { isValidUtxoAccount } from "utils/utxo-account";
 import { isAddress } from "web3-utils";
 
@@ -28,6 +30,30 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" &&
   value !== null &&
   Object.getPrototypeOf(value) === Object.prototype;
+
+const hasOnlyKeys = (value: object, allowed: readonly string[]) =>
+  Object.keys(value).every((key) => allowed.includes(key));
+
+const assertSafeLogData = (value: unknown): void => {
+  const pending = [value];
+  const visited = new Set<object>();
+  while (pending.length) {
+    const item = pending.pop();
+    if (item === null || typeof item !== "object") continue;
+    assertValid(!visited.has(item), "Invalid transfer log data");
+    visited.add(item);
+    for (const key of Object.keys(item)) {
+      // Mixed fields must never interpret client keys as paths or inherited state.
+      assertValid(
+        !key.includes(".") && !key.startsWith("$") &&
+          key !== "prototype" &&
+          !Object.prototype.hasOwnProperty.call(Object.prototype, key),
+        "Invalid transfer log data key"
+      );
+      pending.push((item as Record<string, unknown>)[key]);
+    }
+  }
+};
 
 const usesSysx = (transfer: ITransfer) =>
   Boolean(transfer.useSysx || transfer.utxoAssetType === "sysx");
@@ -95,16 +121,19 @@ export const assertValidTransferPayload = (transfer: ITransfer): void => {
   for (const log of transfer.logs) {
     assertValid(
       isPlainObject(log) &&
+        hasOnlyKeys(log, ["status", "date", "payload", "_id"]) &&
         statuses.includes(log.status) &&
         Number.isSafeInteger(log.date) &&
         log.date >= 0 &&
         isPlainObject(log.payload) &&
+        hasOnlyKeys(log.payload, ["message", "data", "previousStatus"]) &&
         typeof log.payload.message === "string" &&
         isPlainObject(log.payload.data) &&
         (log.payload.previousStatus === undefined ||
           statuses.includes(log.payload.previousStatus)),
       "Invalid transfer log"
     );
+    assertSafeLogData(log.payload.data);
     for (const field of ["hash", "tx", "txid", "transactionHash"]) {
       const pattern = field === "tx" || field === "txid"
         ? /^[a-f0-9]{64}$/i : /^0x[a-f0-9]{64}$/i;
@@ -150,4 +179,29 @@ export const assertTransferIdentityUnchanged = (
       usesSysx(transfer) === usesSysx(existing),
     "Transfer route, accounts, asset and amount cannot be changed"
   );
+};
+
+/** Keep old histories readable while bounding new diagnostics and chain evidence. */
+export const assertNewTransferLogs = (
+  logs: ITransferLog[],
+  existing: ITransferLog[]
+): void => {
+  const added = logs.slice(existing.length);
+  assertValid(added.length <= 4, "Too many logs added in one update");
+  const chainPhase = (log: ITransferLog) =>
+    log.status + (log.payload.data.txid ? ":confirmed" : "");
+  const recorded = new Set(existing.filter((log) => !isErrorLog(log)).map(chainPhase));
+  let diagnostics = existing.filter(isErrorLog).length;
+  for (const log of added) {
+    assertValid(Buffer.byteLength(log.payload.message) <= 1024, "Transfer log message is too large");
+    if (isErrorLog(log)) {
+      assertValid(++diagnostics <= 16, "Too many transfer diagnostics");
+      assertValid(Buffer.byteLength(JSON.stringify(log.payload.data)) <= 4096,
+        "Transfer diagnostic is too large");
+      continue;
+    }
+    const key = chainPhase(log);
+    assertValid(!recorded.has(key), "Transfer evidence already exists for this step");
+    recorded.add(key);
+  }
 };
