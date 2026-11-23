@@ -114,7 +114,7 @@ const mixedDestinationBurn = (sourceAddress = address) => {
     }] },
     new Map([[assetInfo.assetGuid, {
       changeAddress: address, outputs: [{ address, value: new BN(assetInfo.value) }],
-    }]]), address, new BN(10)
+    }]]), address, new BN(10), syscointx.utils.syscoinNetworks.mainnet
   );
   expect(result.success).toBe(true);
   expect(result.txVersion).toBe(138);
