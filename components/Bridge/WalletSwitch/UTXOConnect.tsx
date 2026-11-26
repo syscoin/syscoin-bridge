@@ -185,10 +185,12 @@ const UTXOConnect: React.FC<UTXOConnectProps> = (props) => {
     xpubAddress,
     changeAccount,
     connectWallet,
+    bindWallet,
   } = usePaliWalletV2();
 
   const setTransferUtxo = () => {
     if (!connectedAccount || !xpubAddress) return;
+    bindWallet();
     setUtxo({ xpub: xpubAddress, address: connectedAccount });
   };
 

@@ -60,18 +60,10 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   const metamask = useMetamask();
   const [utxoWalletType, setUtxoWalletType] =
     useState<UTXOWallet>("pali-wallet");
-  const [nevmWalletType, setNevmWalletType] = useState<NEVMWallet>(() => {
-    // Check if Pali v2 with EVM injection is available
-    if (paliWallet.version === "v2" && paliWalletV2.isEVMInjected) {
-      return "pali-wallet";
-    }
-    // Check if window.ethereum is Pali v2
-    if (typeof window !== "undefined" && window.ethereum?.wallet === "pali-v2") {
-      return "pali-wallet";
-    }
-    // Default to MetaMask
-    return "metamask";
-  });
+  const nevmWalletType: NEVMWallet =
+    paliWallet.version === "v2" && paliWalletV2.isEVMInjected
+      ? "pali-wallet"
+      : "metamask";
   const nevm = useNEVM();
 
   const utxoAccount = paliWallet.connectedAccount;
@@ -85,20 +77,7 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const connectNEVM = (type: NEVMWallet) => {
-    if (type === "metamask") {
-      nevm.connect();
-    } else if (type === "pali-wallet") {
-      // Handle Pali wallet EVM connection
-      if (window.ethereum && window.ethereum.wallet === "pali-v2") {
-        window.ethereum.request({ method: 'eth_requestAccounts' })
-          .catch((error) => {
-            console.error('Failed to connect Pali EVM provider:', error);
-          });
-      }
-    }
-    setNevmWalletType(
-      window.ethereum.wallet === "pali-v2" ? "pali-wallet" : "metamask"
-    );
+    if (type === nevmWalletType) nevm.connect();
   };
 
   const sendUtxoTransaction: SendUtxoTransaction = (
@@ -199,26 +178,6 @@ const ConnectedWalletProvider: React.FC<{ children: ReactNode }> = ({
     setOldRoute(route);
     setCreatedIntervals([]);
   }, [createdIntervals, route, oldRoute]);
-
-  useEffect(() => {
-    if (!window.ethereum) {
-      return;
-    }
-    
-    // Determine the correct NEVM wallet type based on current state
-    let correctWalletType: NEVMWallet = "metamask";
-    
-    if (window.ethereum.wallet === "pali-v2") {
-      correctWalletType = "pali-wallet";
-    } else if (paliWallet.version === "v2" && paliWalletV2.isEVMInjected) {
-      correctWalletType = "pali-wallet";
-    }
-    
-    // Only update if the wallet type has actually changed
-    if (nevmWalletType !== correctWalletType) {
-      setNevmWalletType(correctWalletType);
-    }
-  }, [paliWalletV2.isEVMInjected, paliWallet.version, nevmWalletType]);
 
   return (
     <ConnectedWalletContext.Provider

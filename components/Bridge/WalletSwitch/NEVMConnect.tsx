@@ -27,6 +27,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
   } = useNEVM();
   const { canSponsorProof } = useFeatureFlags();
   const {
+    bindWallet,
     changeAccount,
     isBitcoinBased,
     isEVMInjected,
@@ -37,6 +38,7 @@ const NEVMConnect: React.FC<NEVMConnectProps> = ({ setNevm, transfer }) => {
 
   const setTransferNevm = () => {
     if (!account) return;
+    if (isEVMInjected) bindWallet(true);
     setNevm({ address: account });
   };
 
