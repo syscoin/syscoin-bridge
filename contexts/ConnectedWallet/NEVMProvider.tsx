@@ -47,6 +47,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
     queryFn: () => {
       return typeof window.ethereum !== "undefined";
     },
+    refetchInterval: 1000,
   });
   const { constants } = useConstants();
 

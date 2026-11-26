@@ -78,7 +78,7 @@ const PaliWalletV2 = () => {
     setMounted(true);
   }, []);
 
-  const connectedAccount = isBitcoinBased ? utxo.account : nevm.account;
+  const connectedAccount = isBitcoinBased || !isEVMInjected ? utxo.account : nevm.account;
   const isConnected = Boolean(connectedAccount);
 
   if (!mounted) {

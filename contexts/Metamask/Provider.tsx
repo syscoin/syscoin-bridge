@@ -1,6 +1,7 @@
 import { provider } from "web3-core";
 import { useQuery } from "react-query";
 import { createContext, useContext } from "react";
+import { isModernPaliProvider } from "@contexts/PaliWallet/injected-provider";
 
 declare global {
   interface Window {
@@ -34,10 +35,11 @@ const MetamaskProvider: React.FC<{ children: React.ReactNode }> = ({
     queryFn: () => {
       if (typeof window === "undefined") return false;
       return (
-        typeof window.ethereum !== "undefined" && window.ethereum.isMetaMask
+        Boolean(window.ethereum?.isMetaMask) && !isModernPaliProvider(window.ethereum)
       );
     },
     enabled: typeof window !== "undefined",
+    refetchInterval: 1000,
   });
 
   return (
