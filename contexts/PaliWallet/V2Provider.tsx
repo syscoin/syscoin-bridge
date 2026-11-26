@@ -30,8 +30,6 @@ import { getNevmAccountUpdateFromEvent } from "./account-event";
 import {
   getPaliNotificationEvent,
   isMatchingPaliEthereumProvider,
-  isModernPaliProvider,
-  PALI_INJECTION_GRACE_MS,
   selectPaliUtxoProvider,
 } from "./injected-provider";
 
@@ -86,6 +84,7 @@ export interface IPaliWalletV2Context extends IPaliWalletContext {
   isBitcoinBased: boolean;
   switchTo: (networkType: PaliWalletNetworkType) => Promise<void>;
   changeAccount: () => Promise<any>;
+  bindWallet: (forEthereum?: boolean) => void;
   isEVMInjected: boolean;
   isLoading: boolean;
   isSwitchingToUtxo: boolean;
@@ -106,47 +105,45 @@ export const PaliWalletV2Provider: React.FC<{
   const networkSwitchTarget = useRef<PaliWalletNetworkType | null>(null);
   const [isSwitchingToUtxo, setIsSwitchingToUtxo] = useState(false);
   
-  const selectedUtxoProvider = useRef<Provider>();
-  const providerFirstSeenAt = useRef<number>();
-  const installed = useQuery(["pali", "is-installed"], {
+  const boundUtxoProvider = useRef<Provider>();
+  const installed = useQuery(["pali", "injected-provider"], {
     queryFn: () => {
-      if (typeof window === "undefined") return false;
-      // Keep the wallet bound to this page if a second extension appears later.
-      // Account state and signing requests must stay on the same wallet channel.
-      if (selectedUtxoProvider.current) return true;
-      if (isModernPaliProvider(window.pali) || isModernPaliProvider(window.paliCanary)) {
-        providerFirstSeenAt.current ??= performance.now();
-      }
-      selectedUtxoProvider.current = selectPaliUtxoProvider(
-        window.pali,
-        window.paliCanary,
-        window.ethereum,
-        providerFirstSeenAt.current !== undefined &&
-          performance.now() - providerFirstSeenAt.current >= PALI_INJECTION_GRACE_MS
-      );
-      return Boolean(selectedUtxoProvider.current);
+      if (typeof window === "undefined") return null;
+      const ethereum = window.ethereum;
+      const utxo = boundUtxoProvider.current ??
+        selectPaliUtxoProvider(window.pali, window.paliCanary, ethereum);
+      return { utxo, ethereum };
     },
+    // The provider objects are live handles. Retain their exact identity even
+    // when an injected provider is a plain object.
+    structuralSharing: false,
+    isDataEqual: (previous, next) =>
+      previous === next || Boolean(
+        previous && next && previous.utxo === next.utxo &&
+        previous.ethereum === next.ethereum
+      ),
     refetchInterval: 1000,
     enabled: typeof window !== "undefined",
   });
 
-  const isEVMInjected = useQuery(["pali", "is-ethereum-injected"], {
-    queryFn: () => {
-      if (typeof window === "undefined") return false;
-      return isMatchingPaliEthereumProvider(
-        selectedUtxoProvider.current,
-        window.ethereum
-      );
-    },
-    refetchInterval: 1000,
-    enabled: typeof window !== "undefined",
-  });
+  const utxo = boundUtxoProvider.current ?? installed.data?.utxo;
+  const isInstalled = Boolean(utxo);
+  const isEVMInjected = isMatchingPaliEthereumProvider(utxo, installed.data?.ethereum);
+  const channel = utxo?.wallet;
+  const bindWallet = useCallback((forEthereum = false) => {
+    if (!utxo || (boundUtxoProvider.current && boundUtxoProvider.current !== utxo)) {
+      throw new Error("Pali wallet selection changed. Select the wallet again.");
+    }
+    if (forEthereum && !isMatchingPaliEthereumProvider(utxo, window.ethereum)) {
+      throw new Error("The selected Pali wallet does not own the active EVM provider");
+    }
+    // Preserve the channel behind an interactive request or selected account.
+    boundUtxoProvider.current = utxo;
+  }, [utxo]);
 
-  const isInstalled = installed.isFetched && installed.data;
-  const utxo = selectedUtxoProvider.current;
   const isBridgeTestnet = resolveSyscoinIsTestnet(constants);
 
-  const isBitcoinBased = useQuery(["pali", "isBitcoinBased"], {
+  const isBitcoinBased = useQuery(["pali", "isBitcoinBased", channel], {
     queryFn: async () => {
       if (!utxo) return false;
       return readPaliBitcoinBasedState(utxo);
@@ -155,7 +152,7 @@ export const PaliWalletV2Provider: React.FC<{
     refetchInterval: 1000,
   });
 
-  const providerState = useQuery<ProviderState | null>(["pali", "provider-state"], {
+  const providerState = useQuery<ProviderState | null>(["pali", "provider-state", channel], {
     queryFn: async (): Promise<ProviderState | null> => {
       if (!utxo) return null;
       try {
@@ -170,15 +167,16 @@ export const PaliWalletV2Provider: React.FC<{
   });
 
   const requestAccounts = useCallback(() => {
+    bindWallet();
     return utxo!.request({
       method: "sys_requestAccounts",
     }) as Promise<(string | { success: boolean })[]>;
-  }, [utxo]);
+  }, [bindWallet, utxo]);
 
   // Automatic queries may only discover an existing connection. Opening the
   // account picker here can create a hidden pending request before the user
   // clicks Connect, causing every later wallet action to appear unresponsive.
-  const utxoAccount = useQuery(["pali", "utxo-account"], {
+  const utxoAccount = useQuery(["pali", "utxo-account", channel], {
     queryFn: () => discoverPaliUtxoAccount(utxo!),
     enabled: isPaliUtxoQueryReady(
       isInstalled,
@@ -191,7 +189,7 @@ export const PaliWalletV2Provider: React.FC<{
   });
 
   // Get full account details (including xpub) after connection
-  const accountDetails = useQuery(["pali", "account-details"], {
+  const accountDetails = useQuery(["pali", "account-details", channel], {
     queryFn: async () => {
       const account: Account = await utxo!.request({
         method: "wallet_getAccount",
@@ -211,6 +209,7 @@ export const PaliWalletV2Provider: React.FC<{
   const finalAccount = accountDetails.data || null;
 
   const changeAccount = useCallback(async () => {
+    bindWallet();
     const previousNevmAccount = queryClient.getQueryData<string | null>([
       "nevm",
       "account",
@@ -224,7 +223,7 @@ export const PaliWalletV2Provider: React.FC<{
     const { data: bitcoinBased } = await isBitcoinBased.refetch();
     if (bitcoinBased) {
       await Promise.all([utxoAccount.refetch(), accountDetails.refetch()]);
-    } else if (isEVMInjected.data) {
+    } else if (isEVMInjected) {
       const notifiedNevmAccount = queryClient.getQueryData<string | null>([
         "nevm",
         "account",
@@ -241,9 +240,10 @@ export const PaliWalletV2Provider: React.FC<{
     return result;
   }, [
     accountDetails,
+    bindWallet,
     utxo,
     isBitcoinBased,
-    isEVMInjected.data,
+    isEVMInjected,
     queryClient,
     utxoAccount,
   ]);
@@ -294,6 +294,7 @@ export const PaliWalletV2Provider: React.FC<{
 
   const sendTransaction = useCallback(
     async (transaction: UTXOTransaction) => {
+      bindWallet();
       const response = await utxo!.request({
         method: "sys_signAndSend",
         params: [transaction],
@@ -329,10 +330,11 @@ export const PaliWalletV2Provider: React.FC<{
         };
       }
     },
-    [isBridgeTestnet, utxo]
+    [bindWallet, isBridgeTestnet, utxo]
   );
 
   const signTransaction = useCallback(async (transaction: UTXOTransaction) => {
+    bindWallet();
     const response = await utxo!.request({
       method: "sys_sign",
       params: [transaction],
@@ -343,7 +345,7 @@ export const PaliWalletV2Provider: React.FC<{
     }
 
     return response as UTXOTransaction;
-  }, [utxo]);
+  }, [bindWallet, utxo]);
 
   const switchTo = useCallback(
     async (networkType: PaliWalletNetworkType) => {
@@ -351,6 +353,7 @@ export const PaliWalletV2Provider: React.FC<{
         return Promise.reject("Pali Wallet is not installed");
       }
 
+      bindWallet(networkType === "ethereum");
       networkSwitchTarget.current = networkType;
       if (networkType === "bitcoin") {
         setIsSwitchingToUtxo(true);
@@ -369,7 +372,7 @@ export const PaliWalletV2Provider: React.FC<{
           // Stop active wallet-backed EVM queries before Pali changes mode.
           if (
             getPaliNevmQueryAction(
-              isEVMInjected.data,
+              isEVMInjected,
               wasAlreadyOnUtxo,
               networkType
             ) === "cancel"
@@ -407,7 +410,7 @@ export const PaliWalletV2Provider: React.FC<{
           const { data: bitcoinBased } = await isBitcoinBased.refetch();
           if (
             getPaliNevmQueryAction(
-              isEVMInjected.data,
+              isEVMInjected,
               bitcoinBased,
               networkType
             ) === "refresh"
@@ -427,23 +430,18 @@ export const PaliWalletV2Provider: React.FC<{
     },
     [
       finalAccount,
+      bindWallet,
       utxo,
       isBitcoinBased,
       isInstalled,
       queryClient,
-      isEVMInjected.data,
+      isEVMInjected,
       constants,
       refetchConstants,
     ]
   );
 
-  const isLoading = useMemo(
-    () =>
-      installed.isLoading ||
-      isBitcoinBased.isLoading ||
-      isEVMInjected.isLoading,
-    [installed.isLoading, isBitcoinBased.isLoading, isEVMInjected.isLoading]
-  );
+  const isLoading = installed.isLoading || isBitcoinBased.isLoading;
 
   // Listen for account changes
   useEffect(() => {
@@ -451,7 +449,7 @@ export const PaliWalletV2Provider: React.FC<{
 
     const refreshQueriesForActiveNetwork = async () => {
       const currentAction = getPaliNevmQueryAction(
-        isEVMInjected.data,
+        isEVMInjected,
         isBitcoinBased.data,
         networkSwitchTarget.current
       );
@@ -461,7 +459,7 @@ export const PaliWalletV2Provider: React.FC<{
 
       const { data: bitcoinBased } = await isBitcoinBased.refetch();
       const nextAction = getPaliNevmQueryAction(
-        isEVMInjected.data,
+        isEVMInjected,
         bitcoinBased,
         networkSwitchTarget.current
       );
@@ -568,7 +566,7 @@ export const PaliWalletV2Provider: React.FC<{
     if (
       ethereum &&
       isMatchingPaliEthereumProvider(utxo, ethereum) &&
-      isEVMInjected.data &&
+      isEVMInjected &&
       isBitcoinBased.isFetched &&
       !isBitcoinBased.data
     ) {
@@ -597,7 +595,7 @@ export const PaliWalletV2Provider: React.FC<{
   }, [
     isInstalled,
     utxo,
-    isEVMInjected.data,
+    isEVMInjected,
     isBitcoinBased.data,
     isBitcoinBased.isFetched,
     queryClient,
@@ -626,7 +624,8 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased: Boolean(isBitcoinBased.data),
       switchTo,
       changeAccount,
-      isEVMInjected: isEVMInjected.isFetched && Boolean(isEVMInjected.data),
+      bindWallet,
+      isEVMInjected,
       isLoading,
       isSwitchingToUtxo,
     }),
@@ -643,6 +642,7 @@ export const PaliWalletV2Provider: React.FC<{
       isBitcoinBased.data,
       switchTo,
       changeAccount,
+      bindWallet,
       isEVMInjected,
       isLoading,
       isSwitchingToUtxo,

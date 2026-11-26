@@ -191,6 +191,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   );
 
   const sendTransaction = (config: TransactionConfig) => {
+    if (isPaliEvmProvider) paliWallet.bindWallet(true);
     return window.ethereum.request({
       method: "eth_sendTransaction",
       params: [config],
@@ -198,6 +199,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const switchToMainnet = () => {
+    if (isPaliEvmProvider) paliWallet.bindWallet(true);
     if (!expectedChainId) {
       const error = new Error("Configured NEVM chain ID is invalid");
       captureException(error);
@@ -237,8 +239,11 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const connect = () => {
+    const ethereum = window.ethereum;
+    if (!isEnabled || !ethereum) return;
+    if (isPaliEvmProvider) paliWallet.bindWallet(true);
     const prePromise = account.data
-      ? window.ethereum.request({
+      ? ethereum.request({
           method: "wallet_revokePermissions",
           params: [{ eth_accounts: {} }],
         })
@@ -246,7 +251,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
 
     void prePromise
       .then(() =>
-        window.ethereum.request({
+        ethereum.request({
           method: getNevmAccountRequestMethod("connect"),
         })
       )
@@ -260,6 +265,7 @@ const NEVMProvider: React.FC<NEVMProviderProps> = ({ children }) => {
   };
 
   const signMessage = (message: string): Promise<string> => {
+    if (isPaliEvmProvider) paliWallet.bindWallet(true);
     return window.ethereum.request({
       method: "personal_sign",
       params: [message, account.data],

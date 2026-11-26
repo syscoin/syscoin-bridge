@@ -13,27 +13,27 @@ const metamask = { wallet: "metamask", request: jest.fn(), isMetaMask: true };
 
 describe("injected Pali wallet selection", () => {
   it("pairs the UTXO provider with whichever Pali channel owns legacy Ethereum", () => {
-    expect(selectPaliUtxoProvider(stable, canary, canary, false)).toBe(canary);
-    expect(selectPaliUtxoProvider(stable, canary, stable, false)).toBe(stable);
-    expect(selectPaliUtxoProvider(stable, undefined, canary, true)).toBeUndefined();
+    expect(selectPaliUtxoProvider(stable, canary, canary)).toBe(canary);
+    expect(selectPaliUtxoProvider(stable, canary, stable)).toBe(stable);
+    expect(selectPaliUtxoProvider(stable, undefined, canary)).toBeUndefined();
   });
 
-  it("waits through the UTXO-first injection phase before falling back", () => {
-    expect(selectPaliUtxoProvider(stable, canary, undefined, false)).toBeUndefined();
-    expect(selectPaliUtxoProvider(stable, canary, undefined, true)).toBe(stable);
-    expect(selectPaliUtxoProvider(undefined, canary, metamask, false)).toBeUndefined();
-    expect(selectPaliUtxoProvider(undefined, canary, metamask, true)).toBe(canary);
+  it("re-evaluates the UTXO fallback when a complete pair becomes visible", () => {
+    expect(selectPaliUtxoProvider(stable, canary, undefined)).toBe(stable);
+    expect(selectPaliUtxoProvider(stable, canary, canary)).toBe(canary);
+    expect(selectPaliUtxoProvider(undefined, canary, metamask)).toBe(canary);
+    expect(selectPaliUtxoProvider(stable, canary, metamask)).toBe(stable);
   });
 
   it("prefers production for UTXO with a separate MetaMask provider", () => {
-    expect(selectPaliUtxoProvider(stable, canary, metamask, false)).toBe(stable);
+    expect(selectPaliUtxoProvider(stable, canary, metamask)).toBe(stable);
   });
 
   it("recognizes Canary through its namespaced and legacy window keys", () => {
-    expect(selectPaliUtxoProvider(undefined, canary, canary, false)).toBe(canary);
-    expect(selectPaliUtxoProvider(canary, undefined, undefined, true)).toBe(canary);
-    expect(selectPaliUtxoProvider(metamask, canary, undefined, true)).toBe(canary);
-    expect(selectPaliUtxoProvider(metamask, undefined, undefined, true)).toBeUndefined();
+    expect(selectPaliUtxoProvider(undefined, canary, canary)).toBe(canary);
+    expect(selectPaliUtxoProvider(canary, undefined, undefined)).toBe(canary);
+    expect(selectPaliUtxoProvider(metamask, canary, undefined)).toBe(canary);
+    expect(selectPaliUtxoProvider(metamask, undefined, undefined)).toBeUndefined();
   });
 
   it("matches only the selected Pali channel as the active EVM provider", () => {

@@ -3,10 +3,6 @@ const canaryId = "pali-canary:pali-v2";
 
 type InjectedProvider = { wallet?: string; request?: unknown };
 
-// Allow window.ethereum to arrive after the UTXO providers. If EVM injection
-// is disabled, a UTXO-only installation still needs to become usable.
-export const PALI_INJECTION_GRACE_MS = 1000;
-
 export function isModernPaliProvider(provider: InjectedProvider | undefined): boolean {
   return typeof provider?.request === "function" &&
     (provider.wallet === stableId || provider.wallet === canaryId);
@@ -15,8 +11,7 @@ export function isModernPaliProvider(provider: InjectedProvider | undefined): bo
 export function selectPaliUtxoProvider<T extends InjectedProvider>(
   stableOrFallback: T | undefined,
   canary: T | undefined,
-  ethereum: InjectedProvider | undefined,
-  allowUtxoFallback: boolean
+  ethereum: InjectedProvider | undefined
 ): T | undefined {
   const stable = stableOrFallback?.wallet === stableId &&
     isModernPaliProvider(stableOrFallback) ? stableOrFallback : undefined;
@@ -29,8 +24,7 @@ export function selectPaliUtxoProvider<T extends InjectedProvider>(
   if (isModernPaliProvider(ethereum)) {
     return ethereum?.wallet === stableId ? stable : canaryProvider;
   }
-  if (ethereum && stable) return stable;
-  return allowUtxoFallback ? stable ?? canaryProvider : undefined;
+  return stable ?? canaryProvider;
 }
 
 export function isMatchingPaliEthereumProvider(
