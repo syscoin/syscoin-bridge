@@ -1,31 +1,41 @@
 const stableId = "pali-v2";
 const canaryId = "pali-canary:pali-v2";
 
-export function isModernPaliProvider(
-  provider: { wallet?: string; request?: unknown } | undefined
-): boolean {
+type InjectedProvider = { wallet?: string; request?: unknown };
+
+// Allow window.ethereum to arrive after the UTXO providers. If EVM injection
+// is disabled, a UTXO-only installation still needs to become usable.
+export const PALI_INJECTION_GRACE_MS = 1000;
+
+export function isModernPaliProvider(provider: InjectedProvider | undefined): boolean {
   return typeof provider?.request === "function" &&
     (provider.wallet === stableId || provider.wallet === canaryId);
 }
 
-export function selectPaliUtxoProvider<T extends { wallet: string; request: unknown }>(
+export function selectPaliUtxoProvider<T extends InjectedProvider>(
   stableOrFallback: T | undefined,
-  canary: T | undefined
+  canary: T | undefined,
+  ethereum: InjectedProvider | undefined,
+  allowUtxoFallback: boolean
 ): T | undefined {
-  if (stableOrFallback?.wallet === stableId && isModernPaliProvider(stableOrFallback)) {
-    return stableOrFallback;
+  const stable = stableOrFallback?.wallet === stableId &&
+    isModernPaliProvider(stableOrFallback) ? stableOrFallback : undefined;
+  const canaryProvider = canary?.wallet === canaryId && isModernPaliProvider(canary)
+    ? canary
+    : stableOrFallback?.wallet === canaryId && isModernPaliProvider(stableOrFallback)
+      ? stableOrFallback
+      : undefined;
+
+  if (isModernPaliProvider(ethereum)) {
+    return ethereum?.wallet === stableId ? stable : canaryProvider;
   }
-  if (canary?.wallet === canaryId && isModernPaliProvider(canary)) {
-    return canary;
-  }
-  if (stableOrFallback?.wallet === canaryId && isModernPaliProvider(stableOrFallback)) {
-    return stableOrFallback;
-  }
+  if (ethereum && stable) return stable;
+  return allowUtxoFallback ? stable ?? canaryProvider : undefined;
 }
 
 export function isMatchingPaliEthereumProvider(
-  utxo: { wallet: string } | undefined,
-  ethereum: { wallet?: string; request?: unknown } | undefined
+  utxo: InjectedProvider | undefined,
+  ethereum: InjectedProvider | undefined
 ): boolean {
   return Boolean(utxo && ethereum && utxo.wallet === ethereum.wallet &&
     isModernPaliProvider(ethereum));

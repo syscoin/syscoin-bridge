@@ -30,6 +30,8 @@ import { getNevmAccountUpdateFromEvent } from "./account-event";
 import {
   getPaliNotificationEvent,
   isMatchingPaliEthereumProvider,
+  isModernPaliProvider,
+  PALI_INJECTION_GRACE_MS,
   selectPaliUtxoProvider,
 } from "./injected-provider";
 
@@ -105,14 +107,22 @@ export const PaliWalletV2Provider: React.FC<{
   const [isSwitchingToUtxo, setIsSwitchingToUtxo] = useState(false);
   
   const selectedUtxoProvider = useRef<Provider>();
+  const providerFirstSeenAt = useRef<number>();
   const installed = useQuery(["pali", "is-installed"], {
     queryFn: () => {
       if (typeof window === "undefined") return false;
       // Keep the wallet bound to this page if a second extension appears later.
       // Account state and signing requests must stay on the same wallet channel.
-      selectedUtxoProvider.current ??= selectPaliUtxoProvider(
+      if (selectedUtxoProvider.current) return true;
+      if (isModernPaliProvider(window.pali) || isModernPaliProvider(window.paliCanary)) {
+        providerFirstSeenAt.current ??= performance.now();
+      }
+      selectedUtxoProvider.current = selectPaliUtxoProvider(
         window.pali,
-        window.paliCanary
+        window.paliCanary,
+        window.ethereum,
+        providerFirstSeenAt.current !== undefined &&
+          performance.now() - providerFirstSeenAt.current >= PALI_INJECTION_GRACE_MS
       );
       return Boolean(selectedUtxoProvider.current);
     },
