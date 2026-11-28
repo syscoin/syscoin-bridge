@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Alert, Box, Button, Typography } from "@mui/material";
 import UTXOStepWrapper from "../UTXOStepWrapper";
 import { useTransfer } from "../context/TransferContext";
@@ -12,12 +13,32 @@ const isError = (error: unknown): error is Error => {
   return error instanceof Error;
 };
 
+type Broadcast = { tx: string; date: number };
+const pendingConversionKey = (id: string) => `bridge-native-conversion-${id}`;
+
+const readBroadcast = (id: string): Broadcast | null => {
+  try {
+    const pending = JSON.parse(window.localStorage.getItem(pendingConversionKey(id)) ?? "null");
+    if (typeof pending?.tx === "string" && /^[a-f0-9]{64}$/i.test(pending.tx) &&
+      Number.isSafeInteger(pending.date) && pending.date > 0) {
+      return { tx: pending.tx, date: pending.date };
+    }
+  } catch {
+    // Storage is optional; the active tab can still retry the submitted save.
+  }
+  return null;
+};
+
 type BurnSysProps = {
   successStatus: TransferStatus;
 };
 
-const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
+const BurnSys: React.FC<BurnSysProps & { transferId: string }> = ({ successStatus, transferId }) => {
   const { transfer, saveTransfer } = useTransfer();
+  const [pendingBroadcast, setPendingBroadcast] = useState<Broadcast | null>();
+  useEffect(() => {
+    setPendingBroadcast(readBroadcast(transferId));
+  }, [transferId]);
   const {
     mutate: signBurnSys,
     isLoading: isSigning,
@@ -25,11 +46,11 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
     error: signError,
   } = useBurnSys(transfer);
 
-  const onSignatureSuccess = (tx: string) => {
+  const saveBroadcast = ({ tx, date }: Broadcast) => {
     const updatedLogs: ITransferLog[] = [
       ...transfer.logs,
       {
-        date: Date.now(),
+        date,
         payload: {
           data: {
             tx,
@@ -48,9 +69,26 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
 
   const sign = () => {
     signBurnSys(undefined, {
-      onSuccess: onSignatureSuccess,
+      onSuccess: (tx) => {
+        const broadcast = { tx, date: Date.now() };
+        setPendingBroadcast(broadcast);
+        try {
+          window.localStorage.setItem(pendingConversionKey(transferId), JSON.stringify(broadcast));
+        } catch {
+          // The provider retains the original submission for the active tab.
+        }
+        saveBroadcast(broadcast);
+      },
     });
   };
+
+  if (pendingBroadcast) {
+    return (
+      <Alert severity="info" action={<Button onClick={() => saveBroadcast(pendingBroadcast)}>Save</Button>}>
+        SYS conversion was submitted. Save it to continue.
+      </Alert>
+    );
+  }
 
   if (isSigning) {
     return <Alert severity="info">Confirm the transaction in Pali Wallet.</Alert>;
@@ -78,17 +116,20 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYS
       </Typography>
-      <Button color="primary" variant="contained" onClick={sign}>
+      <Button color="primary" variant="contained" onClick={sign} disabled={pendingBroadcast === undefined}>
         Confirm
       </Button>
     </Box>
   );
 };
 
-const BridgeStepBurnSys: React.FC<BurnSysProps> = (props) => (
-  <UTXOStepWrapper>
-    <BurnSys {...props} />
-  </UTXOStepWrapper>
-);
+const BridgeStepBurnSys: React.FC<BurnSysProps> = (props) => {
+  const { transfer } = useTransfer();
+  return (
+    <UTXOStepWrapper>
+      <BurnSys key={transfer.id} transferId={transfer.id} {...props} />
+    </UTXOStepWrapper>
+  );
+};
 
 export default BridgeStepBurnSys;

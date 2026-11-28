@@ -285,6 +285,13 @@ describe("transfer save recovery", () => {
     expect(mockSetRetrying).toHaveBeenLastCalledWith(false);
   });
 
+  it("hides the conversion signing step while saving the broadcast transaction", () => {
+    mutation = { isLoading: true, variables: { ...pending, status: "confirm-burn-sys" } };
+    const html = renderToStaticMarkup(renderProvider());
+    expect(html).toContain("Saving transfer...");
+    expect(html).not.toContain("Transaction step");
+  });
+
   it.each(["completed", ...intermediateStatuses])("keeps transaction controls hidden and retry disabled while resaving %s", (status) => {
     retrying = true;
     mutation = { isError: false, isLoading: true, variables: { ...pending, status } };

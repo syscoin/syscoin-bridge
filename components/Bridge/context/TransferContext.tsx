@@ -172,7 +172,7 @@ export const TransferContextProvider: React.FC<
     <TransferContext.Provider
       value={{ transfer: transfer ?? initialData, saveTransfer, isSaving }}
     >
-      {(isSaveError || isRetryingSave) &&
+      {(isSaving || isSaveError || isRetryingSave) &&
       unsavedTransfer &&
       initialData.status !== COMMON_STATUS.INITIALIZE ? (
         <Alert

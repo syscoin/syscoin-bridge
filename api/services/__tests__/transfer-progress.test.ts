@@ -130,6 +130,38 @@ const wireTransaction = (
   };
 };
 
+const mixedNativeConversion = (): UtxoTransaction => {
+  const { syscoinBurnToAssetAllocation, getAllocationsFromTx } = require("syscointx-js");
+  const result = syscoinBurnToAssetAllocation(
+    { rbf: true },
+    { assets: new Map(), utxos: [{
+      txId: "9".repeat(64), vout: 0, type: "BECH32", address,
+      value: new BN("100000000"),
+      assetInfo: { assetGuid: SYSX_ASSET_GUID, value: new BN(amount) },
+    }] },
+    new Map([[SYSX_ASSET_GUID, {
+      changeAddress: address, outputs: [{ address, value: new BN(amount) }],
+    }]]), address, new BN(10)
+  );
+  expect(result.success).toBe(true);
+  const raw = new bitcoin.Transaction();
+  raw.version = result.txVersion;
+  raw.addInput(Buffer.alloc(32, 9), 0);
+  for (const output of result.outputs) {
+    const script = output.script ?? bitcoin.address.toOutputScript(
+      output.address, syscoinUtils.syscoinNetworks.mainnet
+    );
+    raw.addOutput(script, BigInt(output.value.toString()));
+  }
+  const allocation = getAllocationsFromTx(raw).find((value: any) => value.assetGuid === SYSX_ASSET_GUID);
+  expect(allocation.values.map((value: any) => value.value.toString())).toEqual(["20000000"]);
+  return {
+    ...wireTransaction("burn-sys"),
+    txid: raw.getId(), hex: raw.toHex(),
+    vin: [{ n: 0, txid: "9".repeat(64), vout: 0, value: "100000000", addresses: [address], assetInfo }],
+  };
+};
+
 const mixedConversionTransaction = (options: {
   recipient?: string; conversionValue?: string; laterMatchingOutput?: boolean;
 } = {}): UtxoTransaction => {
@@ -398,6 +430,41 @@ describe("canonical transfer progress", () => {
       await expect(canonicalizeTransferProgress(value)).resolves.toEqual(value);
     }
   );
+
+  it("saves and advances the original mixed SYS conversion by its net SYSX credit", async () => {
+    const native = mixedNativeConversion();
+    installUtxo(native);
+    const existing = transfer({ useSysx: false, status: "burn-sys" });
+    const submission = log("burn-sys", { tx: native.txid });
+    const submitted = await canonicalizeTransferProgress({
+      ...existing, status: SYS_TO_ETH_TRANSFER_STATUS.CONFIRM_BURN_SYS, logs: [submission],
+    }, existing);
+    const confirmed = await canonicalizeTransferProgress({
+      ...submitted, status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYSX,
+      logs: [...submitted.logs, log("burn-sys", { txid: native.txid }, 2)],
+    }, submitted);
+
+    expect(verifiedTransferProgressStatus(confirmed, submitted)).toBe("burn-sysx");
+    expect(confirmed.logs[0].payload.data).toEqual({ tx: native.txid });
+    expect(confirmed.logs[1].payload.data).toEqual(native);
+  });
+
+  it("rejects a gross 0.1 SYSX payout that only returns the SYSX input", async () => {
+    const native = wireTransaction("burn-sys");
+    const raw = bitcoin.Transaction.fromHex(native.hex);
+    raw.addOutput(bitcoin.address.toOutputScript(olderAddress, syscoinUtils.syscoinNetworks.mainnet), BigInt(680));
+    raw.outs[1].script = bitcoin.script.compile([0x6a, bufferUtils.serializeAssetAllocations([{
+      assetGuid: SYSX_ASSET_GUID,
+      values: [{ n: 0, value: new BN(amount) }, { n: 2, value: new BN(amount) }],
+    }])]);
+    native.hex = raw.toHex();
+    native.txid = raw.getId();
+    native.vin[0].assetInfo = assetInfo;
+    installUtxo(native);
+    await expect(canonicalizeTransferProgress(transfer({
+      useSysx: false, status: "confirm-burn-sys", logs: [log("burn-sys", { tx: native.txid })],
+    }))).rejects.toThrow("SYS conversion does not match");
+  });
 
   it("accepts zero-conf SYSX burn while the UI is waiting for confirmation", async () => {
     const burn = wireTransaction("burn-sysx-nevm");
