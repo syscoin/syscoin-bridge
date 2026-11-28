@@ -27,7 +27,7 @@ jest.mock("react-query", () => ({
   useMutation: (_key: unknown, options: unknown) => options,
 }));
 
-import { useBurnSys } from "./hooks/useBurnSys";
+import { useBurnSys as burnSysHook } from "./hooks/useBurnSys";
 import {
   NativeConversionBroadcast, readPendingNativeConversion, recordNativeConversion,
 } from "./pending-native-conversion";
@@ -147,7 +147,7 @@ describe("transfer signing intent", () => {
     }));
     const hash = "a".repeat(64);
     mockSendTransaction.mockResolvedValue({ tx: hash });
-    const runNativeBurn = () => (useBurnSys(nativeTransfer) as unknown as {
+    const runNativeBurn = () => (burnSysHook(nativeTransfer) as unknown as {
       mutationFn: () => Promise<NativeConversionBroadcast>;
     }).mutationFn();
 
@@ -175,7 +175,7 @@ describe("transfer signing intent", () => {
       recordNativeConversion(nativeTransfer.id, hash);
       return response(nativeIntent);
     });
-    const run = (useBurnSys(nativeTransfer) as unknown as {
+    const run = (burnSysHook(nativeTransfer) as unknown as {
       mutationFn: () => Promise<NativeConversionBroadcast>;
     }).mutationFn;
 
