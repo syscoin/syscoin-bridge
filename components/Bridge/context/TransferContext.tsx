@@ -2,7 +2,7 @@ import { COMMON_STATUS, ITransfer } from "@contexts/Transfer/types";
 import { useNEVM } from "@contexts/ConnectedWallet/NEVMProvider";
 import { isPaliV2UtxoMode } from "@contexts/PaliWallet/network-query-policy";
 import { usePaliWalletV2 } from "@contexts/PaliWallet/usePaliWallet";
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Alert, Button } from "@mui/material";
 import { UseMutateFunction, useMutation, useQuery, useQueryClient } from "react-query";
 import isTransfer from "utils/isTransfer";
@@ -15,6 +15,7 @@ import {
   getOrCreateTransferWriteToken,
   getTransferWriteToken,
 } from "utils/transfer-write-token";
+import { clearPendingNativeConversion } from "../pending-native-conversion";
 import {
   requestTransferCreationAuthorization,
   TransferCreationAuthorization,
@@ -68,6 +69,14 @@ export const TransferContextProvider: React.FC<
         failureCount < 3,
     }
   );
+
+  useEffect(() => {
+    if (!transfer?.logs) return;
+    const submitted = transfer.logs.find((log) =>
+      log.status === "burn-sys" && typeof log.payload?.data?.tx === "string"
+    );
+    if (submitted) clearPendingNativeConversion(transfer.id, submitted.payload.data.tx);
+  }, [transfer]);
 
   const {
     mutate: saveTransfer,

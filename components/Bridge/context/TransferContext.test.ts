@@ -5,6 +5,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 
+const mockClearPending = jest.fn();
 const mockSave = jest.fn<(transfer: { logs: unknown[] }, options: { onSettled: () => void }) => void>();
 const mockSetRetrying = jest.fn<any>();
 const mockRefetch = jest.fn<any>();
@@ -53,7 +54,11 @@ const compiled = ts.transpileModule(source, {
 }).outputText;
 const componentExports: Record<string, any> = {};
 const testRequire = (name: string): unknown => {
-  if (name === "react") return { ...React, useState: () => [retrying, mockSetRetrying], useRef: () => creationCache };
+  if (name === "react") return {
+    ...React, useState: () => [retrying, mockSetRetrying], useRef: () => creationCache,
+    useEffect: (effect: () => void) => effect(),
+  };
+  if (name === "../pending-native-conversion") return { clearPendingNativeConversion: mockClearPending };
   if (name === "@contexts/ConnectedWallet/NEVMProvider") return {
     useNEVM: () => ({ expectedChainId: "0x39" }),
   };
@@ -283,6 +288,17 @@ describe("transfer save recovery", () => {
     expect(mockSetRetrying).toHaveBeenCalledWith(true);
     mockSave.mock.calls[0][1].onSettled();
     expect(mockSetRetrying).toHaveBeenLastCalledWith(false);
+  });
+
+  it("clears the pending conversion once the server has saved its hash", () => {
+    const tx = "a".repeat(64);
+    cachedTransfer = {
+      ...persisted,
+      status: "confirm-burn-sys",
+      logs: [{ status: "burn-sys", payload: { data: { tx } } }],
+    };
+    renderProvider();
+    expect(mockClearPending).toHaveBeenCalledWith(persisted.id, tx);
   });
 
   it("hides the conversion signing step while saving the broadcast transaction", () => {
