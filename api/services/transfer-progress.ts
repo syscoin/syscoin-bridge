@@ -192,11 +192,28 @@ export const canonicalizeTransferProgress = async (
           requireEvidence(raw.version === 139 && tx.tokenType === "SPTSyscoinBurnToAssetAllocation", "Not a SYS to SYSX conversion");
           const destination = syscoinUtils.bitcoinjs.address.toOutputScript(transfer.utxoAddress!,
             process.env.IS_TESTNET === "true" ? syscoinUtils.syscoinNetworks.testnet : syscoinUtils.syscoinNetworks.mainnet);
-          requireEvidence(getAllocationsFromTx(raw)?.some((allocation) => String(allocation.assetGuid) === SYSX_ASSET_GUID &&
-            allocation.values.some((value) => value.value.toString() === amount && raw.outs[value.n] &&
-              Buffer.from(raw.outs[value.n].script).equals(Uint8Array.from(destination)))) &&
-            raw.outs[opReturnIndex].value.toString() === amount,
-          "SYS conversion does not match this transfer's recipient and amount");
+          const mismatch = "SYS conversion does not match this transfer's recipient and amount";
+          // Coin selection can fund the fee with a SYSX-bearing input and merge
+          // its existing SYSX into the same allocation as the converted amount.
+          const inputAmount = sysxInputs(tx).reduce((total, input) => {
+            const value = input.assetInfo!.value;
+            requireEvidence(typeof value === "string" && /^[0-9]+$/.test(value), mismatch);
+            return total + BigInt(value);
+          }, BigInt(0));
+          const outputIndices = new Set<number>();
+          let recipientAmount = BigInt(0);
+          for (const allocation of getAllocationsFromTx(raw) ?? []) {
+            if (String(allocation.assetGuid) !== SYSX_ASSET_GUID) continue;
+            for (const { n, value } of allocation.values) {
+              requireEvidence(raw.outs[n] && !outputIndices.has(n), mismatch);
+              outputIndices.add(n);
+              if (Buffer.from(raw.outs[n].script).equals(destination)) {
+                recipientAmount += BigInt(value.toString());
+              }
+            }
+          }
+          requireEvidence(raw.outs[opReturnIndex].value.toString() === amount &&
+            recipientAmount - inputAmount === BigInt(amount), mismatch);
           await assertAccountInputs(transfer, tx.vin, undefined, lookupAccount);
         } else if (stage === "mint-sysx") {
           requireEvidence(transfer.type === "nevm-to-sys" && raw.version === 140 && tx.tokenType === "SPTAssetAllocationMint", "Not a SYSX mint");

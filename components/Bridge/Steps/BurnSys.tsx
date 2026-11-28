@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Alert, Box, Button, Typography } from "@mui/material";
 import UTXOStepWrapper from "../UTXOStepWrapper";
 import { useTransfer } from "../context/TransferContext";
 import { useBurnSys } from "../hooks/useBurnSys";
+import { NativeConversionBroadcast, readPendingNativeConversion } from "../pending-native-conversion";
 import {
   ITransferLog,
   SYS_TO_ETH_TRANSFER_STATUS,
@@ -16,8 +18,12 @@ type BurnSysProps = {
   successStatus: TransferStatus;
 };
 
-const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
+const BurnSys: React.FC<BurnSysProps & { transferId: string }> = ({ successStatus, transferId }) => {
   const { transfer, saveTransfer } = useTransfer();
+  const [pendingBroadcast, setPendingBroadcast] = useState<NativeConversionBroadcast | null>();
+  useEffect(() => {
+    setPendingBroadcast(readPendingNativeConversion(transferId));
+  }, [transferId]);
   const {
     mutate: signBurnSys,
     isLoading: isSigning,
@@ -25,11 +31,11 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
     error: signError,
   } = useBurnSys(transfer);
 
-  const onSignatureSuccess = (tx: string) => {
+  const saveBroadcast = ({ tx, date }: NativeConversionBroadcast) => {
     const updatedLogs: ITransferLog[] = [
       ...transfer.logs,
       {
-        date: Date.now(),
+        date,
         payload: {
           data: {
             tx,
@@ -48,9 +54,20 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
 
   const sign = () => {
     signBurnSys(undefined, {
-      onSuccess: onSignatureSuccess,
+      onSuccess: (broadcast) => {
+        setPendingBroadcast(broadcast);
+        saveBroadcast(broadcast);
+      },
     });
   };
+
+  if (pendingBroadcast) {
+    return (
+      <Alert severity="info" action={<Button onClick={() => saveBroadcast(pendingBroadcast)}>Save</Button>}>
+        SYS conversion was submitted. Save it to continue.
+      </Alert>
+    );
+  }
 
   if (isSigning) {
     return <Alert severity="info">Confirm the transaction in Pali Wallet.</Alert>;
@@ -78,17 +95,20 @@ const BurnSys: React.FC<BurnSysProps> = ({ successStatus }) => {
       <Typography variant="h6" sx={{ mb: 2 }}>
         {transfer.amount} SYS
       </Typography>
-      <Button color="primary" variant="contained" onClick={sign}>
+      <Button color="primary" variant="contained" onClick={sign} disabled={pendingBroadcast === undefined}>
         Confirm
       </Button>
     </Box>
   );
 };
 
-const BridgeStepBurnSys: React.FC<BurnSysProps> = (props) => (
-  <UTXOStepWrapper>
-    <BurnSys {...props} />
-  </UTXOStepWrapper>
-);
+const BridgeStepBurnSys: React.FC<BurnSysProps> = (props) => {
+  const { transfer } = useTransfer();
+  return (
+    <UTXOStepWrapper>
+      <BurnSys key={transfer.id} transferId={transfer.id} {...props} />
+    </UTXOStepWrapper>
+  );
+};
 
 export default BridgeStepBurnSys;

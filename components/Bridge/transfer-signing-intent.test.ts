@@ -11,6 +11,10 @@ jest.mock("utils/transfer-write-token", () => ({
 jest.mock("@contexts/PaliWallet/usePaliWallet", () => ({
   usePaliWalletV2: () => ({ sendTransaction: mockSendTransaction }),
 }));
+jest.mock("@contexts/Transfer/functions/burnSysToSysx", () => ({
+  __esModule: true,
+  default: mockBuildBurn,
+}));
 jest.mock("@contexts/Transfer/functions/burnSysx", () => ({
   __esModule: true,
   default: mockBuildBurn,
@@ -23,6 +27,10 @@ jest.mock("react-query", () => ({
   useMutation: (_key: unknown, options: unknown) => options,
 }));
 
+import { useBurnSys as burnSysHook } from "./hooks/useBurnSys";
+import {
+  NativeConversionBroadcast, readPendingNativeConversion, recordNativeConversion,
+} from "./pending-native-conversion";
 import { useBurnSysx as burnSysxHook } from "./hooks/useBurnSysx";
 import {
   TransferSigningIntentError,
@@ -122,6 +130,56 @@ describe("transfer signing intent", () => {
 
     await expect(runBurn()).rejects.toThrow("Transfer details changed");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(mockBuildBurn).toHaveBeenCalledTimes(1);
+    expect(mockSendTransaction).not.toHaveBeenCalled();
+  });
+
+  it("retains a native conversion after the wallet broadcasts even without browser storage or a mounted callback", async () => {
+    const nativeTransfer = {
+      ...publicTransfer,
+      id: "native-broadcast-recovery",
+      status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+      utxoAssetType: "sys" as const,
+    };
+    fetchMock.mockResolvedValue(response({
+      ...nativeTransfer,
+      utxoXpub: authorizedTransfer.utxoXpub,
+    }));
+    const hash = "a".repeat(64);
+    mockSendTransaction.mockResolvedValue({ tx: hash });
+    const runNativeBurn = () => (burnSysHook(nativeTransfer) as unknown as {
+      mutationFn: () => Promise<NativeConversionBroadcast>;
+    }).mutationFn();
+
+    const first = runNativeBurn();
+    await expect(runNativeBurn()).rejects.toThrow("already awaiting confirmation");
+    const broadcast = await first;
+    expect(broadcast.tx).toBe(hash);
+    expect(readPendingNativeConversion(nativeTransfer.id)).toEqual(broadcast);
+    expect(readPendingNativeConversion(publicTransfer.id)).toBeNull();
+    await expect(runNativeBurn()).resolves.toEqual(broadcast);
+    expect(mockSendTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("checks for a conversion recorded during preparation before opening Pali", async () => {
+    const nativeTransfer = {
+      ...publicTransfer,
+      id: "native-broadcast-during-preparation",
+      status: SYS_TO_ETH_TRANSFER_STATUS.BURN_SYS,
+      utxoAssetType: "sys" as const,
+    };
+    const nativeIntent = { ...nativeTransfer, utxoXpub: authorizedTransfer.utxoXpub };
+    const hash = "b".repeat(64);
+    fetchMock.mockResolvedValueOnce(response(nativeIntent));
+    fetchMock.mockImplementationOnce(async () => {
+      recordNativeConversion(nativeTransfer.id, hash);
+      return response(nativeIntent);
+    });
+    const run = (burnSysHook(nativeTransfer) as unknown as {
+      mutationFn: () => Promise<NativeConversionBroadcast>;
+    }).mutationFn;
+
+    await expect(run()).resolves.toMatchObject({ tx: hash });
     expect(mockBuildBurn).toHaveBeenCalledTimes(1);
     expect(mockSendTransaction).not.toHaveBeenCalled();
   });
